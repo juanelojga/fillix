@@ -1,0 +1,42 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Fillix</title>
+    <style>
+      body { font: 13px system-ui, sans-serif; width: 320px; padding: 12px; margin: 0; }
+      fieldset { border: 1px solid #ddd; border-radius: 6px; margin: 0 0 12px; padding: 8px 10px; }
+      legend { font-weight: 600; }
+      label { display: block; margin: 6px 0 2px; font-size: 12px; color: #555; }
+      input, select { width: 100%; padding: 6px; font: inherit; box-sizing: border-box; }
+      button { padding: 6px 10px; font: inherit; cursor: pointer; }
+      .row { display: flex; gap: 8px; align-items: flex-end; }
+      .status { font-size: 12px; color: #666; margin-top: 8px; min-height: 16px; }
+    </style>
+  </head>
+  <body>
+    <fieldset>
+      <legend>Ollama</legend>
+      <label>Base URL <input id="baseUrl" /></label>
+      <div class="row">
+        <label style="flex:1">Model <select id="model"></select></label>
+        <button id="refresh" type="button">Refresh</button>
+      </div>
+    </fieldset>
+    <fieldset>
+      <legend>Profile</legend>
+      <label>First name <input data-profile="firstName" /></label>
+      <label>Last name <input data-profile="lastName" /></label>
+      <label>Email <input data-profile="email" /></label>
+      <label>Phone <input data-profile="phone" /></label>
+      <label>Address <input data-profile="addressLine1" /></label>
+      <label>City <input data-profile="city" /></label>
+      <label>State/Region <input data-profile="state" /></label>
+      <label>Postal code <input data-profile="postalCode" /></label>
+      <label>Country <input data-profile="country" /></label>
+    </fieldset>
+    <button id="save" type="button">Save</button>
+    <div class="status" id="status"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>
