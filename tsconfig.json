@@ -4,6 +4,7 @@
     "module": "ESNext",
     "moduleResolution": "Bundler",
     "strict": true,
+    "noEmit": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
@@ -13,5 +14,5 @@
     "types": ["chrome", "vite/client"],
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src", "manifest.config.ts", "vite.config.ts"]
+  "include": ["src", "manifest.config.ts", "vite.config.ts", "eslint.config.ts"]
 }

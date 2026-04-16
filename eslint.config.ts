@@ -1,10 +1,11 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
+// @ts-expect-error — eslint-config-prettier v9 ships no types
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
 
 export default tseslint.config(
-  { ignores: ['dist/', 'node_modules/', '.vite/', '*.config.js'] },
+  { ignores: ['dist/', 'node_modules/', '.vite/'] },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

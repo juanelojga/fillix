@@ -20,7 +20,7 @@
     "prepare": "husky"
   },
   "lint-staged": {
-    "*.{ts,js}": [
+    "*.ts": [
       "eslint --fix",
       "prettier --write"
     ],
@@ -36,6 +36,7 @@
     "eslint-config-prettier": "^9.1.2",
     "globals": "^15.15.0",
     "husky": "^9.1.7",
+    "jiti": "^2.6.1",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.3",
     "typescript": "^5.4.0",
