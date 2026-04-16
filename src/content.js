@@ -1,16 +1,12 @@
 import { detectFields, setFieldValue } from './lib/forms';
 import { getProfile } from './lib/storage';
-import type { Message, MessageResponse } from './types';
-
 const BUTTON_ID = 'fillix-trigger';
-
-function init(): void {
+function init() {
   if (document.getElementById(BUTTON_ID)) return;
   if (detectFields().length === 0) return;
   injectTriggerButton();
 }
-
-function injectTriggerButton(): void {
+function injectTriggerButton() {
   const btn = document.createElement('button');
   btn.id = BUTTON_ID;
   btn.type = 'button';
@@ -34,8 +30,7 @@ function injectTriggerButton(): void {
   });
   document.body.appendChild(btn);
 }
-
-async function fillAll(btn: HTMLButtonElement): Promise<void> {
+async function fillAll(btn) {
   btn.disabled = true;
   const original = btn.textContent;
   btn.textContent = 'Fillix: thinking…';
@@ -43,8 +38,8 @@ async function fillAll(btn: HTMLButtonElement): Promise<void> {
     const profile = await getProfile();
     const fields = detectFields();
     for (const field of fields) {
-      const msg: Message = { type: 'OLLAMA_INFER', field: field.context, profile };
-      const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse;
+      const msg = { type: 'OLLAMA_INFER', field: field.context, profile };
+      const response = await chrome.runtime.sendMessage(msg);
       if (response.ok && 'value' in response && response.value) {
         setFieldValue(field.element, response.value);
       }
@@ -54,7 +49,6 @@ async function fillAll(btn: HTMLButtonElement): Promise<void> {
     btn.disabled = false;
   }
 }
-
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', init, { once: true });
 } else {

@@ -30,6 +30,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage`:
 - **`src/popup/`** — toolbar popup for editing the user profile and picking the Ollama base URL + model. Model list is fetched via `OLLAMA_LIST_MODELS` (also through the background).
 
 Shared code lives in `src/lib/`:
+
 - `ollama.ts` — thin client for `/api/tags` and `/api/generate`. Prompts use `format: 'json'` and expect `{"value": "..."}` back; if parse fails, the field is skipped (empty string), **never** hallucinated text.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
 - `storage.ts` — typed wrapper over `chrome.storage.local` for `profile` and `ollama` keys.

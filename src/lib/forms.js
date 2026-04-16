@@ -1,12 +1,3 @@
-import type { FieldContext } from '../types';
-
-export type FillableElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-
-export interface FillableField {
-  element: FillableElement;
-  context: FieldContext;
-}
-
 const FILLABLE_INPUT_TYPES = new Set([
   'text',
   'email',
@@ -18,10 +9,9 @@ const FILLABLE_INPUT_TYPES = new Set([
   'month',
   'week',
 ]);
-
-export function detectFields(root: ParentNode = document): FillableField[] {
-  const fields: FillableField[] = [];
-  root.querySelectorAll<HTMLElement>('input, textarea, select').forEach((el) => {
+export function detectFields(root = document) {
+  const fields = [];
+  root.querySelectorAll('input, textarea, select').forEach((el) => {
     if (el instanceof HTMLInputElement) {
       if (!FILLABLE_INPUT_TYPES.has(el.type)) return;
       if (el.disabled || el.readOnly) return;
@@ -36,8 +26,7 @@ export function detectFields(root: ParentNode = document): FillableField[] {
   });
   return fields;
 }
-
-function extractContext(el: FillableElement): FieldContext {
+function extractContext(el) {
   return {
     name: el.name || undefined,
     id: el.id || undefined,
@@ -47,10 +36,9 @@ function extractContext(el: FillableElement): FieldContext {
     autocomplete: el.autocomplete || undefined,
   };
 }
-
-function findLabelText(el: HTMLElement): string | undefined {
+function findLabelText(el) {
   if (el.id) {
-    const label = document.querySelector<HTMLLabelElement>(`label[for="${CSS.escape(el.id)}"]`);
+    const label = document.querySelector(`label[for="${CSS.escape(el.id)}"]`);
     if (label?.textContent) return label.textContent.trim();
   }
   const wrapping = el.closest('label');
@@ -64,8 +52,7 @@ function findLabelText(el: HTMLElement): string | undefined {
   }
   return undefined;
 }
-
-export function setFieldValue(el: FillableElement, value: string): void {
+export function setFieldValue(el, value) {
   el.focus();
   if (el instanceof HTMLSelectElement) {
     const match = Array.from(el.options).find(
