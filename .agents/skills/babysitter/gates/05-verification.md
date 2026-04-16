@@ -35,15 +35,13 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
    > Reply **PROCEED**."
 
 8. On PROCEED:
-   - Update `docs/.babysitter-state.md` — overwrite the entire file with:
-     ```
-     gate: 5
-     feature: <feature-name>
-     prd: docs/<feature-name>-prd.md
-     plan: docs/<feature-name>-plan.md
-     specs: <same spec list from Gate 3>
-     changed-files: <same list from Gate 4>
-     ```
+   - Edit `docs/.babysitter-state.md`:
+     - Update the YAML front matter `gate:` field to `5`
+     - Update the metadata table `Last Gate` cell to "5 — Verification" and `Completed At` to today's ISO date
+     - Fill in the `## Gate 5 — Verification` section: replace `<!-- Pending -->` with:
+       1. A `### typecheck Output` sub-heading containing the exact `pnpm typecheck` stdout from the final clean run in a plain fenced code block
+       2. A `### Result` sub-heading with a two-column table (`Check` | `Status`) — rows for `pnpm typecheck` and `pnpm test` with their actual status (PASS / FAIL / NO RUNNER)
+     - Do not modify any other section.
    - Tell the user: "Gate 5 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 6 (Code Review)."
 
 ## Exit Criteria
@@ -51,7 +49,7 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
 - [ ] `pnpm typecheck` exits with zero errors
 - [ ] If test runner exists: all tests pass
 - [ ] Verification summary reported with actual tool output shown
-- [ ] `docs/.babysitter-state.md` updated with gate: 5
+- [ ] `docs/.babysitter-state.md` updated with gate: 5, exact typecheck output, and result table
 - [ ] User has typed PROCEED
 - [ ] User prompted to type `/clear`
 

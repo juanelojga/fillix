@@ -12,17 +12,17 @@
 | 6   | Code Review     | `/code-reviewer`       | APPROVE Review          |
 | 7   | Ship            | `git commit` + `gh pr` | YES/NO for PR           |
 
-**After gates 1–5:** write `docs/.babysitter-state.md` and prompt user to type `/clear` before the next gate.
+**After gates 1–6:** append gate content to `docs/.babysitter-state.md` (each gate fills its own section) and prompt user to type `/clear` before the next gate.
 
 ## Gate Exit Criteria (summary)
 
-- **Gate 1**: PRD written with full PRD schema, saved to `docs/<feature>-prd.md`, state file written, user typed APPROVE, user prompted to `/clear`.
-- **Gate 2**: Phased plan with atomic tasks exists, saved to `docs/`, state file updated, user typed APPROVE, user prompted to `/clear`.
-- **Gate 3**: `.spec.ts` files exist with describe/it blocks, state file updated with spec list, user typed APPROVE, user prompted to `/clear`.
-- **Gate 4**: All plan tasks implemented, summary presented, state file updated with changed-files list, user typed PROCEED, user prompted to `/clear`.
-- **Gate 5**: `pnpm typecheck` exits with zero errors, state file updated, user typed PROCEED, user prompted to `/clear`.
-- **Gate 6**: Full code-reviewer checklist run, CRITICAL/HIGH issues resolved, user typed APPROVE.
-- **Gate 7**: Commit created with named files only; PR created if user said YES.
+- **Gate 1**: PRD written with full PRD schema, saved to `docs/<feature>-prd.md`, state file created with full PRD content embedded, user typed APPROVE, user prompted to `/clear`.
+- **Gate 2**: Phased plan with atomic tasks exists, saved to `docs/`, state file Gate 2 section filled with full plan content, user typed APPROVE, user prompted to `/clear`.
+- **Gate 3**: `.spec.ts` files exist with describe/it blocks, state file Gate 3 section filled with spec paths table and full spec contents, user typed APPROVE, user prompted to `/clear`.
+- **Gate 4**: All plan tasks implemented, state file Gate 4 section filled with changed-files table (File, Change Type, Summary), user typed PROCEED, user prompted to `/clear`.
+- **Gate 5**: `pnpm typecheck` exits with zero errors, state file Gate 5 section filled with exact typecheck output and result table, user typed PROCEED, user prompted to `/clear`.
+- **Gate 6**: Full code-reviewer checklist run, CRITICAL/HIGH issues resolved, state file Gate 6 section filled with full review output, user typed APPROVE, user prompted to `/clear`.
+- **Gate 7**: Commit created with named files only, state file Gate 7 section filled with commit hash and PR URL; PR created if user said YES.
 
 ## Hard Rules
 
@@ -32,7 +32,7 @@
 4. Never advance past Gate 5 with typecheck errors.
 5. Never commit with `git add -A` or `git add .`.
 6. Never implement anything outside the approved plan — flag it instead.
-7. After each gate 1–5 APPROVE/PROCEED: update `docs/.babysitter-state.md`, then prompt the user to type `/clear`.
+7. After each gate 1–6 APPROVE/PROCEED: fill that gate's section in `docs/.babysitter-state.md`, then prompt the user to type `/clear`.
 
 ## Gate File Index
 
