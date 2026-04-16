@@ -39,21 +39,21 @@ This skill contains **detailed rules** in the `rules/` directory, organized by c
 
 **Security (CRITICAL)**
 
-- [SQL Injection Prevention](rules/security-sql-injection.md)
-- [XSS Prevention](rules/security-xss-prevention.md)
+- [Content Script DOM Isolation](rules/security-content-script-isolation.md)
+- [Message Sender Validation](rules/security-message-validation.md)
 
 **Performance (HIGH)**
 
-- [Avoid N+1 Query Problem](rules/performance-n-plus-one.md)
+- [Avoid Sequential sendMessage in Loops](rules/performance-sequential-messaging.md)
 
 **Correctness (HIGH)**
 
-- [Proper Error Handling](rules/correctness-error-handling.md)
+- [Proper Error Handling in Chrome Extension Contexts](rules/correctness-error-handling.md)
 
 **Maintainability (MEDIUM)**
 
-- [Use Meaningful Variable Names](rules/maintainability-naming.md)
-- [Add Type Hints](rules/maintainability-type-hints.md)
+- [Meaningful Names in TypeScript Chrome Extensions](rules/maintainability-naming.md)
+- [Exhaustive Discriminated Unions for Messages](rules/maintainability-discriminated-unions.md)
 
 ## Review Process
 

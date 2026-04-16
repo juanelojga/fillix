@@ -1,6 +1,6 @@
-# Code Review Guidelines
+# Code Review Guidelines — Fillix Chrome Extension
 
-**A comprehensive guide for AI agents performing code reviews**, organized by priority and impact.
+**A quick-reference guide for AI agents reviewing Fillix TypeScript/Chrome extension code**, organized by priority and impact.
 
 ---
 
@@ -8,152 +8,172 @@
 
 ### Security — **CRITICAL**
 
-1. [SQL Injection Prevention](#sql-injection-prevention)
-2. [XSS Prevention](#xss-prevention)
+1. [Content Script DOM Isolation](#content-script-dom-isolation)
+2. [Message Sender Validation](#message-sender-validation)
 
 ### Performance — **HIGH**
 
-3. [Avoid N+1 Query Problem](#avoid-n-1-query-problem)
+3. [Avoid Sequential sendMessage in Loops](#avoid-sequential-sendmessage-in-loops)
 
 ### Correctness — **HIGH**
 
-4. [Proper Error Handling](#proper-error-handling)
+4. [Proper Error Handling in Chrome Extension Contexts](#proper-error-handling-in-chrome-extension-contexts)
 
 ### Maintainability — **MEDIUM**
 
-5. [Use Meaningful Variable Names](#use-meaningful-variable-names)
-6. [Add Type Hints](#add-type-hints)
+5. [Meaningful Names in TypeScript Chrome Extensions](#meaningful-names-in-typescript-chrome-extensions)
+6. [Exhaustive Discriminated Unions for Messages](#exhaustive-discriminated-unions-for-messages)
 
 ---
 
 ## Security
 
-### SQL Injection Prevention
+### Content Script DOM Isolation
 
-**Impact: CRITICAL** | **Category: security** | **Tags:** sql, security, injection, database
+**Impact: CRITICAL** | **Category: security** | **Tags:** chrome-extension, xss, dom, content-script
 
-Never construct SQL queries with string concatenation or f-strings. Always use parameterized queries to prevent SQL injection attacks.
-
-#### Why This Matters
-
-SQL injection is one of the most common and dangerous web vulnerabilities. Attackers can:
-
-- Access unauthorized data
-- Modify or delete database records
-- Execute admin operations on the database
-- In some cases, issue commands to the OS
+Content scripts run inside untrusted pages. Never pass page-sourced strings (labels, placeholders, field values) to `innerHTML`, `eval`, or `new Function`. Use `textContent` for text and property assignment for values. Escape CSS identifiers with `CSS.escape()`.
 
 #### ❌ Incorrect
 
-```python
-def get_user(user_id):
-    query = f"SELECT * FROM users WHERE id = {user_id}"
-    result = db.execute(query)
-    return result
+```typescript
+// Page controls field.label — attacker can inject <img onerror=...>
+container.innerHTML = field.label;
 
-# Vulnerable to: get_user("1 OR 1=1")
-# Returns all users!
+// Unescaped el.id used in CSS selector — selector injection
+const label = document.querySelector(`label[for="${el.id}"]`);
 ```
 
 #### ✅ Correct
 
-```python
-def get_user(user_id: int) -> Optional[Dict[str, Any]]:
-    query = "SELECT * FROM users WHERE id = ?"
-    result = db.execute(query, (user_id,))
-    return result.fetchone() if result else None
+```typescript
+// textContent never parses markup
+container.textContent = field.label;
+
+// CSS.escape() neutralises special characters (src/lib/forms.ts:53)
+const label = document.querySelector<HTMLLabelElement>(`label[for="${CSS.escape(el.id)}"]`);
 ```
 
-[➡️ Full details: security-sql-injection.md](rules/security-sql-injection.md)
+[➡️ Full details: security-content-script-isolation.md](rules/security-content-script-isolation.md)
 
 ---
 
-### XSS Prevention
+### Message Sender Validation
 
-**Impact: CRITICAL** | **Category: security** | **Tags:** xss, security, html, javascript
+**Impact: CRITICAL** | **Category: security** | **Tags:** chrome-extension, message-passing, trust-boundary
 
-Never insert unsanitized user input into HTML. Always escape output or use frameworks that auto-escape by default.
+`chrome.runtime.onMessage` receives messages from all content scripts across all tabs. Verify `sender.id === chrome.runtime.id` before acting on any message to prevent untrusted pages from triggering extension behaviour.
 
 #### ❌ Incorrect
 
-```javascript
-// Dangerous!
-document.getElementById('username').innerHTML = userInput;
+```typescript
+// Any page can trigger inference — no sender check
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  handle(msg).then(sendResponse);
+  return true;
+});
 ```
 
 #### ✅ Correct
 
-```javascript
-// Safe: use textContent
-element.textContent = userInput;
-
-// Or sanitize if HTML needed
-import DOMPurify from 'dompurify';
-element.innerHTML = DOMPurify.sanitize(userHtml);
+```typescript
+// Only messages from this extension's own scripts are handled
+chrome.runtime.onMessage.addListener((msg: unknown, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return;
+  handle(msg as Message)
+    .then(sendResponse)
+    .catch((err: unknown) => {
+      const error = err instanceof Error ? err.message : String(err);
+      sendResponse({ ok: false, error } satisfies MessageResponse);
+    });
+  return true;
+});
 ```
 
-[➡️ Full details: security-xss-prevention.md](rules/security-xss-prevention.md)
+[➡️ Full details: security-message-validation.md](rules/security-message-validation.md)
 
 ---
 
 ## Performance
 
-### Avoid N+1 Query Problem
+### Avoid Sequential sendMessage in Loops
 
-**Impact: HIGH** | **Category: performance** | **Tags:** database, performance, orm, queries
+**Impact: HIGH** | **Category: performance** | **Tags:** chrome-extension, messaging, async, promise
 
-The N+1 query problem occurs when code executes 1 query to fetch a list, then N additional queries to fetch related data for each item.
+`await` inside a `for` loop serialises all Ollama inference calls. With N fields the user waits N × inference-latency before seeing any result. Use `Promise.all` to dispatch all requests concurrently.
 
 #### ❌ Incorrect
 
-```python
-# 101 queries for 100 posts!
-posts = Post.objects.all()  # 1 query
-for post in posts:
-    print(f"{post.title} by {post.author.name}")  # N queries
+```typescript
+// Sequential — each field waits for the previous (src/content.ts:45–51)
+for (const field of fields) {
+  const msg: Message = { type: 'OLLAMA_INFER', field: field.context, profile };
+  const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse;
+  if (response.ok && 'value' in response && response.value) {
+    setFieldValue(field.element, response.value);
+  }
+}
 ```
 
 #### ✅ Correct
 
-```python
-# 1 query with JOIN
-posts = Post.objects.select_related('author').all()
-for post in posts:
-    print(f"{post.title} by {post.author.name}")  # No extra queries!
+```typescript
+// Parallel — all fields in-flight simultaneously
+await Promise.all(
+  fields.map(async (field) => {
+    const msg: Message = { type: 'OLLAMA_INFER', field: field.context, profile };
+    const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse;
+    if (response.ok && 'value' in response && response.value) {
+      setFieldValue(field.element, response.value);
+    }
+  }),
+);
 ```
 
-[➡️ Full details: performance-n-plus-one.md](rules/performance-n-plus-one.md)
+Also flag: `fetch` calls in `src/lib/ollama.ts` have no timeout — add `signal: AbortSignal.timeout(30_000)`.
+
+[➡️ Full details: performance-sequential-messaging.md](rules/performance-sequential-messaging.md)
 
 ---
 
 ## Correctness
 
-### Proper Error Handling
+### Proper Error Handling in Chrome Extension Contexts
 
-**Impact: HIGH** | **Category: correctness** | **Tags:** errors, exceptions, reliability
+**Impact: HIGH** | **Category: correctness** | **Tags:** chrome-extension, async, json-parsing, fetch
 
-Always handle errors explicitly. Don't use bare except clauses or ignore errors silently.
+Two Chrome extension-specific traps: (1) async `onMessage` handlers that don't `return true` silently drop responses; (2) `JSON.parse(x) as T` is a compile-time-only assertion — it performs no runtime shape check.
 
 #### ❌ Incorrect
 
-```python
-try:
-    result = risky_operation()
-except:
-    pass  # Silent failure!
+```typescript
+// Missing return true — response channel closes before sendResponse is called
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  handle(msg).then(sendResponse); // no return true
+});
+
+// Type assertion provides zero runtime validation (src/lib/ollama.ts:28)
+const parsed = JSON.parse(data.response) as { value?: string };
 ```
 
 #### ✅ Correct
 
-```python
-try:
-    config = json.loads(config_file.read())
-except json.JSONDecodeError as e:
-    logger.error(f"Invalid JSON in config file: {e}")
-    config = get_default_config()
-except FileNotFoundError:
-    logger.warning("Config file not found, using defaults")
-    config = get_default_config()
+```typescript
+// return true keeps channel open (already correct in src/background.ts:12)
+chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
+  handle(msg).then(sendResponse).catch(/* ... */);
+  return true; // ← required
+});
+
+// Validate shape at runtime before trusting the parsed value
+const parsed: unknown = JSON.parse(data.response);
+const value =
+  typeof parsed === 'object' &&
+  parsed !== null &&
+  'value' in parsed &&
+  typeof (parsed as { value: unknown }).value === 'string'
+    ? (parsed as { value: string }).value
+    : '';
 ```
 
 [➡️ Full details: correctness-error-handling.md](rules/correctness-error-handling.md)
@@ -162,136 +182,152 @@ except FileNotFoundError:
 
 ## Maintainability
 
-### Use Meaningful Variable Names
+### Meaningful Names in TypeScript Chrome Extensions
 
-**Impact: MEDIUM** | **Category: maintainability** | **Tags:** naming, readability, code-quality
+**Impact: MEDIUM** | **Category: maintainability** | **Tags:** naming, readability, typescript
 
-Choose descriptive, intention-revealing names. Avoid single letters (except loop counters), abbreviations, and generic names.
+Avoid abbreviations in exported types and function signatures. Name variables after what they contain, not just `data` or `result`. Booleans use `is`/`has`/`can` prefixes.
 
 #### ❌ Incorrect
 
-```python
-def calc(x, y, z):
-    tmp = x * y
-    res = tmp + z
-    return res
+```typescript
+const cfg = await getOllamaCfg();
+const flds = detectFlds();
+const data = await res.json();
+let loaded = false;
 ```
 
 #### ✅ Correct
 
-```python
-def calculate_total_price(item_price: float, quantity: int, tax_rate: float) -> float:
-    subtotal = item_price * quantity
-    total_with_tax = subtotal + (subtotal * tax_rate)
-    return total_with_tax
+```typescript
+const ollamaConfig = await getOllamaConfig();
+const detectedFields = detectFields();
+const tagsResponse = (await res.json()) as { models: { name: string }[] };
+let isModelListLoaded = false;
 ```
+
+Message type literals use `SCREAMING_SNAKE_CASE` (e.g. `'OLLAMA_INFER'`) to visually distinguish protocol constants from variables.
 
 [➡️ Full details: maintainability-naming.md](rules/maintainability-naming.md)
 
 ---
 
-### Add Type Hints
+### Exhaustive Discriminated Unions for Messages
 
-**Impact: MEDIUM** | **Category: maintainability** | **Tags:** types, python, typescript, type-safety
+**Impact: MEDIUM** | **Category: maintainability** | **Tags:** typescript, discriminated-unions, exhaustiveness
 
-Use type annotations to make code self-documenting and catch errors early.
+Every `switch` on a `Message` type must include a `default: { const _: never = msg; }` guard so that adding a new message kind to `types.ts` causes an immediate compile error at the handler.
 
 #### ❌ Incorrect
 
-```python
-def get_user(id):
-    return users.get(id)
+```typescript
+// No default — new message kind silently falls through
+switch (msg.type) {
+  case 'OLLAMA_INFER':
+    return { ok: true, value: await inferFieldValue(config, msg.field, msg.profile) };
+  case 'OLLAMA_LIST_MODELS':
+    return { ok: true, models: await listModels(config) };
+}
 ```
 
 #### ✅ Correct
 
-```python
-def get_user(id: int) -> Optional[Dict[str, Any]]:
-    """Fetch user by ID."""
-    return users.get(id)
+```typescript
+// Exhaustiveness guard — new variant in types.ts triggers compile error here
+switch (msg.type) {
+  case 'OLLAMA_INFER': {
+    const value = await inferFieldValue(config, msg.field, msg.profile);
+    return { ok: true, value };
+  }
+  case 'OLLAMA_LIST_MODELS': {
+    const models = await listModels(config);
+    return { ok: true, models };
+  }
+  default: {
+    const _exhaustive: never = msg;
+    throw new Error(`Unhandled message type: ${JSON.stringify(_exhaustive)}`);
+  }
+}
 ```
 
-[➡️ Full details: maintainability-type-hints.md](rules/maintainability-type-hints.md)
+[➡️ Full details: maintainability-discriminated-unions.md](rules/maintainability-discriminated-unions.md)
 
 ---
 
-## Quick Reference
+## Review Checklist for Chrome Extension PRs
 
-### Review Checklist
+**Security (CRITICAL — review first)**
 
-**Security (CRITICAL - review first)**
-
-- [ ] No SQL injection vulnerabilities
-- [ ] No XSS vulnerabilities
-- [ ] Secrets not hardcoded
-- [ ] Authentication/authorization checks present
+- [ ] No `innerHTML`, `eval`, or `new Function` with page-sourced data in content scripts
+- [ ] `CSS.escape()` used for any dynamic CSS selector using DOM attributes
+- [ ] `sender.id === chrome.runtime.id` checked in every `onMessage` listener
+- [ ] No hardcoded secrets in source files or `manifest.config.ts`
+- [ ] New `host_permissions` entries justified and minimal
 
 **Performance (HIGH)**
 
-- [ ] No N+1 queries
-- [ ] Appropriate caching
-- [ ] No unnecessary database calls
-- [ ] Efficient algorithms
+- [ ] No `await sendMessage` inside a `for` loop — use `Promise.all`
+- [ ] All `fetch` calls include `signal: AbortSignal.timeout(n)`
+- [ ] Content script does no heavy work on load — only after user clicks the button
 
-**Correctness (HIGH)** - [ ] Proper error handling
+**Correctness (HIGH)**
 
-- [ ] Edge cases handled
-- [ ] Input validation
-- [ ] No race conditions
+- [ ] Every async `onMessage` listener `return true` synchronously
+- [ ] `JSON.parse` on external output validated at runtime, not just cast with `as`
+- [ ] New message kinds added to both `Message` and `MessageResponse` in `types.ts`
+- [ ] Exhaustive `switch` covers all `Message` variants
 
 **Maintainability (MEDIUM)**
 
-- [ ] Clear variable/function names
-- [ ] Type hints present
-- [ ] Code is DRY (Don't Repeat Yourself)
-- [ ] Functions are single-purpose
+- [ ] No abbreviations in exported types or function signatures
+- [ ] Boolean names start with `is`, `has`, or `can`
+- [ ] Message type literals are `SCREAMING_SNAKE_CASE`
+- [ ] Every `switch (msg.type)` has a `default: never` exhaustiveness guard
 
-**Testing**
+**Manifest / Build**
 
-- [ ] Tests cover new code
-- [ ] Edge cases tested
-- [ ] Error paths tested
+- [ ] No new permissions beyond what the change requires
+- [ ] New pages/scripts added to `manifest.config.ts` (crxjs handles wiring)
+- [ ] `pnpm typecheck` passes with no errors
 
 ---
 
 ## Severity Levels
 
-| Level        | Description                               | Examples                        | Action                       |
-| ------------ | ----------------------------------------- | ------------------------------- | ---------------------------- |
-| **CRITICAL** | Security vulnerabilities, data loss risks | SQL injection, XSS, auth bypass | Block merge, fix immediately |
-| **HIGH**     | Performance issues, correctness bugs      | N+1 queries, race conditions    | Fix before merge             |
-| **MEDIUM**   | Maintainability, code quality             | Naming, type hints, comments    | Fix or accept with TODO      |
-| **LOW**      | Style preferences, minor improvements     | Formatting, minor refactoring   | Optional                     |
+| Level        | Description                             | Examples                                                | Action                       |
+| ------------ | --------------------------------------- | ------------------------------------------------------- | ---------------------------- |
+| **CRITICAL** | Security vulnerabilities, data exposure | `innerHTML` with DOM data, missing sender check         | Block merge, fix immediately |
+| **HIGH**     | Performance issues, correctness bugs    | Sequential messaging, missing `return true`, no timeout | Fix before merge             |
+| **MEDIUM**   | Maintainability, code quality           | Naming, missing exhaustiveness guard                    | Fix or accept with TODO      |
+| **LOW**      | Style preferences, minor improvements   | Formatting, minor refactoring                           | Optional                     |
 
 ---
 
 ## Review Output Format
 
-When performing reviews, structure as:
-
 ```markdown
 ## Security Issues (X found)
 
-### CRITICAL: SQL Injection in `get_user()`
+### CRITICAL: innerHTML with page-sourced data in `injectTriggerButton()`
 
-**File:** `api/users.py:45`
-**Issue:** User input interpolated directly into SQL query
-**Fix:** Use parameterized query
+**File:** `src/content.ts:17`
+**Issue:** `container.innerHTML = field.label` — page controls this string
+**Fix:** Use `container.textContent = field.label`
 
 ## Performance Issues (X found)
 
-### HIGH: N+1 Query in `list_posts()`
+### HIGH: Sequential sendMessage in `fillAll()`
 
-**File:** `views/posts.py:23`
-**Issue:** Fetching author in loop
-**Fix:** Add `.select_related('author')`
+**File:** `src/content.ts:45–51`
+**Issue:** `await` inside `for` loop — fields filled one at a time
+**Fix:** Replace with `Promise.all(fields.map(async (field) => { ... }))`
 
 ## Summary
 
 - 🔴 CRITICAL: 1
 - 🟠 HIGH: 1
-- 🟡 MEDIUM: 3
-- ⚪ LOW: 2
+- 🟡 MEDIUM: 2
+- ⚪ LOW: 0
 
 **Recommendation:** Address CRITICAL and HIGH issues before merging.
 ```
@@ -301,5 +337,6 @@ When performing reviews, structure as:
 ## References
 
 - Individual rule files in `rules/` directory
+- [Chrome Extension MV3 Security](https://developer.chrome.com/docs/extensions/mv3/security/)
 - [OWASP Top 10](https://owasp.org/www-project-top-ten/)
-- [Clean Code by Robert Martin](https://www.oreilly.com/library/view/clean-code-a/9780136083238/)
+- [TypeScript Exhaustiveness Checking](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#exhaustiveness-checking)
