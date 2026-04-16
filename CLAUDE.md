@@ -8,10 +8,10 @@ Fillix is a Manifest V3 Chrome extension that auto-fills web forms using a **loc
 
 ## Commands
 
-- `npm install` — install deps
-- `npm run dev` — Vite dev server with HMR. Load `dist/` as an unpacked extension at `chrome://extensions` (Developer mode on).
-- `npm run build` — typecheck + produce a production bundle in `dist/`
-- `npm run typecheck` — `tsc --noEmit`
+- `pnpm install` — install deps
+- `pnpm dev` — Vite dev server with HMR. Load `dist/` as an unpacked extension at `chrome://extensions` (Developer mode on).
+- `pnpm build` — typecheck + produce a production bundle in `dist/`
+- `pnpm typecheck` — `tsc --noEmit`
 
 There is no test runner yet. If you add one, update this file.
 
