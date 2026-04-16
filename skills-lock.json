@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "code-reviewer": {
+      "source": "Shubhamsaboo/awesome-llm-apps",
+      "sourceType": "github",
+      "computedHash": "ac45cbe57cf1e5f2110e6a68238c5681f97007904d65b6858daa080dc69d7abc"
+    },
+    "planner": {
+      "source": "am-will/codex-skills",
+      "sourceType": "github",
+      "computedHash": "ab1d97975dcf20cebe27960f1b0abd7e2db16fa31261aebe29342eca33076f91"
+    },
     "prd": {
       "source": "github/awesome-copilot",
       "sourceType": "github",
