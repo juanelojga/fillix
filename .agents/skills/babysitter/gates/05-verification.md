@@ -34,12 +34,26 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
    > "Gate 5 complete. Verification passed. Ready for Gate 6 (Code Review).
    > Reply **PROCEED**."
 
+8. On PROCEED:
+   - Update `docs/.babysitter-state.md` — overwrite the entire file with:
+     ```
+     gate: 5
+     feature: <feature-name>
+     prd: docs/<feature-name>-prd.md
+     plan: docs/<feature-name>-plan.md
+     specs: <same spec list from Gate 3>
+     changed-files: <same list from Gate 4>
+     ```
+   - Tell the user: "Gate 5 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 6 (Code Review)."
+
 ## Exit Criteria
 
 - [ ] `pnpm typecheck` exits with zero errors
 - [ ] If test runner exists: all tests pass
 - [ ] Verification summary reported with actual tool output shown
+- [ ] `docs/.babysitter-state.md` updated with gate: 5
 - [ ] User has typed PROCEED
+- [ ] User prompted to type `/clear`
 
 ## Typecheck Error Resolution Rules
 

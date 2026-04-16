@@ -40,8 +40,10 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 1. Invoke the `/prd` skill on the user's feature request.
 2. Follow the PRD skill's full workflow (Discovery phase, clarifying questions, Strict PRD Schema).
 3. Present the completed PRD to the user.
-4. Ask: **"Does this PRD capture the full scope? Reply APPROVE to advance to Gate 2, or provide feedback."**
-5. Do not advance until you receive explicit APPROVE.
+4. Save the PRD to `docs/<feature-name>-prd.md` before asking for approval.
+5. Ask: **"Does this PRD capture the full scope? Reply APPROVE to advance to Gate 2, or provide feedback."**
+6. Do not advance until you receive explicit APPROVE.
+7. On APPROVE: write `docs/.babysitter-state.md` (gate: 1, prd path, remaining keys as `(not yet created)`), then tell the user: **"Gate 1 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 2."**
 
 **ANTI-PATTERNS — never do these:**
 
@@ -61,6 +63,7 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 3. Present the completed plan.
 4. Ask: **"Does this implementation plan look correct? Reply APPROVE to advance to Gate 3, or provide feedback."**
 5. Do not advance until you receive explicit APPROVE.
+6. On APPROVE: update `docs/.babysitter-state.md` (gate: 2, plan path), then tell the user: **"Gate 2 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 3."**
 
 **ANTI-PATTERNS — never do these:**
 
@@ -81,6 +84,7 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 4. Present the test specs to the user.
 5. Ask: **"Do these test specs cover the acceptance criteria from the PRD? Reply APPROVE to advance to Gate 4, or request changes."**
 6. Do not advance until you receive explicit APPROVE.
+7. On APPROVE: update `docs/.babysitter-state.md` (gate: 3, full spec file list), then tell the user: **"Gate 3 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 4."**
 
 **ANTI-PATTERNS — never do these:**
 
@@ -100,6 +104,7 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 4. Commit to nothing beyond the scope defined in the approved plan. If a new need is discovered, flag it to the user as an out-of-scope finding rather than silently implementing it.
 5. After all tasks in the plan are implemented, present a summary of every file changed.
 6. Ask: **"Implementation complete per the approved plan. Ready to move to Gate 5 (verification). Reply PROCEED."**
+7. On PROCEED: update `docs/.babysitter-state.md` (gate: 4, full changed-files list), then tell the user: **"Gate 4 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 5."**
 
 **ANTI-PATTERNS — never do these:**
 
@@ -119,7 +124,8 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 3. If the project has a test runner installed: run `pnpm test` and show the full output. All tests must pass.
 4. Report results explicitly: "typecheck: PASS / FAIL", "tests: PASS / FAIL / NO RUNNER".
 5. Ask: **"Verification passed. Ready to proceed to Gate 6 (code review). Reply PROCEED."**
-6. Do not advance if `pnpm typecheck` has errors. There are no exceptions.
+6. On PROCEED: update `docs/.babysitter-state.md` (gate: 5), then tell the user: **"Gate 5 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 6."**
+7. Do not advance if `pnpm typecheck` has errors. There are no exceptions.
 
 **ANTI-PATTERNS — never do these:**
 
@@ -168,25 +174,35 @@ Refer to the `gates/` directory for the full checklist and exit criteria of each
 
 ## Global Anti-Patterns (apply at all times)
 
-| Anti-Pattern                                    | Why it's banned                                     |
-| ----------------------------------------------- | --------------------------------------------------- |
-| Writing code before Gate 2 is approved          | Skips planning; creates untracked scope             |
-| Writing code before Gate 3 specs                | Eliminates the TDD guarantee                        |
-| Skipping Gate 5 because "I already checked"     | Removes the objective verification checkpoint       |
-| Combining two gates in one response             | Obscures the gate boundary; prevents user oversight |
-| Implementing out-of-scope features              | Violates the approved plan                          |
-| Using `git add -A` in Gate 7                    | Risks committing secrets or unintended files        |
-| Advancing without explicit user APPROVE/PROCEED | Removes human oversight from the process            |
+| Anti-Pattern                                                              | Why it's banned                                                                   |
+| ------------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| Writing code before Gate 2 is approved                                    | Skips planning; creates untracked scope                                           |
+| Writing code before Gate 3 specs                                          | Eliminates the TDD guarantee                                                      |
+| Skipping Gate 5 because "I already checked"                               | Removes the objective verification checkpoint                                     |
+| Combining two gates in one response                                       | Obscures the gate boundary; prevents user oversight                               |
+| Implementing out-of-scope features                                        | Violates the approved plan                                                        |
+| Using `git add -A` in Gate 7                                              | Risks committing secrets or unintended files                                      |
+| Advancing without explicit user APPROVE/PROCEED                           | Removes human oversight from the process                                          |
+| Advancing to the next gate without prompting user to `/clear` (gates 1–5) | Exhausts context silently; causes the AI to lose PRD and plan details mid-session |
 
 ---
 
 ## Resuming a Paused Session
 
-If work on a feature is interrupted, always determine which gate was last completed before continuing:
+When the user types `/babysitter` at the start of a new conversation or after a `/clear`:
 
-1. Ask the user: "Which gate did we last complete? (1=PRD, 2=Plan, 3=Specs, 4=Code, 5=Verify, 6=Review, 7=Ship)"
-2. Resume from the next gate.
-3. Never re-do a gate that was already approved unless the user explicitly requests it.
+1. Check whether `docs/.babysitter-state.md` exists.
+2. If it exists: read it. It tells you the last completed gate, feature name, and paths to the PRD, plan, spec files, and changed files.
+3. Load referenced files into context before proceeding:
+   - Always read the PRD file (`prd:` value).
+   - If gate ≥ 2: also read the plan file (`plan:` value).
+   - If gate ≥ 3: also read each file listed in `specs:`.
+   - If gate ≥ 4: also read each file listed in `changed-files:`.
+4. Announce: "Resuming from Gate N+1 — [gate name]. I've loaded the PRD and plan from disk."
+5. Continue from gate N+1 without re-doing any previously approved gate.
+6. If `docs/.babysitter-state.md` does not exist: ask the user which gate was last completed.
+
+Never re-do a gate that was already approved unless the user explicitly requests it.
 
 ---
 

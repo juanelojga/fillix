@@ -26,6 +26,17 @@ Convert the approved PRD into a concrete, sprint-based implementation plan with 
    > Reply **APPROVE** to advance to Gate 3 (TDD), or provide feedback to revise."
 
 5. If feedback is given: revise and re-present. Repeat until APPROVE.
+6. On APPROVE:
+   - Update `docs/.babysitter-state.md` — overwrite the entire file with:
+     ```
+     gate: 2
+     feature: <feature-name>
+     prd: docs/<feature-name>-prd.md
+     plan: docs/<feature-name>-plan.md
+     specs: (not yet created)
+     changed-files: (not yet created)
+     ```
+   - Tell the user: "Gate 2 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 3 (TDD — Test Specs)."
 
 ## Exit Criteria
 
@@ -33,7 +44,9 @@ Convert the approved PRD into a concrete, sprint-based implementation plan with 
 - [ ] Every PRD acceptance criterion is addressed by at least one task
 - [ ] Every task has file paths, acceptance criteria, and validation method
 - [ ] Sprints are ordered so each produces a demoable/testable increment
+- [ ] `docs/.babysitter-state.md` updated with gate: 2 and plan path
 - [ ] User has typed APPROVE
+- [ ] User prompted to type `/clear`
 
 ## What Must NOT Happen
 

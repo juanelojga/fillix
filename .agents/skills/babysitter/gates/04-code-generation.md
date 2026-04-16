@@ -27,6 +27,19 @@ Implement all tasks from the approved plan, in sprint order, so that the Gate 3 
    > "Gate 4 complete. Implementation summary above. Ready for Gate 5 (Verification).
    > Reply **PROCEED**."
 
+7. On PROCEED:
+   - Update `docs/.babysitter-state.md` — overwrite the entire file with:
+     ```
+     gate: 4
+     feature: <feature-name>
+     prd: docs/<feature-name>-prd.md
+     plan: docs/<feature-name>-plan.md
+     specs: <same spec list from Gate 3>
+     changed-files: <space-separated list of all implementation files modified or created>
+     ```
+     Example: `changed-files: src/lib/foo.ts src/lib/bar.ts src/background.ts src/types.ts`
+   - Tell the user: "Gate 4 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 5 (Verification)."
+
 ## CLAUDE.md Conventions (must be followed)
 
 - Strict TypeScript everywhere — no `any`
@@ -51,7 +64,9 @@ Do not implement it silently.
 - [ ] All files follow CLAUDE.md conventions (strict TS, no `any`, exhaustiveness guards)
 - [ ] No files were modified outside the scope of the plan (except bug fixes flagged to user)
 - [ ] Summary table of changed files presented
+- [ ] `docs/.babysitter-state.md` updated with gate: 4 and full changed-files list
 - [ ] User has typed PROCEED
+- [ ] User prompted to type `/clear`
 
 ## What Must NOT Happen
 

@@ -38,6 +38,19 @@ Do NOT install a test runner during this gate. If the user wants to install one,
    > "Gate 3 complete. Do these test specs fully cover the acceptance criteria from the approved PRD?
    > Reply **APPROVE** to advance to Gate 4 (Code Generation), or request additional specs."
 
+5. On APPROVE:
+   - Update `docs/.babysitter-state.md` — overwrite the entire file with:
+     ```
+     gate: 3
+     feature: <feature-name>
+     prd: docs/<feature-name>-prd.md
+     plan: docs/<feature-name>-plan.md
+     specs: <space-separated list of all .spec.ts paths written in this gate>
+     changed-files: (not yet created)
+     ```
+     Example: `specs: src/lib/__tests__/foo.spec.ts src/__tests__/background.spec.ts`
+   - Tell the user: "Gate 3 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 4 (Code Generation)."
+
 ## Exit Criteria
 
 - [ ] One spec file per logical unit in the plan
@@ -45,7 +58,9 @@ Do NOT install a test runner during this gate. If the user wants to install one,
 - [ ] Chrome APIs are mocked, not called directly in tests
 - [ ] Vitest TODO comment present in each file
 - [ ] No implementation code exists yet
+- [ ] `docs/.babysitter-state.md` updated with gate: 3 and full specs list
 - [ ] User has typed APPROVE
+- [ ] User prompted to type `/clear`
 
 ## Spec File Template
 
