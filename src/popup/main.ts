@@ -33,33 +33,50 @@ export function wireTestButton(): void {
     btn.disabled = true;
     status.textContent = '';
     void (async () => {
-      const response = (await chrome.runtime.sendMessage({
-        type: 'OBSIDIAN_TEST_CONNECTION',
-      } satisfies Message)) as MessageResponse;
-      if (response.ok) {
-        status.textContent = 'Connected';
-      } else {
-        status.textContent = (response as { ok: false; error: string }).error;
+      const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
+      try {
+        const response = (await chrome.runtime.sendMessage({
+          type: 'OBSIDIAN_TEST_CONNECTION',
+        } satisfies Message)) as MessageResponse;
+        if (response.ok) {
+          status.textContent = 'Connected';
+          if (warningEl) warningEl.hidden = true;
+        } else {
+          status.textContent = (response as { ok: false; error: string }).error;
+          if (warningEl) warningEl.hidden = false;
+        }
+      } catch {
+        if (warningEl) warningEl.hidden = false;
+      } finally {
+        syncBrowseButtonState();
       }
-      syncBrowseButtonState();
     })();
   });
 }
 
 export function wireBrowseButtons(): void {
   async function fetchAndPopulate(): Promise<void> {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'OBSIDIAN_LIST_FILES',
-    } satisfies Message)) as MessageResponse;
-    if (!response.ok || !('files' in response) || !Array.isArray(response.files)) return;
-    const dl = document.getElementById('vault-files') as HTMLDataListElement | null;
-    if (!dl) return;
-    dl.innerHTML = '';
-    response.files.forEach((f) => {
-      const opt = document.createElement('option');
-      opt.value = f;
-      dl.appendChild(opt);
-    });
+    const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: 'OBSIDIAN_LIST_FILES',
+      } satisfies Message)) as MessageResponse;
+      if (!response.ok || !('files' in response) || !Array.isArray(response.files)) {
+        if (warningEl) warningEl.hidden = false;
+        return;
+      }
+      if (warningEl) warningEl.hidden = true;
+      const dl = document.getElementById('vault-files') as HTMLDataListElement | null;
+      if (!dl) return;
+      dl.innerHTML = '';
+      response.files.forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        dl.appendChild(opt);
+      });
+    } catch {
+      if (warningEl) warningEl.hidden = false;
+    }
   }
 
   $<HTMLButtonElement>('#obsidian-browse-profile').addEventListener('click', () => {

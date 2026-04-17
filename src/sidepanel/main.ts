@@ -83,6 +83,7 @@ export async function saveSidepanelObsidian(): Promise<void> {
 export function wireSidepanelTestButton(): void {
   const btn = document.getElementById('sp-obsidian-test') as HTMLButtonElement | null;
   const statusEl = document.getElementById('obsidian-status') as HTMLElement | null;
+  const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
   if (!btn) return;
   btn.addEventListener('click', () => {
     btn.disabled = true;
@@ -94,9 +95,13 @@ export function wireSidepanelTestButton(): void {
         } satisfies Message)) as MessageResponse;
         if (response.ok) {
           if (statusEl) statusEl.textContent = 'Connected';
+          if (warningEl) warningEl.hidden = true;
         } else {
           if (statusEl) statusEl.textContent = (response as { ok: false; error: string }).error;
+          if (warningEl) warningEl.hidden = false;
         }
+      } catch {
+        if (warningEl) warningEl.hidden = false;
       } finally {
         syncSidepanelBrowseState();
       }
@@ -106,18 +111,27 @@ export function wireSidepanelTestButton(): void {
 
 export function wireSidepanelBrowseButtons(): void {
   async function fetchAndPopulate(): Promise<void> {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'OBSIDIAN_LIST_FILES',
-    } satisfies Message)) as MessageResponse;
-    if (!response.ok || !('files' in response) || !Array.isArray(response.files)) return;
-    const dl = document.getElementById('sidepanel-vault-files') as HTMLDataListElement | null;
-    if (!dl) return;
-    dl.innerHTML = '';
-    response.files.forEach((f) => {
-      const opt = document.createElement('option');
-      opt.value = f;
-      dl.appendChild(opt);
-    });
+    const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: 'OBSIDIAN_LIST_FILES',
+      } satisfies Message)) as MessageResponse;
+      if (!response.ok || !('files' in response) || !Array.isArray(response.files)) {
+        if (warningEl) warningEl.hidden = false;
+        return;
+      }
+      if (warningEl) warningEl.hidden = true;
+      const dl = document.getElementById('sidepanel-vault-files') as HTMLDataListElement | null;
+      if (!dl) return;
+      dl.innerHTML = '';
+      response.files.forEach((f) => {
+        const opt = document.createElement('option');
+        opt.value = f;
+        dl.appendChild(opt);
+      });
+    } catch {
+      if (warningEl) warningEl.hidden = false;
+    }
   }
 
   const browseProfile = document.getElementById('sp-obsidian-browse-profile');

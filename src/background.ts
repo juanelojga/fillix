@@ -28,13 +28,19 @@ chrome.runtime.onConnect.addListener((port) => {
   port.onDisconnect.addListener(() => controller?.abort());
 });
 
+export function sanitizeError(error: string, apiKey: string): string {
+  if (!apiKey) return error;
+  return error.split(apiKey).join('[REDACTED]');
+}
+
 chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
   handle(msg)
     .then(sendResponse)
-    .catch((err: unknown) => {
-      const error = err instanceof Error ? err.message : String(err);
-      sendResponse({ ok: false, error } satisfies MessageResponse);
+    .catch(async (err: unknown) => {
+      const raw = err instanceof Error ? err.message : String(err);
+      const { apiKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
+      sendResponse({ ok: false, error: sanitizeError(raw, apiKey) } satisfies MessageResponse);
     });
   return true;
 });
