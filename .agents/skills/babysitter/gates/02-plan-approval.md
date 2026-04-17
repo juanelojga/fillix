@@ -26,6 +26,13 @@ Convert the approved PRD into a concrete, sprint-based implementation plan with 
    > Reply **APPROVE** to advance to Gate 3 (TDD), or provide feedback to revise."
 
 5. If feedback is given: revise and re-present. Repeat until APPROVE.
+6. On APPROVE:
+   - Edit `docs/.babysitter-state.md`:
+     - Update the YAML front matter `gate:` field to `2`
+     - Update the metadata table `Last Gate` cell to "2 — Plan Approval" and `Completed At` to today's ISO date
+     - Fill in the `## Gate 2 — Plan Approval` section: add a `### Implementation Plan` sub-heading followed by the full verbatim plan content in a fenced `markdown` code block. Replace the `<!-- Pending -->` comment.
+     - Do not modify any other section.
+   - Tell the user: "Gate 2 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 3 (TDD — Test Specs)."
 
 ## Exit Criteria
 
@@ -33,7 +40,9 @@ Convert the approved PRD into a concrete, sprint-based implementation plan with 
 - [ ] Every PRD acceptance criterion is addressed by at least one task
 - [ ] Every task has file paths, acceptance criteria, and validation method
 - [ ] Sprints are ordered so each produces a demoable/testable increment
+- [ ] `docs/.babysitter-state.md` updated with gate: 2 and full plan content embedded
 - [ ] User has typed APPROVE
+- [ ] User prompted to type `/clear`
 
 ## What Must NOT Happen
 

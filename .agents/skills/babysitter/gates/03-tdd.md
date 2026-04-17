@@ -38,6 +38,16 @@ Do NOT install a test runner during this gate. If the user wants to install one,
    > "Gate 3 complete. Do these test specs fully cover the acceptance criteria from the approved PRD?
    > Reply **APPROVE** to advance to Gate 4 (Code Generation), or request additional specs."
 
+5. On APPROVE:
+   - Edit `docs/.babysitter-state.md`:
+     - Update the YAML front matter `gate:` field to `3`
+     - Update the metadata table `Last Gate` cell to "3 — TDD" and `Completed At` to today's ISO date
+     - Fill in the `## Gate 3 — TDD` section: replace `<!-- Pending -->` with:
+       1. A `### Spec Files` sub-heading with a two-column table (`Path` | `Status`) — one row per spec file, status `written`
+       2. A `### Spec Contents` sub-heading with one `#### \`<path>\``sub-sub-heading per file, each containing the full verbatim file content in a fenced`typescript` code block
+     - Do not modify any other section.
+   - Tell the user: "Gate 3 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 4 (Code Generation)."
+
 ## Exit Criteria
 
 - [ ] One spec file per logical unit in the plan
@@ -45,7 +55,9 @@ Do NOT install a test runner during this gate. If the user wants to install one,
 - [ ] Chrome APIs are mocked, not called directly in tests
 - [ ] Vitest TODO comment present in each file
 - [ ] No implementation code exists yet
+- [ ] `docs/.babysitter-state.md` updated with gate: 3, spec paths table, and full spec contents embedded
 - [ ] User has typed APPROVE
+- [ ] User prompted to type `/clear`
 
 ## Spec File Template
 

@@ -31,6 +31,14 @@ Create a clean, traceable commit (and optionally a PR) representing the complete
    - Title derived from the PRD title (≤ 70 characters)
    - Body using the PRD's Executive Summary as the PR summary
    - Include test plan checklist derived from the PRD's acceptance criteria
+8. After the commit (and after the PR step if applicable):
+   - Edit `docs/.babysitter-state.md`:
+     - Update the YAML front matter `gate:` field to `7`
+     - Update the metadata table `Last Gate` cell to "7 — Ship" and `Completed At` to today's ISO date
+     - Fill in the `## Gate 7 — Ship` section: replace `<!-- Pending -->` with:
+       1. A `### Commit` sub-heading with a three-column table (`Hash` | `Message` | `Branch`) — one row using the output of `git rev-parse HEAD`, the first line of the commit message, and `git branch --show-current`
+       2. A `### Pull Request` sub-heading with a two-column table (`URL` | `Title`) — one row with the PR URL from `gh pr create` output or "not created" if the user replied NO
+     - Do not modify any other section.
 
 ## Commit Message Template
 
@@ -69,6 +77,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 - [ ] Commit message follows the format above
 - [ ] `git status` shows clean working tree after commit
 - [ ] PR created (if user said YES) and URL returned
+- [ ] `docs/.babysitter-state.md` updated with gate: 7, commit hash, and PR URL
 
 ## What Must NOT Happen
 

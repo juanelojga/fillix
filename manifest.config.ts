@@ -5,8 +5,13 @@ export default defineManifest({
   name: 'Fillix',
   description: 'Auto-fill forms using a local Ollama model',
   version: '0.0.1',
-  action: {
-    default_popup: 'src/popup/index.html',
+  action: {},
+  options_ui: {
+    page: 'src/popup/index.html',
+    open_in_tab: true,
+  },
+  side_panel: {
+    default_path: 'src/sidepanel/index.html',
   },
   background: {
     service_worker: 'src/background.ts',
@@ -19,6 +24,6 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'activeTab'],
+  permissions: ['storage', 'activeTab', 'sidePanel'],
   host_permissions: ['http://localhost:11434/*'],
 });

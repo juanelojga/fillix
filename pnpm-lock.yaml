@@ -7,6 +7,13 @@ settings:
 importers:
 
   .:
+    dependencies:
+      dompurify:
+        specifier: ^3.4.0
+        version: 3.4.0
+      marked:
+        specifier: ^18.0.0
+        version: 18.0.0
     devDependencies:
       '@crxjs/vite-plugin':
         specifier: ^2.0.0-beta.25
@@ -17,6 +24,9 @@ importers:
       '@types/chrome':
         specifier: ^0.0.268
         version: 0.0.268
+      '@types/dompurify':
+        specifier: ^3.2.0
+        version: 3.2.0
       eslint:
         specifier: ^9.39.4
         version: 9.39.4(jiti@2.6.1)
@@ -407,6 +417,10 @@ packages:
   '@types/chrome@0.0.268':
     resolution: {integrity: sha512-7N1QH9buudSJ7sI8Pe4mBHJr5oZ48s0hcanI9w3wgijAlv1OZNUZve9JR4x42dn5lJ5Sm87V1JNfnoh10EnQlA==}
 
+  '@types/dompurify@3.2.0':
+    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
+    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
+
   '@types/estree@1.0.8':
     resolution: {integrity: sha512-dWHzHa2WqEXI/O1E9OjrocMTKJl2mSrEolh1Iomrv6U+JuNwaHXsXx9bLu5gG7BUWFIN0skIQJQ/L1rIex4X6w==}
 
@@ -421,6 +435,9 @@ packages:
 
   '@types/json-schema@7.0.15':
     resolution: {integrity: sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA==}
+
+  '@types/trusted-types@2.0.7':
+    resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
   '@typescript-eslint/eslint-plugin@8.58.2':
     resolution: {integrity: sha512-aC2qc5thQahutKjP+cl8cgN9DWe3ZUqVko30CMSZHnFEHyhOYoZSzkGtAI2mcwZ38xeImDucI4dnqsHiOYuuCw==}
@@ -613,6 +630,9 @@ packages:
   domhandler@5.0.3:
     resolution: {integrity: sha512-cgwlv/1iFQiFnU96XXgROh8xTeetsnJiDsTc7TYCLFd9+/WNkIqPTxiM/8pSd8VIrhXGTf1Ny1q1hquVqDJB5w==}
     engines: {node: '>= 4'}
+
+  dompurify@3.4.0:
+    resolution: {integrity: sha512-nolgK9JcaUXMSmW+j1yaSvaEaoXYHwWyGJlkoCTghc97KgGDDSnpoU/PlEnw63Ah+TGKFOyY+X5LnxaWbCSfXg==}
 
   domutils@3.2.2:
     resolution: {integrity: sha512-6kZKyUajlDuqlHKVX1w7gyslj9MPIXzIFiz/rGu35uC1wMi+kMhQwGhl4lt9unC9Vb9INnY9Z3/ZA3+FhASLaw==}
@@ -900,6 +920,11 @@ packages:
 
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
+
+  marked@18.0.0:
+    resolution: {integrity: sha512-2e7Qiv/HJSXj8rDEpgTvGKsP8yYtI9xXHKDnrftrmnrJPaFNM7VRb2YCzWaX4BP1iCJ/XPduzDJZMFoqTCcIMA==}
+    engines: {node: '>= 20'}
+    hasBin: true
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
@@ -1453,6 +1478,10 @@ snapshots:
       '@types/filesystem': 0.0.36
       '@types/har-format': 1.2.16
 
+  '@types/dompurify@3.2.0':
+    dependencies:
+      dompurify: 3.4.0
+
   '@types/estree@1.0.8': {}
 
   '@types/filesystem@0.0.36':
@@ -1464,6 +1493,9 @@ snapshots:
   '@types/har-format@1.2.16': {}
 
   '@types/json-schema@7.0.15': {}
+
+  '@types/trusted-types@2.0.7':
+    optional: true
 
   '@typescript-eslint/eslint-plugin@8.58.2(@typescript-eslint/parser@8.58.2(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.4(jiti@2.6.1))(typescript@5.9.3)':
     dependencies:
@@ -1673,6 +1705,10 @@ snapshots:
   domhandler@5.0.3:
     dependencies:
       domelementtype: 2.3.0
+
+  dompurify@3.4.0:
+    optionalDependencies:
+      '@types/trusted-types': 2.0.7
 
   domutils@3.2.2:
     dependencies:
@@ -1984,6 +2020,8 @@ snapshots:
   magic-string@0.30.21:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
+
+  marked@18.0.0: {}
 
   merge-stream@2.0.0: {}
 

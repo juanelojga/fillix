@@ -64,6 +64,16 @@ Apply the project's full code review checklist to all code produced in Gate 4. T
    > "Gate 6 complete. Code review passed — all critical and high issues resolved.
    > Reply **APPROVE** to proceed to Gate 7 (Ship), or raise concerns."
 
+8. On APPROVE:
+   - Edit `docs/.babysitter-state.md`:
+     - Update the YAML front matter `gate:` field to `6`
+     - Update the metadata table `Last Gate` cell to "6 — Code Review" and `Completed At` to today's ISO date
+     - Fill in the `## Gate 6 — Code Review` section: replace `<!-- Pending -->` with:
+       1. A `### Review Output` sub-heading containing the full structured review output verbatim (Critical Issues, High Priority, Medium Priority, Summary sections)
+       2. A `### Resolution Status` sub-heading with the note: "All CRITICAL and HIGH issues resolved before APPROVE."
+     - Do not modify any other section.
+   - Tell the user: "Gate 6 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 7 (Ship)."
+
 ## Exit Criteria
 
 - [ ] Full checklist applied to all Gate 4 files
@@ -71,6 +81,8 @@ Apply the project's full code review checklist to all code produced in Gate 4. T
 - [ ] Zero HIGH issues
 - [ ] Medium issues either fixed or explicitly accepted by user with a TODO comment
 - [ ] User has typed APPROVE
+- [ ] `docs/.babysitter-state.md` updated with gate: 6 and full review output embedded
+- [ ] User prompted to type `/clear`
 
 ## What Must NOT Happen
 
