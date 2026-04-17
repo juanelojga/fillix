@@ -1,11 +1,21 @@
 import { createChatController } from './chat';
 import { renderMarkdown } from './markdown';
-import { getChatConfig, getOllamaConfig, setChatConfig, setOllamaConfig } from '../lib/storage';
+import {
+  getChatConfig,
+  getOllamaConfig,
+  getProfile,
+  setChatConfig,
+  setOllamaConfig,
+  setProfile,
+} from '../lib/storage';
 import type { MessageResponse } from '../types';
 
 export async function initSidePanel(): Promise<void> {
-  const ollamaConfig = await getOllamaConfig();
-  const chatConfig = await getChatConfig();
+  const [ollamaConfig, chatConfig, profile] = await Promise.all([
+    getOllamaConfig(),
+    getChatConfig(),
+    getProfile(),
+  ]);
 
   // ── DOM refs ────────────────────────────────────────────────────
   const chatView = document.getElementById('chat-view') as HTMLElement;
@@ -103,7 +113,7 @@ export async function initSidePanel(): Promise<void> {
 
     appendBubble('user', text);
     currentAssistantBubble = appendBubble('assistant', '');
-    controller.send(text, latestChat.systemPrompt);
+    controller.send(text, latestChat.systemPrompt, modelSelect.value);
   }
 
   // ── Stop ────────────────────────────────────────────────────────
@@ -112,6 +122,9 @@ export async function initSidePanel(): Promise<void> {
   // ── Settings population ─────────────────────────────────────────
   baseUrlInput.value = ollamaConfig.baseUrl;
   systemPromptInput.value = chatConfig.systemPrompt;
+  document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
+    el.value = profile[el.dataset.profile!] ?? '';
+  });
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await refreshModels(ollamaConfig.model);
 
@@ -122,9 +135,15 @@ export async function initSidePanel(): Promise<void> {
   refreshModelsBtn.addEventListener('click', () => refreshModels(modelSelect.value));
 
   saveSettingsBtn.addEventListener('click', async () => {
+    const updatedProfile: Record<string, string> = {};
+    document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
+      const value = el.value.trim();
+      if (value) updatedProfile[el.dataset.profile!] = value;
+    });
     await Promise.all([
       setOllamaConfig({ baseUrl: baseUrlInput.value, model: modelSelect.value }),
       setChatConfig({ systemPrompt: systemPromptInput.value }),
+      setProfile(updatedProfile),
     ]);
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);

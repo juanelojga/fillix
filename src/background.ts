@@ -13,7 +13,7 @@ chrome.runtime.onConnect.addListener((port) => {
       controller?.abort();
       controller = new AbortController();
       const config = await getOllamaConfig();
-      await chatStream(config, msg.messages, msg.systemPrompt, {
+      await chatStream({ ...config, model: msg.model }, msg.messages, msg.systemPrompt, {
         signal: controller.signal,
         onToken: (value) => port.postMessage({ type: 'token', value } satisfies PortMessage),
         onDone: () => port.postMessage({ type: 'done' } satisfies PortMessage),

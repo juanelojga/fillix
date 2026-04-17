@@ -26,7 +26,7 @@ export type PortMessage =
 export type Message =
   | { type: 'OLLAMA_INFER'; field: FieldContext; profile: UserProfile }
   | { type: 'OLLAMA_LIST_MODELS' }
-  | { type: 'CHAT_START'; messages: ChatMessage[]; systemPrompt: string }
+  | { type: 'CHAT_START'; messages: ChatMessage[]; systemPrompt: string; model: string }
   | { type: 'CHAT_STOP' };
 
 export type MessageResponse =

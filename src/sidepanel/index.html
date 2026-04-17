@@ -11,6 +11,10 @@
         padding: 0;
       }
 
+      [hidden] {
+        display: none !important;
+      }
+
       body {
         font-family: system-ui, sans-serif;
         font-size: 14px;
@@ -327,6 +331,45 @@
       <div class="field-group">
         <label for="systemPrompt">System prompt</label>
         <textarea id="systemPrompt"></textarea>
+      </div>
+
+      <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 4px 0" />
+
+      <div class="field-group">
+        <label>First name</label>
+        <input data-profile="firstName" type="text" />
+      </div>
+      <div class="field-group">
+        <label>Last name</label>
+        <input data-profile="lastName" type="text" />
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input data-profile="email" type="email" />
+      </div>
+      <div class="field-group">
+        <label>Phone</label>
+        <input data-profile="phone" type="tel" />
+      </div>
+      <div class="field-group">
+        <label>Address</label>
+        <input data-profile="addressLine1" type="text" />
+      </div>
+      <div class="field-group">
+        <label>City</label>
+        <input data-profile="city" type="text" />
+      </div>
+      <div class="field-group">
+        <label>State / Region</label>
+        <input data-profile="state" type="text" />
+      </div>
+      <div class="field-group">
+        <label>Postal code</label>
+        <input data-profile="postalCode" type="text" />
+      </div>
+      <div class="field-group">
+        <label>Country</label>
+        <input data-profile="country" type="text" />
       </div>
 
       <button id="saveSettings">Save settings</button>

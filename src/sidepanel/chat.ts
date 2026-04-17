@@ -9,7 +9,7 @@ interface ChatControllerOptions {
 }
 
 interface ChatController {
-  send(userText: string, systemPrompt: string): void;
+  send(userText: string, systemPrompt: string, model: string): void;
   stop(): void;
   clear(): void;
   messages: ChatMessage[];
@@ -49,7 +49,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
     return p;
   }
 
-  function send(userText: string, systemPrompt: string): void {
+  function send(userText: string, systemPrompt: string, model: string): void {
     if (!port) {
       port = openPort();
     }
@@ -58,7 +58,7 @@ export function createChatController(options: ChatControllerOptions): ChatContro
     // Snapshot messages (without the empty assistant placeholder) for the background.
     const snapshot = ctrl.messages.slice();
     ctrl.messages.push({ role: 'assistant', content: '' });
-    port.postMessage({ type: 'CHAT_START', messages: snapshot, systemPrompt });
+    port.postMessage({ type: 'CHAT_START', messages: snapshot, systemPrompt, model });
   }
 
   function stop(): void {

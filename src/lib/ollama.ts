@@ -35,7 +35,8 @@ export async function chatStream(
   }
 
   if (!res.ok) {
-    onError(`Ollama /api/chat returned ${res.status}`);
+    const body = await res.text().catch(() => '');
+    onError(`Ollama /api/chat returned ${res.status}${body ? `: ${body}` : ''}`);
     return;
   }
 
