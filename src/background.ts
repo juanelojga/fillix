@@ -1,4 +1,4 @@
-import { chatStream, inferFieldValue, listModels } from './lib/ollama';
+import { chatStream, inferFieldValue, inferFieldValueFromMarkdown, listModels } from './lib/ollama';
 import { getFile, listFiles, testConnection } from './lib/obsidian';
 import { getObsidianConfig, getOllamaConfig } from './lib/storage';
 import type { Message, MessageResponse, PortMessage } from './types';
@@ -43,6 +43,16 @@ async function handle(msg: Message): Promise<MessageResponse> {
   const config = await getOllamaConfig();
   switch (msg.type) {
     case 'OLLAMA_INFER': {
+      const obsidianCfg = await getObsidianConfig();
+      if (obsidianCfg.profilePath && obsidianCfg.apiKey) {
+        try {
+          const markdown = await getFile(obsidianCfg, obsidianCfg.profilePath);
+          const value = await inferFieldValueFromMarkdown(config, msg.field, markdown);
+          return { ok: true, value };
+        } catch {
+          // fall through to structured profile
+        }
+      }
       const value = await inferFieldValue(config, msg.field, msg.profile);
       return { ok: true, value };
     }
