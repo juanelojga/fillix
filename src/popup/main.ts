@@ -1,23 +1,16 @@
 import {
   getObsidianConfig,
   getOllamaConfig,
-  getProfile,
   setObsidianConfig,
   setOllamaConfig,
-  setProfile,
 } from '../lib/storage';
-import type { Message, MessageResponse, ObsidianConfig, UserProfile } from '../types';
+import type { Message, MessageResponse, ObsidianConfig } from '../types';
 
 const $ = <T extends HTMLElement>(sel: string): T => {
   const el = document.querySelector<T>(sel);
   if (!el) throw new Error(`Missing element: ${sel}`);
   return el;
 };
-
-export function toggleProfileForm(config: ObsidianConfig): void {
-  const form = document.getElementById('profile-form');
-  if (form) form.hidden = Boolean(config.profilePath);
-}
 
 export function syncBrowseButtonState(): void {
   const hasKey = Boolean($<HTMLInputElement>('#obsidian-api-key').value.trim());
@@ -88,16 +81,9 @@ export function wireBrowseButtons(): void {
 }
 
 export async function load(): Promise<void> {
-  const [config, profile, obsidian] = await Promise.all([
-    getOllamaConfig(),
-    getProfile(),
-    getObsidianConfig(),
-  ]);
+  const [config, obsidian] = await Promise.all([getOllamaConfig(), getObsidianConfig()]);
 
   $<HTMLInputElement>('#baseUrl').value = config.baseUrl;
-  document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
-    el.value = profile[el.dataset.profile!] ?? '';
-  });
 
   $<HTMLInputElement>('#obsidian-host').value = obsidian.host;
   $<HTMLInputElement>('#obsidian-port').value = String(obsidian.port);
@@ -105,7 +91,6 @@ export async function load(): Promise<void> {
   $<HTMLInputElement>('#obsidian-profile-path').value = obsidian.profilePath ?? '';
   $<HTMLInputElement>('#obsidian-system-prompt-path').value = obsidian.systemPromptPath ?? '';
 
-  toggleProfileForm(obsidian);
   syncBrowseButtonState();
 
   await refreshModels(config.model);
@@ -126,19 +111,7 @@ export async function save(): Promise<void> {
     model: $<HTMLSelectElement>('#model').value,
   };
 
-  const saves: Promise<void>[] = [setOllamaConfig(ollamaConfig), setObsidianConfig(obsidian)];
-
-  if (!profilePath) {
-    const profile: UserProfile = {};
-    document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
-      const key = el.dataset.profile!;
-      const value = el.value.trim();
-      if (value) profile[key] = value;
-    });
-    saves.push(setProfile(profile));
-  }
-
-  await Promise.all(saves);
+  await Promise.all([setOllamaConfig(ollamaConfig), setObsidianConfig(obsidian)]);
   setStatus('Saved.');
 }
 

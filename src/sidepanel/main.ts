@@ -4,20 +4,13 @@ import {
   getChatConfig,
   getObsidianConfig,
   getOllamaConfig,
-  getProfile,
   setChatConfig,
   setObsidianConfig,
   setOllamaConfig,
-  setProfile,
 } from '../lib/storage';
 import type { Message, MessageResponse, ObsidianConfig } from '../types';
 
 // ── Exported helpers (also called by initSidePanel) ─────────────────────────
-
-export function toggleProfileFields(config: ObsidianConfig): void {
-  const el = document.getElementById('profile-fields');
-  if (el) el.hidden = Boolean(config.profilePath);
-}
 
 export function syncSidepanelBrowseState(): void {
   const hasKey = Boolean(
@@ -51,7 +44,6 @@ export async function loadSidepanelObsidian(): Promise<void> {
   if (apiKey) apiKey.value = cfg.apiKey;
   if (profilePath) profilePath.value = cfg.profilePath ?? '';
   if (systemPromptPath) systemPromptPath.value = cfg.systemPromptPath ?? '';
-  toggleProfileFields(cfg);
   syncSidepanelBrowseState();
 }
 
@@ -163,11 +155,7 @@ export async function buildSystemPrompt(cfg: ObsidianConfig, fallback: string): 
 // ── Main init ────────────────────────────────────────────────────────────────
 
 export async function initSidePanel(): Promise<void> {
-  const [ollamaConfig, chatConfig, profile] = await Promise.all([
-    getOllamaConfig(),
-    getChatConfig(),
-    getProfile(),
-  ]);
+  const [ollamaConfig, chatConfig] = await Promise.all([getOllamaConfig(), getChatConfig()]);
 
   // ── DOM refs ────────────────────────────────────────────────────
   const chatView = document.getElementById('chat-view') as HTMLElement;
@@ -279,9 +267,6 @@ export async function initSidePanel(): Promise<void> {
   // ── Settings population ─────────────────────────────────────────
   baseUrlInput.value = ollamaConfig.baseUrl;
   systemPromptInput.value = chatConfig.systemPrompt;
-  document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
-    el.value = profile[el.dataset.profile!] ?? '';
-  });
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await loadSidepanelObsidian();
   wireSidepanelTestButton();
@@ -298,26 +283,12 @@ export async function initSidePanel(): Promise<void> {
   refreshModelsBtn.addEventListener('click', () => refreshModels(modelSelect.value));
 
   saveSettingsBtn.addEventListener('click', async () => {
-    const profilePath = (
-      document.getElementById('sp-obsidian-profile-path') as HTMLInputElement | null
-    )?.value.trim();
-
-    const updatedProfile: Record<string, string> = {};
-    if (!profilePath) {
-      document.querySelectorAll<HTMLInputElement>('[data-profile]').forEach((el) => {
-        const value = el.value.trim();
-        if (value) updatedProfile[el.dataset.profile!] = value;
-      });
-    }
-
     await Promise.all([
       setOllamaConfig({ baseUrl: baseUrlInput.value, model: modelSelect.value }),
       setChatConfig({ systemPrompt: systemPromptInput.value }),
       saveSidepanelObsidian(),
-      ...(profilePath ? [] : [setProfile(updatedProfile)]),
     ]);
 
-    toggleProfileFields(await getObsidianConfig());
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);
   });
