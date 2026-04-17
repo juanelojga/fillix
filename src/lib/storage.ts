@@ -1,4 +1,4 @@
-import type { OllamaConfig, UserProfile } from '../types';
+import type { ObsidianConfig, OllamaConfig, UserProfile } from '../types';
 
 export type ChatConfig = { systemPrompt: string };
 
@@ -37,4 +37,19 @@ export async function getChatConfig(): Promise<ChatConfig> {
 
 export async function setChatConfig(chat: ChatConfig): Promise<void> {
   await chrome.storage.local.set({ chat });
+}
+
+const DEFAULT_OBSIDIAN: ObsidianConfig = {
+  host: 'localhost',
+  port: 27123,
+  apiKey: '',
+};
+
+export async function getObsidianConfig(): Promise<ObsidianConfig> {
+  const { obsidian } = await chrome.storage.local.get('obsidian');
+  return { ...DEFAULT_OBSIDIAN, ...((obsidian as Partial<ObsidianConfig>) ?? {}) };
+}
+
+export async function setObsidianConfig(config: ObsidianConfig): Promise<void> {
+  await chrome.storage.local.set({ obsidian: config });
 }
