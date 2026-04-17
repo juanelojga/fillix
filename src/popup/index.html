@@ -64,18 +64,47 @@
         <button id="refresh" type="button">Refresh</button>
       </div>
     </fieldset>
-    <fieldset>
-      <legend>Profile</legend>
-      <label>First name <input data-profile="firstName" /></label>
-      <label>Last name <input data-profile="lastName" /></label>
-      <label>Email <input data-profile="email" /></label>
-      <label>Phone <input data-profile="phone" /></label>
-      <label>Address <input data-profile="addressLine1" /></label>
-      <label>City <input data-profile="city" /></label>
-      <label>State/Region <input data-profile="state" /></label>
-      <label>Postal code <input data-profile="postalCode" /></label>
-      <label>Country <input data-profile="country" /></label>
+    <fieldset id="obsidian-fieldset">
+      <legend>Obsidian</legend>
+      <label>Host <input id="obsidian-host" value="localhost" /></label>
+      <label
+        >Port <input id="obsidian-port" type="number" min="1" max="65535" value="27123"
+      /></label>
+      <label>API Key <input id="obsidian-api-key" type="password" /></label>
+      <div class="row">
+        <button id="obsidian-test" type="button">Test connection</button>
+        <span id="obsidian-status" class="status"></span>
+      </div>
+      <label>
+        Profile path
+        <div class="row">
+          <input id="obsidian-profile-path" list="vault-files" style="flex: 1" />
+          <button id="obsidian-browse-profile" type="button">Browse</button>
+        </div>
+      </label>
+      <label>
+        System prompt path
+        <div class="row">
+          <input id="obsidian-system-prompt-path" list="vault-files" style="flex: 1" />
+          <button id="obsidian-browse-system-prompt" type="button">Browse</button>
+        </div>
+      </label>
+      <datalist id="vault-files"></datalist>
     </fieldset>
+    <div id="profile-form">
+      <fieldset>
+        <legend>Profile</legend>
+        <label>First name <input data-profile="firstName" /></label>
+        <label>Last name <input data-profile="lastName" /></label>
+        <label>Email <input data-profile="email" /></label>
+        <label>Phone <input data-profile="phone" /></label>
+        <label>Address <input data-profile="addressLine1" /></label>
+        <label>City <input data-profile="city" /></label>
+        <label>State/Region <input data-profile="state" /></label>
+        <label>Postal code <input data-profile="postalCode" /></label>
+        <label>Country <input data-profile="country" /></label>
+      </fieldset>
+    </div>
     <button id="save" type="button">Save</button>
     <div class="status" id="status"></div>
     <script type="module" src="./main.ts"></script>
