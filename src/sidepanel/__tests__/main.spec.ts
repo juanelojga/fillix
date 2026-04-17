@@ -18,6 +18,8 @@ vi.mock('../chat', () => ({
 vi.mock('../../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
   getChatConfig: vi.fn(async () => ({ systemPrompt: 'You are helpful.' })),
+  setOllamaConfig: vi.fn(async () => undefined),
+  setChatConfig: vi.fn(async () => undefined),
 }));
 
 vi.mock('../../lib/ollama', () => ({
@@ -369,5 +371,220 @@ describe('side panel main — error handling', () => {
     const lastBubble = bubbles[bubbles.length - 1];
     expect(lastBubble.textContent).toContain('connection refused');
     expect(lastBubble.textContent).toContain('localhost:11434');
+  });
+});
+
+// ── Sprint 4: Settings view ──────────────────────────────────────────────────
+
+describe('side panel main — settings population on init', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('populates #baseUrl from getOllamaConfig on init', async () => {
+    const storageModule = await import('../../lib/storage');
+    (storageModule.getOllamaConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: 'http://localhost:11434',
+      model: 'llama3.2',
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    expect((document.getElementById('baseUrl') as HTMLInputElement).value).toBe(
+      'http://localhost:11434',
+    );
+  });
+
+  it('populates #systemPrompt from getChatConfig on init', async () => {
+    const storageModule = await import('../../lib/storage');
+    (storageModule.getChatConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      systemPrompt: 'Be concise.',
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    expect((document.getElementById('systemPrompt') as HTMLTextAreaElement).value).toBe(
+      'Be concise.',
+    );
+  });
+
+  it('populates #model select via OLLAMA_LIST_MODELS on init', async () => {
+    Object.assign(globalThis, {
+      chrome: {
+        runtime: {
+          sendMessage: vi.fn(async () => ({ ok: true, models: ['llama3.2', 'mistral'] })),
+          connect: vi.fn(() => ({
+            onMessage: { addListener: vi.fn() },
+            onDisconnect: { addListener: vi.fn() },
+            postMessage: vi.fn(),
+            disconnect: vi.fn(),
+          })),
+        },
+      },
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const modelSelect = document.getElementById('model') as HTMLSelectElement;
+    const options = Array.from(modelSelect.options).map((o) => o.value);
+    expect(options).toContain('llama3.2');
+    expect(options).toContain('mistral');
+  });
+});
+
+describe('side panel main — refresh models button', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('clicking #refreshModels sends OLLAMA_LIST_MODELS and repopulates #model', async () => {
+    const sendMessageMock = vi.fn(async () => ({ ok: true, models: ['llama3.2', 'gemma'] }));
+    Object.assign(globalThis, {
+      chrome: {
+        runtime: {
+          sendMessage: sendMessageMock,
+          connect: vi.fn(() => ({
+            onMessage: { addListener: vi.fn() },
+            onDisconnect: { addListener: vi.fn() },
+            postMessage: vi.fn(),
+            disconnect: vi.fn(),
+          })),
+        },
+      },
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    sendMessageMock.mockResolvedValueOnce({ ok: true, models: ['phi3', 'mistral'] });
+    document.getElementById('refreshModels')!.click();
+    await Promise.resolve();
+    await Promise.resolve(); // two ticks for async chain
+
+    const modelSelect = document.getElementById('model') as HTMLSelectElement;
+    const options = Array.from(modelSelect.options).map((o) => o.value);
+    expect(options).toContain('phi3');
+    expect(options).toContain('mistral');
+  });
+});
+
+describe('side panel main — localhost warning', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('hides #localhost-warning when baseUrl is http://localhost:11434 on init', async () => {
+    const storageModule = await import('../../lib/storage');
+    (storageModule.getOllamaConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: 'http://localhost:11434',
+      model: 'llama3.2',
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    expect((document.getElementById('localhost-warning') as HTMLElement).hidden).toBe(true);
+  });
+
+  it('shows #localhost-warning when baseUrl differs from http://localhost:11434 on init', async () => {
+    const storageModule = await import('../../lib/storage');
+    (storageModule.getOllamaConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: 'http://remote-server:11434',
+      model: 'llama3.2',
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    expect((document.getElementById('localhost-warning') as HTMLElement).hidden).toBe(false);
+  });
+
+  it('shows #localhost-warning when #baseUrl input changes to non-localhost value', async () => {
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const baseUrlInput = document.getElementById('baseUrl') as HTMLInputElement;
+    baseUrlInput.value = 'http://other-host:11434';
+    baseUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect((document.getElementById('localhost-warning') as HTMLElement).hidden).toBe(false);
+  });
+
+  it('hides #localhost-warning when #baseUrl input changes back to localhost', async () => {
+    const storageModule = await import('../../lib/storage');
+    (storageModule.getOllamaConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      baseUrl: 'http://remote:11434',
+      model: 'llama3.2',
+    });
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const baseUrlInput = document.getElementById('baseUrl') as HTMLInputElement;
+    baseUrlInput.value = 'http://localhost:11434';
+    baseUrlInput.dispatchEvent(new Event('input', { bubbles: true }));
+
+    expect((document.getElementById('localhost-warning') as HTMLElement).hidden).toBe(true);
+  });
+});
+
+describe('side panel main — save settings', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('clicking #saveSettings calls setOllamaConfig with current baseUrl and model', async () => {
+    const storageModule = await import('../../lib/storage');
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const baseUrlInput = document.getElementById('baseUrl') as HTMLInputElement;
+    const modelSelect = document.getElementById('model') as HTMLSelectElement;
+    baseUrlInput.value = 'http://localhost:11434';
+    const opt = document.createElement('option');
+    opt.value = 'mistral';
+    opt.selected = true;
+    modelSelect.appendChild(opt);
+
+    document.getElementById('saveSettings')!.click();
+    await Promise.resolve(); // flush async
+
+    expect(storageModule.setOllamaConfig).toHaveBeenCalledWith({
+      baseUrl: 'http://localhost:11434',
+      model: expect.any(String),
+    });
+  });
+
+  it('clicking #saveSettings calls setChatConfig with current systemPrompt', async () => {
+    const storageModule = await import('../../lib/storage');
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const systemPromptInput = document.getElementById('systemPrompt') as HTMLTextAreaElement;
+    systemPromptInput.value = 'New prompt';
+
+    document.getElementById('saveSettings')!.click();
+    await Promise.resolve();
+
+    expect(storageModule.setChatConfig).toHaveBeenCalledWith({ systemPrompt: 'New prompt' });
+  });
+
+  it('shows "Saved" in #settings-status after saving', async () => {
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    document.getElementById('saveSettings')!.click();
+    await Promise.resolve();
+
+    expect(document.getElementById('settings-status')!.textContent).toBe('Saved');
   });
 });

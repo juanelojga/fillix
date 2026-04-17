@@ -141,9 +141,9 @@ export async function initSidePanel(): Promise<void> {
     return el;
   }
 
-  function setStreamingUI(streaming: boolean): void {
-    sendBtn.disabled = streaming;
-    stopBtn.hidden = !streaming;
+  function setStreamingUI(isStreaming: boolean): void {
+    sendBtn.disabled = isStreaming;
+    stopBtn.hidden = !isStreaming;
   }
 
   function scrollToBottom(): void {
