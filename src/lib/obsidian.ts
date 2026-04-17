@@ -43,3 +43,13 @@ export async function getFile(config: ObsidianConfig, path: string): Promise<str
   if (!res.ok) throw new Error(`Obsidian /vault/${path} returned ${res.status}`);
   return res.text();
 }
+
+const TRUNCATE_LIMIT_CHARS = 8000;
+
+export function truncateDocument(content: string): string {
+  if (content.length <= TRUNCATE_LIMIT_CHARS) return content;
+  return (
+    content.slice(0, TRUNCATE_LIMIT_CHARS) +
+    `\n\n[Document truncated at ${TRUNCATE_LIMIT_CHARS} characters]`
+  );
+}
