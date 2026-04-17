@@ -12,6 +12,28 @@ import type { Message, MessageResponse, ObsidianConfig } from '../types';
 
 // ── Exported helpers (also called by initSidePanel) ─────────────────────────
 
+let obsidianConnected = false;
+
+export function updateConnectionUI(connected: boolean): void {
+  obsidianConnected = connected;
+  const localSection = document.getElementById('system-prompt-local-section') as HTMLElement | null;
+  const pathsSection = document.getElementById('obsidian-paths-section') as HTMLElement | null;
+  const pathsAlert = document.getElementById('obsidian-paths-alert') as HTMLElement | null;
+  if (localSection) localSection.hidden = connected;
+  if (pathsSection) pathsSection.hidden = !connected;
+  if (connected && pathsAlert) {
+    const profilePath = (
+      document.getElementById('sp-obsidian-profile-path') as HTMLInputElement | null
+    )?.value.trim();
+    const systemPromptPath = (
+      document.getElementById('sp-obsidian-system-prompt-path') as HTMLInputElement | null
+    )?.value.trim();
+    pathsAlert.hidden = Boolean(profilePath && systemPromptPath);
+  } else if (pathsAlert) {
+    pathsAlert.hidden = true;
+  }
+}
+
 export function syncSidepanelBrowseState(): void {
   const hasKey = Boolean(
     (document.getElementById('sp-obsidian-api-key') as HTMLInputElement | null)?.value.trim(),
@@ -82,18 +104,35 @@ export function wireSidepanelTestButton(): void {
     if (statusEl) statusEl.textContent = '';
     void (async () => {
       try {
+        await saveSidepanelObsidian();
         const response = (await chrome.runtime.sendMessage({
           type: 'OBSIDIAN_TEST_CONNECTION',
         } satisfies Message)) as MessageResponse;
         if (response.ok) {
-          if (statusEl) statusEl.textContent = 'Connected';
+          if (statusEl) {
+            statusEl.textContent = 'Connected';
+            statusEl.classList.remove('error');
+          }
           if (warningEl) warningEl.hidden = true;
+          updateConnectionUI(true);
         } else {
-          if (statusEl) statusEl.textContent = (response as { ok: false; error: string }).error;
+          const errMsg = (response as { ok: false; error: string }).error;
+          console.error('[Fillix] Obsidian test connection failed:', errMsg);
+          if (statusEl) {
+            statusEl.textContent = errMsg;
+            statusEl.classList.add('error');
+          }
           if (warningEl) warningEl.hidden = false;
+          updateConnectionUI(false);
         }
-      } catch {
+      } catch (err) {
+        console.error('[Fillix] Obsidian test connection error:', err);
+        if (statusEl) {
+          statusEl.textContent = String(err);
+          statusEl.classList.add('error');
+        }
         if (warningEl) warningEl.hidden = false;
+        updateConnectionUI(false);
       } finally {
         syncSidepanelBrowseState();
       }
@@ -102,34 +141,105 @@ export function wireSidepanelTestButton(): void {
 }
 
 export function wireSidepanelBrowseButtons(): void {
-  async function fetchAndPopulate(): Promise<void> {
-    const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
-    try {
-      const response = (await chrome.runtime.sendMessage({
-        type: 'OBSIDIAN_LIST_FILES',
-      } satisfies Message)) as MessageResponse;
-      if (!response.ok || !('files' in response) || !Array.isArray(response.files)) {
-        if (warningEl) warningEl.hidden = false;
-        return;
-      }
-      if (warningEl) warningEl.hidden = true;
-      const dl = document.getElementById('sidepanel-vault-files') as HTMLDataListElement | null;
-      if (!dl) return;
-      dl.innerHTML = '';
-      response.files.forEach((f) => {
-        const opt = document.createElement('option');
-        opt.value = f;
-        dl.appendChild(opt);
-      });
-    } catch {
-      if (warningEl) warningEl.hidden = false;
+  let activeDropdown: HTMLElement | null = null;
+  let dismissHandlers: (() => void) | null = null;
+
+  function closeDropdown(): void {
+    activeDropdown?.remove();
+    activeDropdown = null;
+    if (dismissHandlers) {
+      dismissHandlers();
+      dismissHandlers = null;
     }
   }
 
-  const browseProfile = document.getElementById('sp-obsidian-browse-profile');
-  const browseSystem = document.getElementById('sp-obsidian-browse-system-prompt');
-  if (browseProfile) browseProfile.addEventListener('click', () => void fetchAndPopulate());
-  if (browseSystem) browseSystem.addEventListener('click', () => void fetchAndPopulate());
+  function openDropdown(files: string[], anchorInput: HTMLInputElement): void {
+    closeDropdown();
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'fillix-browse-dropdown';
+
+    const rect = anchorInput.getBoundingClientRect();
+    dropdown.style.top = `${rect.bottom + 2}px`;
+    dropdown.style.left = `${rect.left}px`;
+    dropdown.style.width = `${rect.width}px`;
+
+    for (const file of files) {
+      const item = document.createElement('div');
+      item.className = 'fillix-browse-item';
+      item.textContent = file;
+      item.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        anchorInput.value = file;
+        anchorInput.dispatchEvent(new Event('input', { bubbles: true }));
+        closeDropdown();
+      });
+      dropdown.appendChild(item);
+    }
+
+    document.body.appendChild(dropdown);
+    activeDropdown = dropdown;
+
+    const onOutsideClick = (e: MouseEvent): void => {
+      if (!dropdown.contains(e.target as Node)) closeDropdown();
+    };
+    const onEscape = (e: KeyboardEvent): void => {
+      if (e.key === 'Escape') closeDropdown();
+    };
+
+    setTimeout(() => {
+      document.addEventListener('mousedown', onOutsideClick);
+      document.addEventListener('keydown', onEscape);
+    }, 0);
+
+    dismissHandlers = () => {
+      document.removeEventListener('mousedown', onOutsideClick);
+      document.removeEventListener('keydown', onEscape);
+    };
+  }
+
+  function wireBrowseButton(btnId: string, inputId: string): void {
+    const btn = document.getElementById(btnId) as HTMLButtonElement | null;
+    const input = document.getElementById(inputId) as HTMLInputElement | null;
+    if (!btn || !input) return;
+
+    btn.addEventListener('click', () => {
+      const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
+      btn.disabled = true;
+      void (async () => {
+        try {
+          const response = (await chrome.runtime.sendMessage({
+            type: 'OBSIDIAN_LIST_FILES',
+          } satisfies Message)) as MessageResponse;
+          if (!response.ok || !('files' in response) || !Array.isArray(response.files)) {
+            if (warningEl) warningEl.hidden = false;
+            return;
+          }
+          if (warningEl) warningEl.hidden = true;
+
+          // Keep datalist in sync for typing-based autocomplete
+          const dl = document.getElementById('sidepanel-vault-files') as HTMLDataListElement | null;
+          if (dl) {
+            dl.innerHTML = '';
+            response.files.forEach((f) => {
+              const opt = document.createElement('option');
+              opt.value = f;
+              dl.appendChild(opt);
+            });
+          }
+
+          openDropdown(response.files, input);
+        } catch {
+          if (warningEl) warningEl.hidden = false;
+        } finally {
+          syncSidepanelBrowseState();
+        }
+      })();
+    });
+  }
+
+  wireBrowseButton('sp-obsidian-browse-profile', 'sp-obsidian-profile-path');
+  wireBrowseButton('sp-obsidian-browse-system-prompt', 'sp-obsidian-system-prompt-path');
 }
 
 export async function buildSystemPrompt(cfg: ObsidianConfig, fallback: string): Promise<string> {
@@ -269,6 +379,22 @@ export async function initSidePanel(): Promise<void> {
   systemPromptInput.value = chatConfig.systemPrompt;
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await loadSidepanelObsidian();
+
+  // Auto-test connection on open if an API key is stored
+  const storedObsidian = await getObsidianConfig();
+  if (storedObsidian.apiKey) {
+    try {
+      const autoTestResponse = (await chrome.runtime.sendMessage({
+        type: 'OBSIDIAN_TEST_CONNECTION',
+      } satisfies Message)) as MessageResponse;
+      updateConnectionUI(autoTestResponse.ok);
+    } catch {
+      updateConnectionUI(false);
+    }
+  } else {
+    updateConnectionUI(false);
+  }
+
   wireSidepanelTestButton();
   wireSidepanelBrowseButtons();
   document
@@ -288,6 +414,7 @@ export async function initSidePanel(): Promise<void> {
       setChatConfig({ systemPrompt: systemPromptInput.value }),
       saveSidepanelObsidian(),
     ]);
+    updateConnectionUI(obsidianConnected);
 
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);

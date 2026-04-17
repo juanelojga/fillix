@@ -331,10 +331,35 @@
         cursor: default;
       }
 
+      .fillix-browse-dropdown {
+        position: fixed;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 9999;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .fillix-browse-item {
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .fillix-browse-item:hover {
+        background: #f0f0f0;
+      }
+
       #obsidian-status {
         font-size: 12px;
         color: #080;
         min-height: 16px;
+      }
+      #obsidian-status.error {
+        color: #c00;
       }
 
       .obsidian-test-row {
@@ -388,7 +413,7 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div id="system-prompt-local-section" class="field-group">
         <label for="systemPrompt">System prompt</label>
         <textarea id="systemPrompt"></textarea>
       </div>
@@ -439,33 +464,51 @@
           <div id="obsidian-status"></div>
         </div>
 
-        <div class="field-group">
-          <label for="sp-obsidian-profile-path">Profile document</label>
-          <div class="obsidian-path-row">
-            <input
-              id="sp-obsidian-profile-path"
-              type="text"
-              placeholder="Vault/Profile.md"
-              list="sidepanel-vault-files"
-            />
-            <button id="sp-obsidian-browse-profile" type="button" disabled>Browse</button>
+        <div id="obsidian-paths-section" hidden>
+          <div
+            id="obsidian-paths-alert"
+            hidden
+            style="
+              font-size: 12px;
+              color: #b60;
+              background: #fffbe6;
+              border: 1px solid #ffe066;
+              border-radius: 4px;
+              padding: 6px 10px;
+              margin-bottom: 10px;
+            "
+          >
+            Set a Profile document and a System Prompt document to use Obsidian context.
           </div>
-        </div>
 
-        <div class="field-group">
-          <label for="sp-obsidian-system-prompt-path">System prompt document</label>
-          <div class="obsidian-path-row">
-            <input
-              id="sp-obsidian-system-prompt-path"
-              type="text"
-              placeholder="Vault/SystemPrompt.md"
-              list="sidepanel-vault-files"
-            />
-            <button id="sp-obsidian-browse-system-prompt" type="button" disabled>Browse</button>
+          <div class="field-group" style="margin-bottom: 10px">
+            <label for="sp-obsidian-profile-path">Profile document</label>
+            <div class="obsidian-path-row">
+              <input
+                id="sp-obsidian-profile-path"
+                type="text"
+                placeholder="Vault/Profile.md"
+                list="sidepanel-vault-files"
+              />
+              <button id="sp-obsidian-browse-profile" type="button" disabled>Browse</button>
+            </div>
           </div>
-        </div>
 
-        <datalist id="sidepanel-vault-files"></datalist>
+          <div class="field-group">
+            <label for="sp-obsidian-system-prompt-path">System prompt document</label>
+            <div class="obsidian-path-row">
+              <input
+                id="sp-obsidian-system-prompt-path"
+                type="text"
+                placeholder="Vault/SystemPrompt.md"
+                list="sidepanel-vault-files"
+              />
+              <button id="sp-obsidian-browse-system-prompt" type="button" disabled>Browse</button>
+            </div>
+          </div>
+
+          <datalist id="sidepanel-vault-files"></datalist>
+        </div>
       </fieldset>
 
       <div id="obsidian-warning" hidden>Obsidian unreachable — using local fallback</div>

@@ -5,6 +5,11 @@ function baseUrl(config: ObsidianConfig): string {
 }
 
 function headers(config: ObsidianConfig): Record<string, string> {
+  if (/[\u0100-\uFFFF]/.test(config.apiKey)) {
+    throw new Error(
+      'API key contains invalid characters. Re-enter it directly from Obsidian Settings → Local REST API.',
+    );
+  }
   return { Authorization: `Bearer ${config.apiKey}` };
 }
 
@@ -14,6 +19,10 @@ export async function testConnection(config: ObsidianConfig): Promise<void> {
     signal: AbortSignal.timeout(5000),
   });
   if (!res.ok) throw new Error(`Obsidian API returned ${res.status}`);
+  const data = (await res.json()) as { authenticated?: boolean };
+  if (data.authenticated !== true) {
+    throw new Error('Invalid API key — Obsidian returned authenticated: false');
+  }
 }
 
 export async function listFiles(config: ObsidianConfig): Promise<string[]> {
