@@ -13,14 +13,9 @@ function buildDOM() {
     <button id="sp-obsidian-test" type="button">Test</button>
     <div id="obsidian-status"></div>
     <div id="obsidian-warning" hidden></div>
-    <input id="sp-obsidian-profile-path" value="" />
-    <button id="sp-obsidian-browse-profile" type="button">Browse Profile</button>
     <input id="sp-obsidian-system-prompt-path" value="" />
     <button id="sp-obsidian-browse-system-prompt" type="button">Browse System</button>
     <datalist id="sidepanel-vault-files"></datalist>
-    <div id="profile-fields">
-      <input data-profile="firstName" value="" />
-    </div>
   `;
 }
 
@@ -29,9 +24,7 @@ vi.stubGlobal('chrome', { runtime: { sendMessage: mockSendMessage } });
 
 vi.mock('../../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
-  getProfile: vi.fn(async () => ({})),
   setOllamaConfig: vi.fn(async () => undefined),
-  setProfile: vi.fn(async () => undefined),
   getChatConfig: vi.fn(async () => ({ systemPrompt: 'default' })),
   setChatConfig: vi.fn(async () => undefined),
   getObsidianConfig: vi.fn(
@@ -94,7 +87,7 @@ describe('obsidianUnreachable flag — sidepanel browse buttons', () => {
     const { wireSidepanelBrowseButtons, syncSidepanelBrowseState } = await import('../main');
     syncSidepanelBrowseState();
     wireSidepanelBrowseButtons();
-    document.getElementById('sp-obsidian-browse-profile')!.click();
+    document.getElementById('sp-obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     expect((document.getElementById('obsidian-warning') as HTMLElement).hidden).toBe(false);
   });
@@ -105,7 +98,7 @@ describe('obsidianUnreachable flag — sidepanel browse buttons', () => {
     const { wireSidepanelBrowseButtons, syncSidepanelBrowseState } = await import('../main');
     syncSidepanelBrowseState();
     wireSidepanelBrowseButtons();
-    document.getElementById('sp-obsidian-browse-profile')!.click();
+    document.getElementById('sp-obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     expect((document.getElementById('obsidian-warning') as HTMLElement).hidden).toBe(true);
   });
@@ -122,7 +115,7 @@ describe('obsidianUnreachable flag — sidepanel browse buttons', () => {
     wireSidepanelBrowseButtons();
     wireSidepanelTestButton();
 
-    document.getElementById('sp-obsidian-browse-profile')!.click();
+    document.getElementById('sp-obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     expect((document.getElementById('obsidian-warning') as HTMLElement).hidden).toBe(false);
 

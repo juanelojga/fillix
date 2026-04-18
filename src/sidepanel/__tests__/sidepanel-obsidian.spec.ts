@@ -14,15 +14,9 @@ function buildDOM() {
       <button id="sp-obsidian-test" type="button">Test</button>
       <div id="obsidian-status"></div>
       <div id="obsidian-warning" hidden></div>
-      <input id="sp-obsidian-profile-path" value="" />
-      <button id="sp-obsidian-browse-profile" type="button">Browse</button>
       <input id="sp-obsidian-system-prompt-path" value="" />
       <button id="sp-obsidian-browse-system-prompt" type="button">Browse</button>
       <datalist id="sidepanel-vault-files"></datalist>
-    </div>
-    <div id="profile-fields">
-      <input data-profile="firstName" value="" />
-      <input data-profile="email" value="" />
     </div>
     <textarea id="systemPrompt"></textarea>
     <input id="baseUrl" value="http://localhost:11434" />
@@ -37,9 +31,7 @@ vi.stubGlobal('chrome', { runtime: { sendMessage: mockSendMessage } });
 
 vi.mock('../../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
-  getProfile: vi.fn(async () => ({})),
   setOllamaConfig: vi.fn(async () => undefined),
-  setProfile: vi.fn(async () => undefined),
   getChatConfig: vi.fn(async () => ({ systemPrompt: 'default system prompt' })),
   setChatConfig: vi.fn(async () => undefined),
   getObsidianConfig: vi.fn(
@@ -80,38 +72,6 @@ describe('Obsidian section HTML structure', () => {
     const el = document.getElementById('obsidian-warning') as HTMLElement;
     expect(el.hidden).toBe(true);
   });
-
-  it('profile fields are inside #profile-fields container', () => {
-    const container = document.getElementById('profile-fields');
-    expect(container).not.toBeNull();
-    const fields = container!.querySelectorAll('[data-profile]');
-    expect(fields.length).toBeGreaterThan(0);
-  });
-});
-
-// ─── toggleProfileFields ─────────────────────────────────────────────────────
-
-describe('toggleProfileFields', () => {
-  beforeEach(() => buildDOM());
-
-  it('hides #profile-fields when profilePath is non-empty', async () => {
-    const { toggleProfileFields } = await import('../main');
-    toggleProfileFields({ host: 'localhost', port: 27123, apiKey: 'k', profilePath: 'Me.md' });
-    expect(document.getElementById('profile-fields')!.hidden).toBe(true);
-  });
-
-  it('shows #profile-fields when profilePath is undefined', async () => {
-    const { toggleProfileFields } = await import('../main');
-    toggleProfileFields({ host: 'localhost', port: 27123, apiKey: 'k', profilePath: 'Me.md' });
-    toggleProfileFields({ host: 'localhost', port: 27123, apiKey: 'k' });
-    expect(document.getElementById('profile-fields')!.hidden).toBe(false);
-  });
-
-  it('shows #profile-fields when profilePath is an empty string', async () => {
-    const { toggleProfileFields } = await import('../main');
-    toggleProfileFields({ host: 'localhost', port: 27123, apiKey: 'k', profilePath: '' });
-    expect(document.getElementById('profile-fields')!.hidden).toBe(false);
-  });
 });
 
 // ─── syncBrowseButtonState ───────────────────────────────────────────────────
@@ -124,9 +84,6 @@ describe('syncBrowseButtonState (sidepanel)', () => {
     const { syncSidepanelBrowseState } = await import('../main');
     syncSidepanelBrowseState();
     expect(
-      (document.getElementById('sp-obsidian-browse-profile') as HTMLButtonElement).disabled,
-    ).toBe(true);
-    expect(
       (document.getElementById('sp-obsidian-browse-system-prompt') as HTMLButtonElement).disabled,
     ).toBe(true);
     expect((document.getElementById('sp-obsidian-test') as HTMLButtonElement).disabled).toBe(true);
@@ -137,7 +94,7 @@ describe('syncBrowseButtonState (sidepanel)', () => {
     const { syncSidepanelBrowseState } = await import('../main');
     syncSidepanelBrowseState();
     expect(
-      (document.getElementById('sp-obsidian-browse-profile') as HTMLButtonElement).disabled,
+      (document.getElementById('sp-obsidian-browse-system-prompt') as HTMLButtonElement).disabled,
     ).toBe(false);
     expect((document.getElementById('sp-obsidian-test') as HTMLButtonElement).disabled).toBe(false);
   });
@@ -152,7 +109,6 @@ describe('loadSidepanelObsidian()', () => {
       host: 'myhost',
       port: 9999,
       apiKey: 'my-key',
-      profilePath: 'Vault/Profile.md',
       systemPromptPath: 'Vault/System.md',
     });
   });
@@ -165,18 +121,9 @@ describe('loadSidepanelObsidian()', () => {
     expect((document.getElementById('sp-obsidian-api-key') as HTMLInputElement).value).toBe(
       'my-key',
     );
-    expect((document.getElementById('sp-obsidian-profile-path') as HTMLInputElement).value).toBe(
-      'Vault/Profile.md',
-    );
     expect(
       (document.getElementById('sp-obsidian-system-prompt-path') as HTMLInputElement).value,
     ).toBe('Vault/System.md');
-  });
-
-  it('hides #profile-fields when loaded config has a profilePath', async () => {
-    const { loadSidepanelObsidian } = await import('../main');
-    await loadSidepanelObsidian();
-    expect(document.getElementById('profile-fields')!.hidden).toBe(true);
   });
 });
 
@@ -193,7 +140,6 @@ describe('saveSidepanelObsidian()', () => {
     (document.getElementById('sp-obsidian-host') as HTMLInputElement).value = 'myhost';
     (document.getElementById('sp-obsidian-port') as HTMLInputElement).value = '9000';
     (document.getElementById('sp-obsidian-api-key') as HTMLInputElement).value = 'secret';
-    (document.getElementById('sp-obsidian-profile-path') as HTMLInputElement).value = 'Me.md';
     (document.getElementById('sp-obsidian-system-prompt-path') as HTMLInputElement).value =
       'Sys.md';
 
@@ -205,7 +151,6 @@ describe('saveSidepanelObsidian()', () => {
         host: 'myhost',
         port: 9000,
         apiKey: 'secret',
-        profilePath: 'Me.md',
         systemPromptPath: 'Sys.md',
       }),
     );
@@ -268,11 +213,11 @@ describe('sidepanel browse buttons (OBSIDIAN_LIST_FILES)', () => {
     (document.getElementById('sp-obsidian-api-key') as HTMLInputElement).value = 'key';
   });
 
-  it('sends OBSIDIAN_LIST_FILES when profile browse clicked', async () => {
+  it('sends OBSIDIAN_LIST_FILES when system prompt browse clicked', async () => {
     mockSendMessage.mockResolvedValue({ ok: true, files: ['a.md'] });
     const { wireSidepanelBrowseButtons } = await import('../main');
     wireSidepanelBrowseButtons();
-    document.getElementById('sp-obsidian-browse-profile')!.click();
+    document.getElementById('sp-obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 10));
     expect(mockSendMessage).toHaveBeenCalledWith({ type: 'OBSIDIAN_LIST_FILES' });
   });
@@ -281,7 +226,7 @@ describe('sidepanel browse buttons (OBSIDIAN_LIST_FILES)', () => {
     mockSendMessage.mockResolvedValue({ ok: true, files: ['Notes/A.md', 'Profile/Me.md'] });
     const { wireSidepanelBrowseButtons } = await import('../main');
     wireSidepanelBrowseButtons();
-    document.getElementById('sp-obsidian-browse-profile')!.click();
+    document.getElementById('sp-obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     const dl = document.getElementById('sidepanel-vault-files') as HTMLDataListElement;
     const values = Array.from(dl.options).map((o) => o.value);

@@ -49,14 +49,12 @@ describe('getObsidianConfig', () => {
   it('preserves optional paths when stored', async () => {
     const stored: Partial<ObsidianConfig> = {
       apiKey: 'key',
-      profilePath: 'Profile/Me.md',
       systemPromptPath: 'Prompts/System.md',
     };
     mockGet.mockResolvedValue({ obsidian: stored });
 
     const config = await getObsidianConfig();
 
-    expect(config.profilePath).toBe('Profile/Me.md');
     expect(config.systemPromptPath).toBe('Prompts/System.md');
   });
 
@@ -98,7 +96,6 @@ describe('setObsidianConfig', () => {
       host: 'localhost',
       port: 27123,
       apiKey: 'key',
-      profilePath: 'Notes/Profile.md',
       systemPromptPath: 'Notes/Sys.md',
     };
 

@@ -22,13 +22,10 @@ export function updateConnectionUI(connected: boolean): void {
   if (localSection) localSection.hidden = connected;
   if (pathsSection) pathsSection.hidden = !connected;
   if (connected && pathsAlert) {
-    const profilePath = (
-      document.getElementById('sp-obsidian-profile-path') as HTMLInputElement | null
-    )?.value.trim();
     const systemPromptPath = (
       document.getElementById('sp-obsidian-system-prompt-path') as HTMLInputElement | null
     )?.value.trim();
-    pathsAlert.hidden = Boolean(profilePath && systemPromptPath);
+    pathsAlert.hidden = Boolean(systemPromptPath);
   } else if (pathsAlert) {
     pathsAlert.hidden = true;
   }
@@ -38,14 +35,10 @@ export function syncSidepanelBrowseState(): void {
   const hasKey = Boolean(
     (document.getElementById('sp-obsidian-api-key') as HTMLInputElement | null)?.value.trim(),
   );
-  const browseProfile = document.getElementById(
-    'sp-obsidian-browse-profile',
-  ) as HTMLButtonElement | null;
   const browseSystem = document.getElementById(
     'sp-obsidian-browse-system-prompt',
   ) as HTMLButtonElement | null;
   const testBtn = document.getElementById('sp-obsidian-test') as HTMLButtonElement | null;
-  if (browseProfile) browseProfile.disabled = !hasKey;
   if (browseSystem) browseSystem.disabled = !hasKey;
   if (testBtn) testBtn.disabled = !hasKey;
 }
@@ -55,25 +48,17 @@ export async function loadSidepanelObsidian(): Promise<void> {
   const host = document.getElementById('sp-obsidian-host') as HTMLInputElement | null;
   const port = document.getElementById('sp-obsidian-port') as HTMLInputElement | null;
   const apiKey = document.getElementById('sp-obsidian-api-key') as HTMLInputElement | null;
-  const profilePath = document.getElementById(
-    'sp-obsidian-profile-path',
-  ) as HTMLInputElement | null;
   const systemPromptPath = document.getElementById(
     'sp-obsidian-system-prompt-path',
   ) as HTMLInputElement | null;
   if (host) host.value = cfg.host;
   if (port) port.value = String(cfg.port);
   if (apiKey) apiKey.value = cfg.apiKey;
-  if (profilePath) profilePath.value = cfg.profilePath ?? '';
   if (systemPromptPath) systemPromptPath.value = cfg.systemPromptPath ?? '';
   syncSidepanelBrowseState();
 }
 
 export async function saveSidepanelObsidian(): Promise<void> {
-  const profilePath =
-    (
-      document.getElementById('sp-obsidian-profile-path') as HTMLInputElement | null
-    )?.value.trim() || undefined;
   const cfg: ObsidianConfig = {
     host:
       (document.getElementById('sp-obsidian-host') as HTMLInputElement | null)?.value.trim() ??
@@ -85,7 +70,6 @@ export async function saveSidepanelObsidian(): Promise<void> {
     apiKey:
       (document.getElementById('sp-obsidian-api-key') as HTMLInputElement | null)?.value.trim() ??
       '',
-    profilePath,
     systemPromptPath:
       (
         document.getElementById('sp-obsidian-system-prompt-path') as HTMLInputElement | null
@@ -238,7 +222,6 @@ export function wireSidepanelBrowseButtons(): void {
     });
   }
 
-  wireBrowseButton('sp-obsidian-browse-profile', 'sp-obsidian-profile-path');
   wireBrowseButton('sp-obsidian-browse-system-prompt', 'sp-obsidian-system-prompt-path');
 }
 
@@ -246,51 +229,32 @@ export async function buildSystemPrompt(cfg: ObsidianConfig, fallback: string): 
   const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
   const sourceEl = document.getElementById('sp-source') as HTMLElement | null;
 
-  if (!cfg.apiKey || (!cfg.systemPromptPath && !cfg.profilePath)) {
+  if (!cfg.apiKey || !cfg.systemPromptPath) {
     if (warningEl) warningEl.hidden = true;
     if (sourceEl) sourceEl.hidden = true;
     return fallback;
   }
 
   let systemPrompt = fallback;
-  let profileContent: string | null = null;
   let fetchFailed = false;
 
-  if (cfg.systemPromptPath) {
-    try {
-      const response = (await chrome.runtime.sendMessage({
-        type: 'OBSIDIAN_GET_FILE',
-        path: cfg.systemPromptPath,
-      } satisfies Message)) as MessageResponse;
-      if (response.ok && 'content' in response) {
-        systemPrompt = response.content;
-      } else {
-        fetchFailed = true;
-      }
-    } catch {
+  try {
+    const response = (await chrome.runtime.sendMessage({
+      type: 'OBSIDIAN_GET_FILE',
+      path: cfg.systemPromptPath,
+    } satisfies Message)) as MessageResponse;
+    if (response.ok && 'content' in response) {
+      systemPrompt = response.content;
+    } else {
       fetchFailed = true;
     }
-  }
-
-  if (cfg.profilePath) {
-    try {
-      const response = (await chrome.runtime.sendMessage({
-        type: 'OBSIDIAN_GET_FILE',
-        path: cfg.profilePath,
-      } satisfies Message)) as MessageResponse;
-      if (response.ok && 'content' in response) {
-        profileContent = response.content;
-      } else {
-        fetchFailed = true;
-      }
-    } catch {
-      fetchFailed = true;
-    }
+  } catch {
+    fetchFailed = true;
   }
 
   if (warningEl) warningEl.hidden = !fetchFailed;
   if (sourceEl) {
-    if (cfg.systemPromptPath && systemPrompt !== fallback) {
+    if (systemPrompt !== fallback) {
       sourceEl.textContent = `System prompt: ${cfg.systemPromptPath}`;
       sourceEl.hidden = false;
     } else {
@@ -298,7 +262,7 @@ export async function buildSystemPrompt(cfg: ObsidianConfig, fallback: string): 
     }
   }
 
-  return profileContent ? `${systemPrompt}\n\n## User Profile\n${profileContent}` : systemPrompt;
+  return systemPrompt;
 }
 
 // ── Main init ────────────────────────────────────────────────────────────────

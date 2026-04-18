@@ -14,7 +14,6 @@ const $ = <T extends HTMLElement>(sel: string): T => {
 
 export function syncBrowseButtonState(): void {
   const hasKey = Boolean($<HTMLInputElement>('#obsidian-api-key').value.trim());
-  $<HTMLButtonElement>('#obsidian-browse-profile').disabled = !hasKey;
   $<HTMLButtonElement>('#obsidian-browse-system-prompt').disabled = !hasKey;
   $<HTMLButtonElement>('#obsidian-test').disabled = !hasKey;
 }
@@ -72,9 +71,6 @@ export function wireBrowseButtons(): void {
     }
   }
 
-  $<HTMLButtonElement>('#obsidian-browse-profile').addEventListener('click', () => {
-    void fetchAndPopulate();
-  });
   $<HTMLButtonElement>('#obsidian-browse-system-prompt').addEventListener('click', () => {
     void fetchAndPopulate();
   });
@@ -88,7 +84,6 @@ export async function load(): Promise<void> {
   $<HTMLInputElement>('#obsidian-host').value = obsidian.host;
   $<HTMLInputElement>('#obsidian-port').value = String(obsidian.port);
   $<HTMLInputElement>('#obsidian-api-key').value = obsidian.apiKey;
-  $<HTMLInputElement>('#obsidian-profile-path').value = obsidian.profilePath ?? '';
   $<HTMLInputElement>('#obsidian-system-prompt-path').value = obsidian.systemPromptPath ?? '';
 
   syncBrowseButtonState();
@@ -97,12 +92,10 @@ export async function load(): Promise<void> {
 }
 
 export async function save(): Promise<void> {
-  const profilePath = $<HTMLInputElement>('#obsidian-profile-path').value.trim() || undefined;
   const obsidian: ObsidianConfig = {
     host: $<HTMLInputElement>('#obsidian-host').value.trim(),
     port: Math.trunc(Number($<HTMLInputElement>('#obsidian-port').value)) || 27123,
     apiKey: $<HTMLInputElement>('#obsidian-api-key').value.trim(),
-    profilePath,
     systemPromptPath: $<HTMLInputElement>('#obsidian-system-prompt-path').value.trim() || undefined,
   };
 

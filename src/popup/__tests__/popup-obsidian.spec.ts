@@ -13,15 +13,9 @@ function buildDOM() {
     <button id="obsidian-test" type="button">Test</button>
     <span id="obsidian-status"></span>
     <div id="obsidian-warning" hidden></div>
-    <input id="obsidian-profile-path" value="" />
-    <button id="obsidian-browse-profile" type="button">Browse Profile</button>
     <input id="obsidian-system-prompt-path" value="" />
     <button id="obsidian-browse-system-prompt" type="button">Browse System</button>
     <datalist id="vault-files"></datalist>
-    <div id="profile-form">
-      <input data-profile="firstName" value="" />
-      <input data-profile="email" value="" />
-    </div>
     <input id="baseUrl" value="http://localhost:11434" />
     <select id="model"></select>
     <button id="save">Save</button>
@@ -35,9 +29,7 @@ vi.stubGlobal('chrome', { runtime: { sendMessage: mockSendMessage } });
 
 vi.mock('../../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
-  getProfile: vi.fn(async () => ({})),
   setOllamaConfig: vi.fn(async () => undefined),
-  setProfile: vi.fn(async () => undefined),
   getObsidianConfig: vi.fn(
     async (): Promise<ObsidianConfig> => ({ host: 'localhost', port: 27123, apiKey: '' }),
   ),
@@ -49,13 +41,10 @@ vi.mock('../../lib/storage', () => ({
 describe('syncBrowseButtonState (popup)', () => {
   beforeEach(() => buildDOM());
 
-  it('disables browse-profile and browse-system-prompt when apiKey is empty', async () => {
+  it('disables browse-system-prompt when apiKey is empty', async () => {
     (document.getElementById('obsidian-api-key') as HTMLInputElement).value = '';
     const { syncBrowseButtonState } = await import('../main');
     syncBrowseButtonState();
-    expect((document.getElementById('obsidian-browse-profile') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
     expect(
       (document.getElementById('obsidian-browse-system-prompt') as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -68,13 +57,10 @@ describe('syncBrowseButtonState (popup)', () => {
     expect((document.getElementById('obsidian-test') as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('enables all three buttons when apiKey is non-empty', async () => {
+  it('enables browse-system-prompt and test when apiKey is non-empty', async () => {
     (document.getElementById('obsidian-api-key') as HTMLInputElement).value = 'my-secret-key';
     const { syncBrowseButtonState } = await import('../main');
     syncBrowseButtonState();
-    expect((document.getElementById('obsidian-browse-profile') as HTMLButtonElement).disabled).toBe(
-      false,
-    );
     expect(
       (document.getElementById('obsidian-browse-system-prompt') as HTMLButtonElement).disabled,
     ).toBe(false);
@@ -97,12 +83,9 @@ describe('load() syncs button state on init', () => {
     mockSendMessage.mockResolvedValue({ ok: true, models: [] });
   });
 
-  it('disables browse buttons on load when stored apiKey is empty', async () => {
+  it('disables browse-system-prompt on load when stored apiKey is empty', async () => {
     const { load } = await import('../main');
     await load();
-    expect((document.getElementById('obsidian-browse-profile') as HTMLButtonElement).disabled).toBe(
-      true,
-    );
     expect(
       (document.getElementById('obsidian-browse-system-prompt') as HTMLButtonElement).disabled,
     ).toBe(true);
@@ -202,7 +185,7 @@ describe('obsidianUnreachable flag — popup browse buttons', () => {
     const { wireBrowseButtons, syncBrowseButtonState } = await import('../main');
     syncBrowseButtonState();
     wireBrowseButtons();
-    document.getElementById('obsidian-browse-profile')!.click();
+    document.getElementById('obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     expect((document.getElementById('obsidian-warning') as HTMLElement).hidden).toBe(false);
   });
@@ -213,7 +196,7 @@ describe('obsidianUnreachable flag — popup browse buttons', () => {
     const { wireBrowseButtons, syncBrowseButtonState } = await import('../main');
     syncBrowseButtonState();
     wireBrowseButtons();
-    document.getElementById('obsidian-browse-profile')!.click();
+    document.getElementById('obsidian-browse-system-prompt')!.click();
     await new Promise((r) => setTimeout(r, 20));
     expect((document.getElementById('obsidian-warning') as HTMLElement).hidden).toBe(true);
   });

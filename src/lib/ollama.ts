@@ -1,4 +1,4 @@
-import type { ChatMessage, FieldContext, OllamaConfig, UserProfile } from '../types';
+import type { ChatMessage, FieldContext, OllamaConfig } from '../types';
 
 type StreamOptions = {
   signal: AbortSignal;
@@ -83,17 +83,13 @@ export async function listModels(config: OllamaConfig): Promise<string[]> {
   return data.models.map((m) => m.name);
 }
 
-export async function inferFieldValue(
-  config: OllamaConfig,
-  field: FieldContext,
-  profile: UserProfile,
-): Promise<string> {
+export async function inferFieldValue(config: OllamaConfig, field: FieldContext): Promise<string> {
   const res = await fetch(`${config.baseUrl}/api/generate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       model: config.model,
-      prompt: buildPrompt(field, profile),
+      prompt: buildPrompt(field),
       stream: false,
       format: 'json',
     }),
@@ -108,45 +104,10 @@ export async function inferFieldValue(
   }
 }
 
-export async function inferFieldValueFromMarkdown(
-  config: OllamaConfig,
-  field: FieldContext,
-  profileMarkdown: string,
-): Promise<string> {
-  const res = await fetch(`${config.baseUrl}/api/generate`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: config.model,
-      prompt: buildMarkdownPrompt(field, profileMarkdown),
-      stream: false,
-      format: 'json',
-    }),
-  });
-  if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
-  const data = (await res.json()) as { response: string };
-  try {
-    const parsed = JSON.parse(data.response) as { value?: string };
-    return parsed.value ?? '';
-  } catch {
-    return '';
-  }
-}
-
-function buildMarkdownPrompt(field: FieldContext, profileMarkdown: string): string {
+function buildPrompt(field: FieldContext): string {
   return [
-    'You are helping fill a web form. Given a form field and a user profile in Markdown, pick the best value for the field.',
+    'You are helping fill a web form. Given a form field, pick the best value for the field.',
     'Respond with JSON only in the shape {"value": "<best value or empty string>"}. Do not invent data.',
     `Field: ${JSON.stringify(field)}`,
-    `Profile:\n${profileMarkdown}`,
-  ].join('\n');
-}
-
-function buildPrompt(field: FieldContext, profile: UserProfile): string {
-  return [
-    'You are helping fill a web form. Given a form field and a user profile, pick the best profile value for the field.',
-    'Respond with JSON only in the shape {"value": "<best value or empty string>"}. Do not invent data.',
-    `Field: ${JSON.stringify(field)}`,
-    `Profile: ${JSON.stringify(profile)}`,
   ].join('\n');
 }

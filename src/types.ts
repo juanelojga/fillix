@@ -1,7 +1,3 @@
-export interface UserProfile {
-  [key: string]: string | undefined;
-}
-
 export interface OllamaConfig {
   baseUrl: string;
   model: string;
@@ -27,12 +23,11 @@ export interface ObsidianConfig {
   host: string;
   port: number;
   apiKey: string;
-  profilePath?: string;
   systemPromptPath?: string;
 }
 
 export type Message =
-  | { type: 'OLLAMA_INFER'; field: FieldContext; profile: UserProfile }
+  | { type: 'OLLAMA_INFER'; field: FieldContext }
   | { type: 'OLLAMA_LIST_MODELS' }
   | { type: 'CHAT_START'; messages: ChatMessage[]; systemPrompt: string; model: string }
   | { type: 'CHAT_STOP' }
