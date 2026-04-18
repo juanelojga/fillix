@@ -243,23 +243,62 @@ export function wireSidepanelBrowseButtons(): void {
 }
 
 export async function buildSystemPrompt(cfg: ObsidianConfig, fallback: string): Promise<string> {
-  if (!cfg.systemPromptPath || !cfg.apiKey) return fallback;
   const warningEl = document.getElementById('obsidian-warning') as HTMLElement | null;
-  try {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'OBSIDIAN_GET_FILE',
-      path: cfg.systemPromptPath,
-    } satisfies Message)) as MessageResponse;
-    if (response.ok && 'content' in response) {
-      if (warningEl) warningEl.hidden = true;
-      return response.content;
-    }
-    if (warningEl) warningEl.hidden = false;
-    return fallback;
-  } catch {
-    if (warningEl) warningEl.hidden = false;
+  const sourceEl = document.getElementById('sp-source') as HTMLElement | null;
+
+  if (!cfg.apiKey || (!cfg.systemPromptPath && !cfg.profilePath)) {
+    if (warningEl) warningEl.hidden = true;
+    if (sourceEl) sourceEl.hidden = true;
     return fallback;
   }
+
+  let systemPrompt = fallback;
+  let profileContent: string | null = null;
+  let fetchFailed = false;
+
+  if (cfg.systemPromptPath) {
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: 'OBSIDIAN_GET_FILE',
+        path: cfg.systemPromptPath,
+      } satisfies Message)) as MessageResponse;
+      if (response.ok && 'content' in response) {
+        systemPrompt = response.content;
+      } else {
+        fetchFailed = true;
+      }
+    } catch {
+      fetchFailed = true;
+    }
+  }
+
+  if (cfg.profilePath) {
+    try {
+      const response = (await chrome.runtime.sendMessage({
+        type: 'OBSIDIAN_GET_FILE',
+        path: cfg.profilePath,
+      } satisfies Message)) as MessageResponse;
+      if (response.ok && 'content' in response) {
+        profileContent = response.content;
+      } else {
+        fetchFailed = true;
+      }
+    } catch {
+      fetchFailed = true;
+    }
+  }
+
+  if (warningEl) warningEl.hidden = !fetchFailed;
+  if (sourceEl) {
+    if (cfg.systemPromptPath && systemPrompt !== fallback) {
+      sourceEl.textContent = `System prompt: ${cfg.systemPromptPath}`;
+      sourceEl.hidden = false;
+    } else {
+      sourceEl.hidden = true;
+    }
+  }
+
+  return profileContent ? `${systemPrompt}\n\n## User Profile\n${profileContent}` : systemPrompt;
 }
 
 // ── Main init ────────────────────────────────────────────────────────────────
@@ -302,7 +341,12 @@ export async function initSidePanel(): Promise<void> {
     onDone() {
       setStreamingUI(false);
       if (currentAssistantBubble) {
-        currentAssistantBubble.innerHTML = renderMarkdown(currentAssistantBubble.textContent ?? '');
+        const text = currentAssistantBubble.textContent ?? '';
+        if (text) {
+          currentAssistantBubble.innerHTML = renderMarkdown(text);
+        } else {
+          currentAssistantBubble.remove();
+        }
         currentAssistantBubble = null;
         scrollToBottom();
       }
@@ -324,6 +368,7 @@ export async function initSidePanel(): Promise<void> {
     settingsView.hidden = true;
     chatTab.classList.add('active');
     settingsTab.classList.remove('active');
+    newConvBtn.hidden = false;
   });
 
   settingsTab.addEventListener('click', () => {
@@ -331,10 +376,13 @@ export async function initSidePanel(): Promise<void> {
     settingsView.hidden = false;
     settingsTab.classList.add('active');
     chatTab.classList.remove('active');
+    newConvBtn.hidden = true;
   });
 
   // ── New conversation ────────────────────────────────────────────
   newConvBtn.addEventListener('click', () => {
+    controller.stop();
+    setStreamingUI(false);
     controller.clear();
     messagesEl.innerHTML = '';
     currentAssistantBubble = null;
@@ -355,7 +403,6 @@ export async function initSidePanel(): Promise<void> {
     if (!text) return;
 
     input.value = '';
-    setStreamingUI(true);
 
     const [latestOllama, latestChat, latestObsidian] = await Promise.all([
       getOllamaConfig(),
@@ -368,6 +415,7 @@ export async function initSidePanel(): Promise<void> {
 
     appendBubble('user', text);
     currentAssistantBubble = appendBubble('assistant', '');
+    setStreamingUI(true);
     controller.send(text, systemPrompt, modelSelect.value);
   }
 

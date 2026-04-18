@@ -22,6 +22,7 @@ chrome.runtime.onConnect.addListener((port) => {
       });
     } else if (msg.type === 'CHAT_STOP') {
       controller?.abort();
+      port.postMessage({ type: 'done' } satisfies PortMessage);
     }
   });
 
