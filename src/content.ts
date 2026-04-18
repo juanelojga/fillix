@@ -1,5 +1,4 @@
 import { detectFields, setFieldValue } from './lib/forms';
-import { getProfile } from './lib/storage';
 import type { Message, MessageResponse } from './types';
 
 const BUTTON_ID = 'fillix-trigger';
@@ -40,10 +39,9 @@ async function fillAll(btn: HTMLButtonElement): Promise<void> {
   const original = btn.textContent;
   btn.textContent = 'Fillix: thinking…';
   try {
-    const profile = await getProfile();
     const fields = detectFields();
     for (const field of fields) {
-      const msg: Message = { type: 'OLLAMA_INFER', field: field.context, profile };
+      const msg: Message = { type: 'OLLAMA_INFER', field: field.context };
       const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse;
       if (response.ok && 'value' in response && response.value) {
         setFieldValue(field.element, response.value);

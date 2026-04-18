@@ -1,5 +1,6 @@
 import { chatStream, inferFieldValue, listModels } from './lib/ollama';
-import { getOllamaConfig } from './lib/storage';
+import { getFile, listFiles, testConnection } from './lib/obsidian';
+import { getObsidianConfig, getOllamaConfig } from './lib/storage';
 import type { Message, MessageResponse, PortMessage } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -21,18 +22,26 @@ chrome.runtime.onConnect.addListener((port) => {
       });
     } else if (msg.type === 'CHAT_STOP') {
       controller?.abort();
+      port.postMessage({ type: 'done' } satisfies PortMessage);
     }
   });
 
   port.onDisconnect.addListener(() => controller?.abort());
 });
 
-chrome.runtime.onMessage.addListener((msg: Message, _sender, sendResponse) => {
+export function sanitizeError(error: string, apiKey: string): string {
+  if (!apiKey) return error;
+  return error.split(apiKey).join('[REDACTED]');
+}
+
+chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
+  if (sender.id !== chrome.runtime.id) return;
   handle(msg)
     .then(sendResponse)
-    .catch((err: unknown) => {
-      const error = err instanceof Error ? err.message : String(err);
-      sendResponse({ ok: false, error } satisfies MessageResponse);
+    .catch(async (err: unknown) => {
+      const raw = err instanceof Error ? err.message : String(err);
+      const { apiKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
+      sendResponse({ ok: false, error: sanitizeError(raw, apiKey) } satisfies MessageResponse);
     });
   return true;
 });
@@ -41,7 +50,7 @@ async function handle(msg: Message): Promise<MessageResponse> {
   const config = await getOllamaConfig();
   switch (msg.type) {
     case 'OLLAMA_INFER': {
-      const value = await inferFieldValue(config, msg.field, msg.profile);
+      const value = await inferFieldValue(config, msg.field);
       return { ok: true, value };
     }
     case 'OLLAMA_LIST_MODELS': {
@@ -51,6 +60,21 @@ async function handle(msg: Message): Promise<MessageResponse> {
     case 'CHAT_START':
     case 'CHAT_STOP':
       return { ok: false, error: 'Use port channel for chat' };
+    case 'OBSIDIAN_TEST_CONNECTION': {
+      const obsidian = await getObsidianConfig();
+      await testConnection(obsidian);
+      return { ok: true };
+    }
+    case 'OBSIDIAN_LIST_FILES': {
+      const obsidian = await getObsidianConfig();
+      const files = await listFiles(obsidian);
+      return { ok: true, files };
+    }
+    case 'OBSIDIAN_GET_FILE': {
+      const obsidian = await getObsidianConfig();
+      const content = await getFile(obsidian, msg.path);
+      return { ok: true, content };
+    }
     default: {
       const _: never = msg;
       return _;

@@ -296,6 +296,97 @@
         border-radius: 4px;
         padding: 6px 10px;
       }
+
+      #obsidian-warning {
+        font-size: 12px;
+        color: #b60;
+        background: #fffbe6;
+        border: 1px solid #ffe066;
+        border-radius: 4px;
+        padding: 6px 10px;
+      }
+
+      #sp-source {
+        font-size: 12px;
+        color: #080;
+        padding: 2px 12px;
+      }
+
+      .obsidian-path-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .obsidian-path-row input {
+        flex: 1;
+      }
+
+      .obsidian-path-row button {
+        padding: 7px 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 13px;
+        white-space: nowrap;
+      }
+
+      .obsidian-path-row button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .fillix-browse-dropdown {
+        position: fixed;
+        background: #fff;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        max-height: 200px;
+        overflow-y: auto;
+        z-index: 9999;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+      }
+
+      .fillix-browse-item {
+        padding: 6px 10px;
+        cursor: pointer;
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .fillix-browse-item:hover {
+        background: #f0f0f0;
+      }
+
+      #obsidian-status {
+        font-size: 12px;
+        color: #080;
+        min-height: 16px;
+      }
+      #obsidian-status.error {
+        color: #c00;
+      }
+
+      .obsidian-test-row {
+        display: flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .obsidian-test-row button {
+        padding: 7px 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 13px;
+      }
+
+      .obsidian-test-row button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
     </style>
   </head>
   <body>
@@ -307,6 +398,7 @@
 
     <div id="chat-view">
       <div id="messages"></div>
+      <div id="sp-source" hidden></div>
       <div id="input-row">
         <textarea id="input" rows="1" placeholder="Message…"></textarea>
         <button id="send">Send</button>
@@ -328,49 +420,92 @@
         </div>
       </div>
 
-      <div class="field-group">
+      <div id="system-prompt-local-section" class="field-group">
         <label for="systemPrompt">System prompt</label>
         <textarea id="systemPrompt"></textarea>
       </div>
 
       <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 4px 0" />
 
-      <div class="field-group">
-        <label>First name</label>
-        <input data-profile="firstName" type="text" />
-      </div>
-      <div class="field-group">
-        <label>Last name</label>
-        <input data-profile="lastName" type="text" />
-      </div>
-      <div class="field-group">
-        <label>Email</label>
-        <input data-profile="email" type="email" />
-      </div>
-      <div class="field-group">
-        <label>Phone</label>
-        <input data-profile="phone" type="tel" />
-      </div>
-      <div class="field-group">
-        <label>Address</label>
-        <input data-profile="addressLine1" type="text" />
-      </div>
-      <div class="field-group">
-        <label>City</label>
-        <input data-profile="city" type="text" />
-      </div>
-      <div class="field-group">
-        <label>State / Region</label>
-        <input data-profile="state" type="text" />
-      </div>
-      <div class="field-group">
-        <label>Postal code</label>
-        <input data-profile="postalCode" type="text" />
-      </div>
-      <div class="field-group">
-        <label>Country</label>
-        <input data-profile="country" type="text" />
-      </div>
+      <fieldset
+        id="obsidian-section"
+        style="
+          border: 1px solid #e5e5e5;
+          border-radius: 6px;
+          padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        "
+      >
+        <legend
+          style="
+            font-size: 12px;
+            font-weight: 600;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0 4px;
+          "
+        >
+          Obsidian
+        </legend>
+
+        <div class="field-group">
+          <label for="sp-obsidian-host">Host</label>
+          <input id="sp-obsidian-host" type="text" placeholder="localhost" />
+        </div>
+
+        <div class="field-group">
+          <label for="sp-obsidian-port">Port</label>
+          <input id="sp-obsidian-port" type="number" min="1" max="65535" placeholder="27123" />
+        </div>
+
+        <div class="field-group">
+          <label for="sp-obsidian-api-key">API key</label>
+          <input id="sp-obsidian-api-key" type="password" placeholder="Paste your API key" />
+        </div>
+
+        <div class="obsidian-test-row">
+          <button id="sp-obsidian-test" type="button" disabled>Test connection</button>
+          <div id="obsidian-status"></div>
+        </div>
+
+        <div id="obsidian-paths-section" hidden>
+          <div
+            id="obsidian-paths-alert"
+            hidden
+            style="
+              font-size: 12px;
+              color: #b60;
+              background: #fffbe6;
+              border: 1px solid #ffe066;
+              border-radius: 4px;
+              padding: 6px 10px;
+              margin-bottom: 10px;
+            "
+          >
+            Set a System Prompt document to use Obsidian context.
+          </div>
+
+          <div class="field-group">
+            <label for="sp-obsidian-system-prompt-path">System prompt document</label>
+            <div class="obsidian-path-row">
+              <input
+                id="sp-obsidian-system-prompt-path"
+                type="text"
+                placeholder="Vault/SystemPrompt.md"
+                list="sidepanel-vault-files"
+              />
+              <button id="sp-obsidian-browse-system-prompt" type="button" disabled>Browse</button>
+            </div>
+          </div>
+
+          <datalist id="sidepanel-vault-files"></datalist>
+        </div>
+      </fieldset>
+
+      <div id="obsidian-warning" hidden>Obsidian unreachable — using local fallback</div>
 
       <button id="saveSettings">Save settings</button>
       <div id="settings-status"></div>
