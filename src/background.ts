@@ -273,6 +273,23 @@ async function runAgentPipeline(
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
+async function autoRefreshWorkflows(): Promise<void> {
+  try {
+    const obsidian = await getObsidianConfig();
+    if (!obsidian.apiKey) return;
+    await handle({ type: 'WORKFLOWS_REFRESH' });
+  } catch (err) {
+    console.warn('[fillix] Auto-refresh workflows failed:', err);
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  void autoRefreshWorkflows();
+});
+chrome.runtime.onStartup.addListener(() => {
+  void autoRefreshWorkflows();
+});
+
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'chat') {
     let controller: AbortController | null = null;

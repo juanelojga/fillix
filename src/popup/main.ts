@@ -1,8 +1,10 @@
 import {
   getObsidianConfig,
   getOllamaConfig,
+  getWorkflowsFolder,
   setObsidianConfig,
   setOllamaConfig,
+  setWorkflowsFolder,
 } from '../lib/storage';
 import type { Message, MessageResponse, ObsidianConfig } from '../types';
 
@@ -77,7 +79,11 @@ export function wireBrowseButtons(): void {
 }
 
 export async function load(): Promise<void> {
-  const [config, obsidian] = await Promise.all([getOllamaConfig(), getObsidianConfig()]);
+  const [config, obsidian, folder] = await Promise.all([
+    getOllamaConfig(),
+    getObsidianConfig(),
+    getWorkflowsFolder(),
+  ]);
 
   $<HTMLInputElement>('#baseUrl').value = config.baseUrl;
 
@@ -85,6 +91,9 @@ export async function load(): Promise<void> {
   $<HTMLInputElement>('#obsidian-port').value = String(obsidian.port);
   $<HTMLInputElement>('#obsidian-api-key').value = obsidian.apiKey;
   $<HTMLInputElement>('#obsidian-system-prompt-path').value = obsidian.systemPromptPath ?? '';
+
+  const folderInput = document.getElementById('workflows-folder') as HTMLInputElement | null;
+  if (folderInput) folderInput.value = folder;
 
   syncBrowseButtonState();
 
@@ -104,7 +113,14 @@ export async function save(): Promise<void> {
     model: $<HTMLSelectElement>('#model').value,
   };
 
-  await Promise.all([setOllamaConfig(ollamaConfig), setObsidianConfig(obsidian)]);
+  const folderInput = document.getElementById('workflows-folder') as HTMLInputElement | null;
+  const folder = folderInput?.value.trim() || 'fillix-workflows';
+
+  await Promise.all([
+    setOllamaConfig(ollamaConfig),
+    setObsidianConfig(obsidian),
+    setWorkflowsFolder(folder),
+  ]);
   setStatus('Saved.');
 }
 

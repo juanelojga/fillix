@@ -1,6 +1,7 @@
 import { initAgentPanel } from './agent';
 import { createChatController } from './chat';
 import { renderMarkdown } from './markdown';
+import { loadSidepanelSettings, saveSidepanelSettings } from './settings';
 import {
   getChatConfig,
   getObsidianConfig,
@@ -408,6 +409,7 @@ export async function initSidePanel(): Promise<void> {
   systemPromptInput.value = chatConfig.systemPrompt;
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await loadSidepanelObsidian();
+  await loadSidepanelSettings();
 
   // Auto-test connection on open if an API key is stored
   const storedObsidian = await getObsidianConfig();
@@ -442,6 +444,7 @@ export async function initSidePanel(): Promise<void> {
       setOllamaConfig({ baseUrl: baseUrlInput.value, model: modelSelect.value }),
       setChatConfig({ systemPrompt: systemPromptInput.value }),
       saveSidepanelObsidian(),
+      saveSidepanelSettings(),
     ]);
     updateConnectionUI(obsidianConnected);
 
