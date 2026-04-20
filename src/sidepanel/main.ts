@@ -1,3 +1,4 @@
+import { initAgentPanel } from './agent';
 import { createChatController } from './chat';
 import { renderMarkdown } from './markdown';
 import {
@@ -273,8 +274,10 @@ export async function initSidePanel(): Promise<void> {
   // ── DOM refs ────────────────────────────────────────────────────
   const chatView = document.getElementById('chat-view') as HTMLElement;
   const settingsView = document.getElementById('settings-view') as HTMLElement;
+  const agentView = document.getElementById('agent-view') as HTMLElement;
   const chatTab = document.getElementById('chat-tab') as HTMLButtonElement;
   const settingsTab = document.getElementById('settings-tab') as HTMLButtonElement;
+  const agentTab = document.getElementById('agent-tab') as HTMLButtonElement;
   const newConvBtn = document.getElementById('new-conversation') as HTMLButtonElement;
   const messagesEl = document.getElementById('messages') as HTMLElement;
   const input = document.getElementById('input') as HTMLTextAreaElement;
@@ -330,16 +333,30 @@ export async function initSidePanel(): Promise<void> {
   chatTab.addEventListener('click', () => {
     chatView.hidden = false;
     settingsView.hidden = true;
+    agentView.hidden = true;
     chatTab.classList.add('active');
     settingsTab.classList.remove('active');
+    agentTab.classList.remove('active');
     newConvBtn.hidden = false;
   });
 
   settingsTab.addEventListener('click', () => {
     chatView.hidden = true;
     settingsView.hidden = false;
+    agentView.hidden = true;
     settingsTab.classList.add('active');
     chatTab.classList.remove('active');
+    agentTab.classList.remove('active');
+    newConvBtn.hidden = true;
+  });
+
+  agentTab.addEventListener('click', () => {
+    chatView.hidden = true;
+    settingsView.hidden = true;
+    agentView.hidden = false;
+    agentTab.classList.add('active');
+    chatTab.classList.remove('active');
+    settingsTab.classList.remove('active');
     newConvBtn.hidden = true;
   });
 
@@ -431,6 +448,8 @@ export async function initSidePanel(): Promise<void> {
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);
   });
+
+  await initAgentPanel();
 
   // ── Helpers ─────────────────────────────────────────────────────
 
