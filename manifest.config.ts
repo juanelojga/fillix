@@ -24,6 +24,6 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'activeTab', 'sidePanel'],
+  permissions: ['storage', 'activeTab', 'sidePanel', 'tabs'],
   host_permissions: ['http://localhost:11434/*', 'http://localhost:27123/*'],
 });

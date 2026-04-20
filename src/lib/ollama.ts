@@ -83,6 +83,29 @@ export async function listModels(config: OllamaConfig): Promise<string[]> {
   return data.models.map((m) => m.name);
 }
 
+export async function generateStructured<T>(
+  config: OllamaConfig,
+  systemPrompt: string,
+  userPrompt: string,
+  signal?: AbortSignal,
+): Promise<T> {
+  const res = await fetch(`${config.baseUrl}/api/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.model,
+      system: systemPrompt,
+      prompt: userPrompt,
+      stream: false,
+      format: 'json',
+    }),
+    signal,
+  });
+  if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
+  const data = (await res.json()) as { response: string };
+  return JSON.parse(data.response) as T;
+}
+
 export async function inferFieldValue(config: OllamaConfig, field: FieldContext): Promise<string> {
   const res = await fetch(`${config.baseUrl}/api/generate`, {
     method: 'POST',

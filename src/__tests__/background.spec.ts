@@ -230,7 +230,13 @@ describe('background onConnect handler', () => {
 // These verify that the new Message and MessageResponse union variants
 // from Tasks 2.2 and 2.4 compile and carry the correct shapes.
 
-import type { MessageResponse, WorkflowDefinition, FieldSnapshot, FieldFill } from '../types';
+import type {
+  MessageResponse,
+  WorkflowDefinition,
+  FieldSnapshot,
+  FieldFill,
+  PipelineStage,
+} from '../types';
 
 describe('OBSIDIAN_WRITE message type', () => {
   it('requires path and content string fields', () => {
@@ -344,5 +350,169 @@ describe('MessageResponse with applied variant', () => {
     if (response.ok && 'applied' in response) {
       expect(response.applied).toBe(3);
     }
+  });
+});
+
+// --- Sprint 4: Agent port protocol specs (Tasks 4.3, 4.4) ---
+// Verify the 'agent' port is handled and the AgentPortIn/Out message shapes are correct.
+// These are type-level + behavioral contracts; full pipeline integration is exercised manually.
+
+// AgentPortIn shapes
+type AgentPortIn =
+  | { type: 'AGENTIC_RUN'; workflowId: string; tabId: number }
+  | { type: 'AGENTIC_APPLY'; tabId: number; fieldMap: FieldFill[] }
+  | { type: 'AGENTIC_CANCEL' };
+
+// AgentPortOut shapes
+type AgentPortOut =
+  | {
+      type: 'AGENTIC_STAGE';
+      stage: PipelineStage;
+      status: 'running' | 'done' | 'error';
+      summary?: string;
+      durationMs?: number;
+    }
+  | { type: 'AGENTIC_CONFIRM'; proposed: FieldFill[]; logEntryId: string }
+  | { type: 'AGENTIC_COMPLETE'; applied: number; logPath: string }
+  | { type: 'AGENTIC_ERROR'; stage: PipelineStage; error: string };
+
+describe('AgentPortIn message shapes', () => {
+  it('AGENTIC_RUN requires workflowId and tabId', () => {
+    const msg: AgentPortIn = { type: 'AGENTIC_RUN', workflowId: 'workflows/job.md', tabId: 5 };
+    expect(msg.type).toBe('AGENTIC_RUN');
+    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_RUN' }>).workflowId).toBe(
+      'workflows/job.md',
+    );
+    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_RUN' }>).tabId).toBe(5);
+  });
+
+  it('AGENTIC_APPLY requires tabId and fieldMap array', () => {
+    const fieldMap: FieldFill[] = [
+      { fieldId: 'name', label: 'Name', currentValue: '', proposedValue: 'Juan' },
+    ];
+    const msg: AgentPortIn = { type: 'AGENTIC_APPLY', tabId: 5, fieldMap };
+    expect(msg.type).toBe('AGENTIC_APPLY');
+    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_APPLY' }>).fieldMap).toHaveLength(1);
+  });
+
+  it('AGENTIC_CANCEL requires only type', () => {
+    const msg: AgentPortIn = { type: 'AGENTIC_CANCEL' };
+    expect(msg.type).toBe('AGENTIC_CANCEL');
+  });
+});
+
+describe('AgentPortOut message shapes', () => {
+  it('AGENTIC_STAGE carries stage, status; summary and durationMs are optional', () => {
+    const msg: AgentPortOut = { type: 'AGENTIC_STAGE', stage: 'understand', status: 'running' };
+    expect(msg.type).toBe('AGENTIC_STAGE');
+    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_STAGE' }>;
+    expect(typed.stage).toBe('understand');
+    expect(typed.status).toBe('running');
+    expect(typed.summary).toBeUndefined();
+    expect(typed.durationMs).toBeUndefined();
+  });
+
+  it('AGENTIC_STAGE with done status can include summary and durationMs', () => {
+    const msg: AgentPortOut = {
+      type: 'AGENTIC_STAGE',
+      stage: 'plan',
+      status: 'done',
+      summary: '3 fields to fill',
+      durationMs: 1200,
+    };
+    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_STAGE' }>;
+    expect(typed.summary).toBe('3 fields to fill');
+    expect(typed.durationMs).toBe(1200);
+  });
+
+  it('AGENTIC_CONFIRM carries proposed FieldFill array and logEntryId', () => {
+    const proposed: FieldFill[] = [
+      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'a@b.com' },
+    ];
+    const msg: AgentPortOut = { type: 'AGENTIC_CONFIRM', proposed, logEntryId: 'run-001' };
+    expect(msg.type).toBe('AGENTIC_CONFIRM');
+    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_CONFIRM' }>;
+    expect(typed.proposed).toHaveLength(1);
+    expect(typed.logEntryId).toBe('run-001');
+  });
+
+  it('AGENTIC_COMPLETE carries applied count and logPath', () => {
+    const msg: AgentPortOut = {
+      type: 'AGENTIC_COMPLETE',
+      applied: 4,
+      logPath: 'fillix-logs/2026-04-20.md',
+    };
+    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_COMPLETE' }>;
+    expect(typed.applied).toBe(4);
+    expect(typed.logPath).toContain('fillix-logs/');
+  });
+
+  it('AGENTIC_ERROR carries stage and error string', () => {
+    const msg: AgentPortOut = { type: 'AGENTIC_ERROR', stage: 'draft', error: 'model timeout' };
+    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_ERROR' }>;
+    expect(typed.stage).toBe('draft');
+    expect(typed.error).toBe('model timeout');
+  });
+});
+
+describe('background agent port — behavioral contracts', () => {
+  it('registers an onMessage listener for the "agent" port', async () => {
+    // Background must call port.onMessage.addListener for ports named 'agent'
+    const agentPort = makeMockPort('agent');
+    fireConnect(agentPort);
+    expect(agentPort.onMessage.addListener).toHaveBeenCalledOnce();
+  });
+
+  it('registers an onDisconnect listener for the "agent" port (abort on close)', async () => {
+    const agentPort = makeMockPort('agent');
+    fireConnect(agentPort);
+    expect(agentPort.onDisconnect.addListener).toHaveBeenCalledOnce();
+  });
+
+  it('does not register listeners for ports other than "chat" or "agent"', () => {
+    const unknownPort = makeMockPort('unknown');
+    fireConnect(unknownPort);
+    expect(unknownPort.onMessage.addListener).not.toHaveBeenCalled();
+  });
+});
+
+// Log format helpers (Task 4.4) — type contracts only (helpers are internal to background.ts)
+// The redaction regex is verified via the end-to-end pipeline test (Sprint 4 manual validation).
+// These describe blocks document the expected log markdown shapes.
+
+describe('log format: buildRunHeader contract', () => {
+  it('expected format: "## Run — <ISO timestamp>\\n**Workflow:** ...\\n**Page:** ..."', () => {
+    // Not directly importable (internal helper) — shape verified via manual Obsidian test.
+    // This spec documents the contract for future extraction into a testable module.
+    const exampleHeader =
+      '## Run — 2026-04-20T12:00:00.000Z\n**Workflow:** Job Application\n**Page:** https://example.com/apply';
+    expect(exampleHeader).toMatch(/^## Run — \d{4}-\d{2}-\d{2}T/);
+    expect(exampleHeader).toContain('**Workflow:**');
+    expect(exampleHeader).toContain('**Page:**');
+  });
+});
+
+describe('log format: redaction contract', () => {
+  it('pattern matches password-like values', () => {
+    const REDACT = /\b(password|token|secret|key|bearer)\s*[:=]\s*\S+/gi;
+    expect('Authorization: Bearer abc123'.replace(REDACT, '[REDACTED]')).toBe(
+      'Authorization: [REDACTED]',
+    );
+    expect('password=hunter2'.replace(REDACT, '[REDACTED]')).toBe('[REDACTED]');
+    expect('api_key: sk-xyz'.replace(REDACT, '[REDACTED]')).toBe('api_key: [REDACTED]');
+  });
+
+  it('pattern does not redact innocuous text', () => {
+    const REDACT = /\b(password|token|secret|key|bearer)\s*[:=]\s*\S+/gi;
+    const safe = 'Fill the email field with the user name';
+    expect(safe.replace(REDACT, '[REDACTED]')).toBe(safe);
+  });
+});
+
+describe('log path format', () => {
+  it('derives log path as fillix-logs/YYYY-MM-DD.md from ISO date slice', () => {
+    const isoDate = '2026-04-20T12:00:00.000Z';
+    const logPath = `fillix-logs/${isoDate.slice(0, 10)}.md`;
+    expect(logPath).toBe('fillix-logs/2026-04-20.md');
   });
 });

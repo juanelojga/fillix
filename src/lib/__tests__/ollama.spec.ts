@@ -195,3 +195,66 @@ describe('chatStream', () => {
     expect(onError).toHaveBeenCalledOnce();
   });
 });
+
+// --- Sprint 4: generateStructured<T> specs (Task 4.1) ---
+
+import { generateStructured } from '../ollama';
+
+describe('generateStructured', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('POSTs to /api/generate with system, prompt, stream: false, format: json', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () =>
+        Promise.resolve({ response: '{"task_type":"form","detected_fields":[],"confidence":0.9}' }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    await generateStructured<{ task_type: string }>(CONFIG, 'sys', 'user');
+
+    expect(mockFetch).toHaveBeenCalledOnce();
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:11434/api/generate');
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.model).toBe('llama3.2');
+    expect(body.system).toBe('sys');
+    expect(body.prompt).toBe('user');
+    expect(body.stream).toBe(false);
+    expect(body.format).toBe('json');
+  });
+
+  it('parses data.response as JSON and returns it typed as T', async () => {
+    const payload = { task_type: 'form', detected_fields: ['name'], confidence: 0.95 };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ response: JSON.stringify(payload) }),
+      }),
+    );
+
+    const result = await generateStructured<typeof payload>(CONFIG, 'sys', 'user');
+    expect(result).toEqual(payload);
+  });
+
+  it('throws if data.response is not valid JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ response: 'not-json' }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow();
+  });
+
+  it('throws when the HTTP response is not ok', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(/500/);
+  });
+});
