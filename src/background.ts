@@ -121,6 +121,17 @@ async function handle(msg: Message): Promise<MessageResponse> {
       const workflows = await getWorkflows();
       return { ok: true, workflows };
     }
+    case 'DETECT_FIELDS': {
+      const resp = await chrome.tabs.sendMessage(msg.tabId, { type: 'DETECT_FIELDS' });
+      return resp as MessageResponse;
+    }
+    case 'APPLY_FIELDS': {
+      const resp = await chrome.tabs.sendMessage(msg.tabId, {
+        type: 'APPLY_FIELDS',
+        fieldMap: msg.fieldMap,
+      });
+      return resp as MessageResponse;
+    }
     default: {
       const _: never = msg;
       return _;

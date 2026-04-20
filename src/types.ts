@@ -37,7 +37,9 @@ export type Message =
   | { type: 'OBSIDIAN_WRITE'; path: string; content: string }
   | { type: 'OBSIDIAN_APPEND'; path: string; content: string }
   | { type: 'WORKFLOWS_REFRESH' }
-  | { type: 'WORKFLOWS_LIST' };
+  | { type: 'WORKFLOWS_LIST' }
+  | { type: 'DETECT_FIELDS'; tabId: number }
+  | { type: 'APPLY_FIELDS'; tabId: number; fieldMap: FieldFill[] };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {
@@ -105,5 +107,7 @@ export type MessageResponse =
   | { ok: true; files: string[] }
   | { ok: true; content: string }
   | { ok: true; workflows: WorkflowDefinition[] }
+  | { ok: true; fields: FieldSnapshot[] }
+  | { ok: true; applied: number }
   | { ok: true }
   | { ok: false; error: string };

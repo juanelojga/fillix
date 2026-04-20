@@ -230,7 +230,7 @@ describe('background onConnect handler', () => {
 // These verify that the new Message and MessageResponse union variants
 // from Tasks 2.2 and 2.4 compile and carry the correct shapes.
 
-import type { MessageResponse, WorkflowDefinition } from '../types';
+import type { MessageResponse, WorkflowDefinition, FieldSnapshot, FieldFill } from '../types';
 
 describe('OBSIDIAN_WRITE message type', () => {
   it('requires path and content string fields', () => {
@@ -300,6 +300,49 @@ describe('MessageResponse with workflows variant', () => {
     expect(response.ok).toBe(false);
     if (!response.ok) {
       expect(typeof response.error).toBe('string');
+    }
+  });
+});
+
+// --- Sprint 3: Message contract specs ---
+// Verify DETECT_FIELDS and APPLY_FIELDS union variants (Tasks 3.3) compile correctly.
+
+describe('DETECT_FIELDS message type (with tabId)', () => {
+  it('requires type and tabId', () => {
+    const msg: Message = { type: 'DETECT_FIELDS', tabId: 42 };
+    expect(msg.type).toBe('DETECT_FIELDS');
+    expect((msg as Extract<Message, { type: 'DETECT_FIELDS' }>).tabId).toBe(42);
+  });
+});
+
+describe('APPLY_FIELDS message type (with tabId)', () => {
+  it('requires type, tabId, and fieldMap', () => {
+    const fieldMap: FieldFill[] = [
+      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'a@b.com' },
+    ];
+    const msg: Message = { type: 'APPLY_FIELDS', tabId: 42, fieldMap };
+    expect(msg.type).toBe('APPLY_FIELDS');
+    expect((msg as Extract<Message, { type: 'APPLY_FIELDS' }>).fieldMap).toHaveLength(1);
+  });
+});
+
+describe('MessageResponse with fields variant', () => {
+  it('allows ok: true with a FieldSnapshot array', () => {
+    const fields: FieldSnapshot[] = [{ currentValue: 'foo', id: 'email', type: 'email' }];
+    const response: MessageResponse = { ok: true, fields };
+    expect(response.ok).toBe(true);
+    if (response.ok && 'fields' in response) {
+      expect(response.fields).toHaveLength(1);
+    }
+  });
+});
+
+describe('MessageResponse with applied variant', () => {
+  it('allows ok: true with an applied count', () => {
+    const response: MessageResponse = { ok: true, applied: 3 };
+    expect(response.ok).toBe(true);
+    if (response.ok && 'applied' in response) {
+      expect(response.applied).toBe(3);
     }
   });
 });
