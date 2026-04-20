@@ -5,7 +5,7 @@ function baseUrl(config: ObsidianConfig): string {
 }
 
 function headers(config: ObsidianConfig): Record<string, string> {
-  if (/[\u0100-\uFFFF]/.test(config.apiKey)) {
+  if (!/^[\x20-\x7E]+$/.test(config.apiKey)) {
     throw new Error(
       'API key contains invalid characters. Re-enter it directly from Obsidian Settings → Local REST API.',
     );
@@ -51,6 +51,34 @@ export async function getFile(config: ObsidianConfig, path: string): Promise<str
   });
   if (!res.ok) throw new Error(`Obsidian /vault/${path} returned ${res.status}`);
   return res.text();
+}
+
+export async function writeFile(
+  config: ObsidianConfig,
+  path: string,
+  content: string,
+): Promise<void> {
+  const res = await fetch(`${baseUrl(config)}/vault/${encodeURIComponent(path)}`, {
+    method: 'PUT',
+    headers: { ...headers(config), 'Content-Type': 'text/markdown' },
+    body: content,
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`Obsidian PUT /vault/${path} returned ${res.status}`);
+}
+
+export async function appendToFile(
+  config: ObsidianConfig,
+  path: string,
+  newContent: string,
+): Promise<void> {
+  const getRes = await fetch(`${baseUrl(config)}/vault/${encodeURIComponent(path)}`, {
+    headers: { ...headers(config), Accept: 'text/markdown' },
+    signal: AbortSignal.timeout(5000),
+  });
+  const existing = getRes.ok ? await getRes.text() : '';
+  const combined = existing ? `${existing}\n\n${newContent}` : newContent;
+  await writeFile(config, path, combined);
 }
 
 const TRUNCATE_LIMIT_CHARS = 8000;

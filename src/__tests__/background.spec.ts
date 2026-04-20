@@ -225,3 +225,81 @@ describe('background onConnect handler', () => {
     });
   });
 });
+
+// --- Sprint 2: Message contract specs ---
+// These verify that the new Message and MessageResponse union variants
+// from Tasks 2.2 and 2.4 compile and carry the correct shapes.
+
+import type { MessageResponse, WorkflowDefinition } from '../types';
+
+describe('OBSIDIAN_WRITE message type', () => {
+  it('requires path and content string fields', () => {
+    const msg: Message = {
+      type: 'OBSIDIAN_WRITE',
+      path: 'fillix-logs/2026-04-20.md',
+      content: '# Log',
+    };
+    expect(msg.type).toBe('OBSIDIAN_WRITE');
+    expect((msg as Extract<Message, { type: 'OBSIDIAN_WRITE' }>).path).toBe(
+      'fillix-logs/2026-04-20.md',
+    );
+    expect((msg as Extract<Message, { type: 'OBSIDIAN_WRITE' }>).content).toBe('# Log');
+  });
+});
+
+describe('OBSIDIAN_APPEND message type', () => {
+  it('requires path and content string fields', () => {
+    const msg: Message = { type: 'OBSIDIAN_APPEND', path: 'log.md', content: '## Entry' };
+    expect(msg.type).toBe('OBSIDIAN_APPEND');
+    expect((msg as Extract<Message, { type: 'OBSIDIAN_APPEND' }>).path).toBe('log.md');
+  });
+});
+
+describe('WORKFLOWS_REFRESH message type', () => {
+  it('requires only type — no other fields', () => {
+    const msg: Message = { type: 'WORKFLOWS_REFRESH' };
+    expect(msg.type).toBe('WORKFLOWS_REFRESH');
+  });
+});
+
+describe('WORKFLOWS_LIST message type', () => {
+  it('requires only type — no other fields', () => {
+    const msg: Message = { type: 'WORKFLOWS_LIST' };
+    expect(msg.type).toBe('WORKFLOWS_LIST');
+  });
+});
+
+describe('MessageResponse with workflows variant', () => {
+  it('allows ok: true with a workflows array', () => {
+    const wf: WorkflowDefinition = {
+      id: 'workflows/test.md',
+      name: 'Test',
+      taskType: 'form',
+      tone: 'professional',
+      requiredProfileFields: [],
+      review: true,
+      logFullOutput: true,
+      autoApply: false,
+      systemPrompt: 'Fill.',
+    };
+    const response: MessageResponse = { ok: true, workflows: [wf] };
+    expect(response.ok).toBe(true);
+    if (response.ok && 'workflows' in response) {
+      expect(response.workflows).toHaveLength(1);
+      expect(response.workflows[0].name).toBe('Test');
+    }
+  });
+
+  it('OBSIDIAN_WRITE/APPEND success response is { ok: true }', () => {
+    const response: MessageResponse = { ok: true };
+    expect(response.ok).toBe(true);
+  });
+
+  it('error response shape is { ok: false, error: string }', () => {
+    const response: MessageResponse = { ok: false, error: 'Obsidian unreachable' };
+    expect(response.ok).toBe(false);
+    if (!response.ok) {
+      expect(typeof response.error).toBe('string');
+    }
+  });
+});

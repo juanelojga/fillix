@@ -33,7 +33,11 @@ export type Message =
   | { type: 'CHAT_STOP' }
   | { type: 'OBSIDIAN_LIST_FILES' }
   | { type: 'OBSIDIAN_GET_FILE'; path: string }
-  | { type: 'OBSIDIAN_TEST_CONNECTION' };
+  | { type: 'OBSIDIAN_TEST_CONNECTION' }
+  | { type: 'OBSIDIAN_WRITE'; path: string; content: string }
+  | { type: 'OBSIDIAN_APPEND'; path: string; content: string }
+  | { type: 'WORKFLOWS_REFRESH' }
+  | { type: 'WORKFLOWS_LIST' };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {
@@ -100,5 +104,6 @@ export type MessageResponse =
   | { ok: true; models: string[] }
   | { ok: true; files: string[] }
   | { ok: true; content: string }
+  | { ok: true; workflows: WorkflowDefinition[] }
   | { ok: true }
   | { ok: false; error: string };

@@ -1,6 +1,13 @@
 import { chatStream, inferFieldValue, listModels } from './lib/ollama';
-import { getFile, listFiles, testConnection } from './lib/obsidian';
-import { getObsidianConfig, getOllamaConfig } from './lib/storage';
+import { appendToFile, getFile, listFiles, testConnection, writeFile } from './lib/obsidian';
+import {
+  getObsidianConfig,
+  getOllamaConfig,
+  getWorkflows,
+  getWorkflowsFolder,
+  setWorkflows,
+} from './lib/storage';
+import { parseWorkflow } from './lib/workflow';
 import type { Message, MessageResponse, PortMessage } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -79,6 +86,40 @@ async function handle(msg: Message): Promise<MessageResponse> {
       const obsidian = await getObsidianConfig();
       const content = await getFile(obsidian, msg.path);
       return { ok: true, content };
+    }
+    case 'OBSIDIAN_WRITE': {
+      const obsidian = await getObsidianConfig();
+      await writeFile(obsidian, msg.path, msg.content);
+      return { ok: true };
+    }
+    case 'OBSIDIAN_APPEND': {
+      const obsidian = await getObsidianConfig();
+      await appendToFile(obsidian, msg.path, msg.content);
+      return { ok: true };
+    }
+    case 'WORKFLOWS_REFRESH': {
+      const obsidian = await getObsidianConfig();
+      const folder = await getWorkflowsFolder();
+      const allFiles = await listFiles(obsidian);
+      const workflowFiles = allFiles.filter((f) => f.startsWith(`${folder}/`));
+      const results = await Promise.all(
+        workflowFiles.map(async (path) => {
+          try {
+            const raw = await getFile(obsidian, path);
+            return parseWorkflow(path, raw);
+          } catch (err) {
+            console.warn(`[fillix] Skipping workflow ${path}:`, err);
+            return null;
+          }
+        }),
+      );
+      const workflows = results.filter((w) => w !== null);
+      await setWorkflows(workflows);
+      return { ok: true };
+    }
+    case 'WORKFLOWS_LIST': {
+      const workflows = await getWorkflows();
+      return { ok: true, workflows };
     }
     default: {
       const _: never = msg;
