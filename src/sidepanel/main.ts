@@ -1,5 +1,7 @@
+import { initAgentPanel } from './agent';
 import { createChatController } from './chat';
 import { renderMarkdown } from './markdown';
+import { loadSidepanelSettings, saveSidepanelSettings } from './settings';
 import {
   getChatConfig,
   getObsidianConfig,
@@ -273,8 +275,10 @@ export async function initSidePanel(): Promise<void> {
   // ── DOM refs ────────────────────────────────────────────────────
   const chatView = document.getElementById('chat-view') as HTMLElement;
   const settingsView = document.getElementById('settings-view') as HTMLElement;
+  const agentView = document.getElementById('agent-view') as HTMLElement;
   const chatTab = document.getElementById('chat-tab') as HTMLButtonElement;
   const settingsTab = document.getElementById('settings-tab') as HTMLButtonElement;
+  const agentTab = document.getElementById('agent-tab') as HTMLButtonElement;
   const newConvBtn = document.getElementById('new-conversation') as HTMLButtonElement;
   const messagesEl = document.getElementById('messages') as HTMLElement;
   const input = document.getElementById('input') as HTMLTextAreaElement;
@@ -292,26 +296,64 @@ export async function initSidePanel(): Promise<void> {
 
   // ── State ───────────────────────────────────────────────────────
   let currentAssistantBubble: HTMLElement | null = null;
+  let currentThinkingContent: HTMLElement | null = null;
+  let currentResponseContent: HTMLElement | null = null;
   let currentBaseUrl = ollamaConfig.baseUrl;
+
+  function resetStreamState(): void {
+    currentAssistantBubble = null;
+    currentThinkingContent = null;
+    currentResponseContent = null;
+  }
 
   // ── Chat controller ─────────────────────────────────────────────
   const controller = createChatController({
-    onToken(token) {
-      if (currentAssistantBubble) {
-        currentAssistantBubble.textContent = (currentAssistantBubble.textContent ?? '') + token;
-        scrollToBottom();
+    onThinking(token) {
+      if (!currentAssistantBubble) return;
+      if (!currentThinkingContent) {
+        const details = document.createElement('details');
+        details.className = 'thinking-block';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Thinking…';
+        const pre = document.createElement('pre');
+        details.appendChild(summary);
+        details.appendChild(pre);
+        currentAssistantBubble.appendChild(details);
+        currentThinkingContent = pre;
       }
+      currentThinkingContent.textContent = (currentThinkingContent.textContent ?? '') + token;
+      scrollToBottom();
+    },
+    onToken(token) {
+      if (!currentAssistantBubble) return;
+      if (!currentResponseContent) {
+        const div = document.createElement('div');
+        div.className = 'response-content';
+        currentAssistantBubble.appendChild(div);
+        currentResponseContent = div;
+      }
+      currentResponseContent.textContent = (currentResponseContent.textContent ?? '') + token;
+      scrollToBottom();
     },
     onDone() {
       setStreamingUI(false);
       if (currentAssistantBubble) {
-        const text = currentAssistantBubble.textContent ?? '';
-        if (text) {
-          currentAssistantBubble.innerHTML = renderMarkdown(text);
-        } else {
+        const thinkingDetails = currentAssistantBubble.querySelector('details.thinking-block');
+        if (thinkingDetails) {
+          thinkingDetails.querySelector('summary')!.textContent = 'Thinking';
+        }
+        const responseEl = currentResponseContent;
+        if (responseEl) {
+          const text = responseEl.textContent ?? '';
+          if (text) {
+            responseEl.innerHTML = renderMarkdown(text);
+          } else {
+            responseEl.remove();
+          }
+        } else if (!thinkingDetails) {
           currentAssistantBubble.remove();
         }
-        currentAssistantBubble = null;
+        resetStreamState();
         scrollToBottom();
       }
     },
@@ -320,7 +362,7 @@ export async function initSidePanel(): Promise<void> {
       if (currentAssistantBubble) {
         currentAssistantBubble.classList.add('error');
         currentAssistantBubble.textContent = `Error: ${err}\n(Ollama at ${currentBaseUrl})`;
-        currentAssistantBubble = null;
+        resetStreamState();
         scrollToBottom();
       }
     },
@@ -330,16 +372,30 @@ export async function initSidePanel(): Promise<void> {
   chatTab.addEventListener('click', () => {
     chatView.hidden = false;
     settingsView.hidden = true;
+    agentView.hidden = true;
     chatTab.classList.add('active');
     settingsTab.classList.remove('active');
+    agentTab.classList.remove('active');
     newConvBtn.hidden = false;
   });
 
   settingsTab.addEventListener('click', () => {
     chatView.hidden = true;
     settingsView.hidden = false;
+    agentView.hidden = true;
     settingsTab.classList.add('active');
     chatTab.classList.remove('active');
+    agentTab.classList.remove('active');
+    newConvBtn.hidden = true;
+  });
+
+  agentTab.addEventListener('click', () => {
+    chatView.hidden = true;
+    settingsView.hidden = true;
+    agentView.hidden = false;
+    agentTab.classList.add('active');
+    chatTab.classList.remove('active');
+    settingsTab.classList.remove('active');
     newConvBtn.hidden = true;
   });
 
@@ -349,7 +405,7 @@ export async function initSidePanel(): Promise<void> {
     setStreamingUI(false);
     controller.clear();
     messagesEl.innerHTML = '';
-    currentAssistantBubble = null;
+    resetStreamState();
   });
 
   // ── Send ────────────────────────────────────────────────────────
@@ -360,6 +416,12 @@ export async function initSidePanel(): Promise<void> {
     }
   });
 
+  function resizeInput(): void {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  }
+  input.addEventListener('input', resizeInput);
+
   sendBtn.addEventListener('click', () => doSend());
 
   async function doSend(): Promise<void> {
@@ -367,6 +429,7 @@ export async function initSidePanel(): Promise<void> {
     if (!text) return;
 
     input.value = '';
+    input.style.height = 'auto';
 
     const [latestOllama, latestChat, latestObsidian] = await Promise.all([
       getOllamaConfig(),
@@ -391,6 +454,7 @@ export async function initSidePanel(): Promise<void> {
   systemPromptInput.value = chatConfig.systemPrompt;
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await loadSidepanelObsidian();
+  await loadSidepanelSettings();
 
   // Auto-test connection on open if an API key is stored
   const storedObsidian = await getObsidianConfig();
@@ -425,12 +489,15 @@ export async function initSidePanel(): Promise<void> {
       setOllamaConfig({ baseUrl: baseUrlInput.value, model: modelSelect.value }),
       setChatConfig({ systemPrompt: systemPromptInput.value }),
       saveSidepanelObsidian(),
+      saveSidepanelSettings(),
     ]);
     updateConnectionUI(obsidianConnected);
 
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);
   });
+
+  await initAgentPanel();
 
   // ── Helpers ─────────────────────────────────────────────────────
 

@@ -30,13 +30,13 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 describe('testConnection', () => {
   it('resolves without throwing when the API returns 200', async () => {
-    mockFetch.mockResolvedValue(makeResponse(true, {}));
+    mockFetch.mockResolvedValue(makeResponse(true, { authenticated: true }));
 
     await expect(testConnection(BASE_CONFIG)).resolves.toBeUndefined();
   });
 
   it('sends a GET to the root endpoint', async () => {
-    mockFetch.mockResolvedValue(makeResponse(true, {}));
+    mockFetch.mockResolvedValue(makeResponse(true, { authenticated: true }));
 
     await testConnection(BASE_CONFIG);
 
@@ -56,7 +56,7 @@ describe('testConnection', () => {
 
   it('uses the configured host and port in the URL', async () => {
     const customConfig: ObsidianConfig = { ...BASE_CONFIG, host: '192.168.1.5', port: 9000 };
-    mockFetch.mockResolvedValue(makeResponse(true, {}));
+    mockFetch.mockResolvedValue(makeResponse(true, { authenticated: true }));
 
     await testConnection(customConfig);
 

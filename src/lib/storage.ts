@@ -1,4 +1,4 @@
-import type { ObsidianConfig, OllamaConfig } from '../types';
+import type { ObsidianConfig, OllamaConfig, WorkflowDefinition } from '../types';
 
 export type ChatConfig = { systemPrompt: string };
 
@@ -43,4 +43,31 @@ export async function getObsidianConfig(): Promise<ObsidianConfig> {
 
 export async function setObsidianConfig(config: ObsidianConfig): Promise<void> {
   await chrome.storage.local.set({ obsidian: config });
+}
+
+export async function getProfile(): Promise<string> {
+  const { profile } = await chrome.storage.local.get('profile');
+  return (profile as string | undefined) ?? '';
+}
+
+export async function setProfile(profile: string): Promise<void> {
+  await chrome.storage.local.set({ profile });
+}
+
+export async function getWorkflows(): Promise<WorkflowDefinition[]> {
+  const { workflows } = await chrome.storage.local.get('workflows');
+  return Array.isArray(workflows) ? (workflows as WorkflowDefinition[]) : [];
+}
+
+export async function setWorkflows(workflows: WorkflowDefinition[]): Promise<void> {
+  await chrome.storage.local.set({ workflows });
+}
+
+export async function getWorkflowsFolder(): Promise<string> {
+  const { workflowsFolder } = await chrome.storage.local.get('workflowsFolder');
+  return (workflowsFolder as string | undefined) ?? 'fillix-workflows';
+}
+
+export async function setWorkflowsFolder(folder: string): Promise<void> {
+  await chrome.storage.local.set({ workflowsFolder: folder });
 }

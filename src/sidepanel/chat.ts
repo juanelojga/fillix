@@ -4,6 +4,7 @@ export type ChatState = 'idle' | 'streaming';
 
 interface ChatControllerOptions {
   onToken: (token: string) => void;
+  onThinking?: (token: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
 }
@@ -17,7 +18,7 @@ interface ChatController {
 }
 
 export function createChatController(options: ChatControllerOptions): ChatController {
-  const { onToken, onDone, onError } = options;
+  const { onToken, onThinking, onDone, onError } = options;
 
   const ctrl: ChatController = {
     messages: [],
@@ -35,6 +36,8 @@ export function createChatController(options: ChatControllerOptions): ChatContro
       if (msg.type === 'token') {
         ctrl.messages[ctrl.messages.length - 1].content += msg.value;
         onToken(msg.value);
+      } else if (msg.type === 'thinking') {
+        onThinking?.(msg.value);
       } else if (msg.type === 'done') {
         ctrl.state = 'idle';
         onDone();

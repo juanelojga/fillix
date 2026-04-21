@@ -6,10 +6,6 @@ export default defineManifest({
   description: 'Auto-fill forms using a local Ollama model',
   version: '0.0.1',
   action: {},
-  options_ui: {
-    page: 'src/popup/index.html',
-    open_in_tab: true,
-  },
   side_panel: {
     default_path: 'src/sidepanel/index.html',
   },
@@ -24,6 +20,6 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'activeTab', 'sidePanel'],
-  host_permissions: ['http://localhost:11434/*', 'http://localhost:27123/*'],
+  permissions: ['storage', 'activeTab', 'sidePanel', 'tabs', 'scripting'],
+  host_permissions: ['http://localhost:11434/*', 'http://localhost:27123/*', '<all_urls>'],
 });
