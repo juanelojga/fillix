@@ -94,7 +94,10 @@ export async function initAgentPanel(): Promise<void> {
         activePort = null;
         break;
       case 'AGENTIC_ERROR':
-        updateStageItem(msg.stage, 'error');
+        updateStageItem(msg.stage, 'error', undefined, msg.error);
+        activePort?.disconnect();
+        activePort = null;
+        runBtn.disabled = !select.value;
         break;
       default: {
         const _exhaustive: never = msg;
@@ -107,6 +110,7 @@ export async function initAgentPanel(): Promise<void> {
     stage: PipelineStage,
     status: 'running' | 'done' | 'error',
     durationMs?: number,
+    errorText?: string,
   ): void {
     const li = stagesList.querySelector<HTMLElement>(`[data-stage="${stage}"]`);
     if (!li) return;
@@ -117,6 +121,13 @@ export async function initAgentPanel(): Promise<void> {
       span.className = 'stage-duration';
       span.textContent = ` (${durationMs}ms)`;
       if (!existing) li.appendChild(span);
+    }
+    if (status === 'error' && errorText) {
+      const existing = li.querySelector('.stage-error');
+      const small = existing ?? document.createElement('small');
+      small.className = 'stage-error';
+      small.textContent = ` — ${errorText}`;
+      if (!existing) li.appendChild(small);
     }
   }
 

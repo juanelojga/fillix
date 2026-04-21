@@ -122,7 +122,13 @@ async function runAgentPipeline(
     if (!resp.ok) throw new Error(resp.error);
     fields = resp.fields;
   } catch (err) {
-    const error = err instanceof Error ? err.message : String(err);
+    const isNotConnected =
+      err instanceof Error && err.message.includes('Could not establish connection');
+    const error = isNotConnected
+      ? 'Fillix is not loaded on this page yet — please reload the page and try again.'
+      : err instanceof Error
+        ? err.message
+        : String(err);
     emit({ type: 'AGENTIC_ERROR', stage: 'collect', error });
     emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
     return;

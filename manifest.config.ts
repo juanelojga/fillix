@@ -25,5 +25,5 @@ export default defineManifest({
     },
   ],
   permissions: ['storage', 'activeTab', 'sidePanel', 'tabs'],
-  host_permissions: ['http://localhost:11434/*', 'http://localhost:27123/*'],
+  host_permissions: ['http://localhost:11434/*', 'http://localhost:27123/*', '<all_urls>'],
 });
