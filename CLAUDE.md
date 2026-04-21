@@ -20,14 +20,14 @@ There is no test runner yet. If you add one, update this file.
 Three extension contexts communicate via `chrome.runtime.sendMessage`:
 
 ```
- content.ts (every page)  ──┐                        ┌── Ollama HTTP API
-                            ├──▶ background.ts ─────▶│   (localhost:11434)
- popup/main.ts (toolbar) ───┘      (service worker)  └──
+ content.ts (every page)    ──┐                        ┌── Ollama HTTP API
+                              ├──▶ background.ts ─────▶│   (localhost:11434)
+ sidepanel/main.ts (toolbar) ─┘      (service worker)  └──
 ```
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that should call the Ollama HTTP API. Content scripts run in the page origin, so their `fetch` to `localhost:11434` would trip Ollama's `OLLAMA_ORIGINS` check with the page's origin. Routing through the background gives a stable `chrome-extension://<id>` origin.
-- **`src/popup/`** — toolbar popup for editing the user profile and picking the Ollama base URL + model. Model list is fetched via `OLLAMA_LIST_MODELS` (also through the background).
+- **`src/sidepanel/`** — the primary UI surface. Three tabs: **Agent** (workflow selector + pipeline), **Chat** (streaming conversation with Ollama), and **Settings** (Ollama config, Obsidian config, model selection, workflows folder, profile).
 
 Shared code lives in `src/lib/`:
 
@@ -53,5 +53,5 @@ The extension won't work until the user has Ollama configured to accept requests
 ## Conventions
 
 - Strict TS everywhere. No `any`; prefer discriminated unions (see `MessageResponse`).
-- Don't add dependencies for trivial utilities — the popup uses vanilla DOM on purpose to keep bundle size and attack surface down.
+- Don't add dependencies for trivial utilities — the sidepanel uses vanilla DOM on purpose to keep bundle size and attack surface down.
 - The content script runs on every URL the user visits. Keep it cheap and side-effect-free until the user clicks the button. Do not read page text, storage, or the profile on load.
