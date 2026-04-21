@@ -3,11 +3,12 @@ import type { ChatMessage, FieldContext, OllamaConfig } from '../types';
 type StreamOptions = {
   signal: AbortSignal;
   onToken: (token: string) => void;
+  onThinking?: (token: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
 };
 
-type ChatLine = { message: { content: string }; done: boolean };
+type ChatLine = { message: { content: string; thinking?: string }; done: boolean };
 
 export async function chatStream(
   config: OllamaConfig,
@@ -15,7 +16,7 @@ export async function chatStream(
   systemPrompt: string,
   options: StreamOptions,
 ): Promise<void> {
-  const { signal, onToken, onDone, onError } = options;
+  const { signal, onToken, onThinking, onDone, onError } = options;
   let res: Response;
   try {
     res = await fetch(`${config.baseUrl}/api/chat`, {
@@ -61,7 +62,9 @@ export async function chatStream(
         if (signal.aborted) return;
         const parsed = JSON.parse(line) as ChatLine;
         if (!parsed.done) {
-          onToken(parsed.message.content);
+          const { content, thinking } = parsed.message;
+          if (thinking) onThinking?.(thinking);
+          if (content) onToken(content);
         } else {
           onDone();
           return;
@@ -103,7 +106,28 @@ export async function generateStructured<T>(
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
   const data = (await res.json()) as { response: string };
-  return JSON.parse(data.response) as T;
+  return parseJsonResponse<T>(data.response);
+}
+
+function parseJsonResponse<T>(raw: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    const stripped = raw
+      .replace(/```(?:json)?\s*/gi, '')
+      .replace(/```/g, '')
+      .trim();
+    const start = stripped.indexOf('{');
+    const end = stripped.lastIndexOf('}');
+    if (start !== -1 && end > start) {
+      try {
+        return JSON.parse(stripped.slice(start, end + 1)) as T;
+      } catch {
+        // fall through
+      }
+    }
+    throw new Error(`Model returned invalid JSON: ${raw.slice(0, 120)}`);
+  }
 }
 
 export async function inferFieldValue(config: OllamaConfig, field: FieldContext): Promise<string> {

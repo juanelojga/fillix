@@ -319,6 +319,8 @@ chrome.runtime.onConnect.addListener((port) => {
           {
             signal: controller.signal,
             onToken: (value) => port.postMessage({ type: 'token', value } satisfies PortMessage),
+            onThinking: (value) =>
+              port.postMessage({ type: 'thinking', value } satisfies PortMessage),
             onDone: () => port.postMessage({ type: 'done' } satisfies PortMessage),
             onError: (error) => port.postMessage({ type: 'error', error } satisfies PortMessage),
           },

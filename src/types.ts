@@ -16,6 +16,7 @@ export type ChatMessage = { role: 'user' | 'assistant'; content: string };
 
 export type PortMessage =
   | { type: 'token'; value: string }
+  | { type: 'thinking'; value: string }
   | { type: 'done' }
   | { type: 'error'; error: string };
 

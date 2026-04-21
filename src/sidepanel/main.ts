@@ -296,26 +296,64 @@ export async function initSidePanel(): Promise<void> {
 
   // ── State ───────────────────────────────────────────────────────
   let currentAssistantBubble: HTMLElement | null = null;
+  let currentThinkingContent: HTMLElement | null = null;
+  let currentResponseContent: HTMLElement | null = null;
   let currentBaseUrl = ollamaConfig.baseUrl;
+
+  function resetStreamState(): void {
+    currentAssistantBubble = null;
+    currentThinkingContent = null;
+    currentResponseContent = null;
+  }
 
   // ── Chat controller ─────────────────────────────────────────────
   const controller = createChatController({
-    onToken(token) {
-      if (currentAssistantBubble) {
-        currentAssistantBubble.textContent = (currentAssistantBubble.textContent ?? '') + token;
-        scrollToBottom();
+    onThinking(token) {
+      if (!currentAssistantBubble) return;
+      if (!currentThinkingContent) {
+        const details = document.createElement('details');
+        details.className = 'thinking-block';
+        const summary = document.createElement('summary');
+        summary.textContent = 'Thinking…';
+        const pre = document.createElement('pre');
+        details.appendChild(summary);
+        details.appendChild(pre);
+        currentAssistantBubble.appendChild(details);
+        currentThinkingContent = pre;
       }
+      currentThinkingContent.textContent = (currentThinkingContent.textContent ?? '') + token;
+      scrollToBottom();
+    },
+    onToken(token) {
+      if (!currentAssistantBubble) return;
+      if (!currentResponseContent) {
+        const div = document.createElement('div');
+        div.className = 'response-content';
+        currentAssistantBubble.appendChild(div);
+        currentResponseContent = div;
+      }
+      currentResponseContent.textContent = (currentResponseContent.textContent ?? '') + token;
+      scrollToBottom();
     },
     onDone() {
       setStreamingUI(false);
       if (currentAssistantBubble) {
-        const text = currentAssistantBubble.textContent ?? '';
-        if (text) {
-          currentAssistantBubble.innerHTML = renderMarkdown(text);
-        } else {
+        const thinkingDetails = currentAssistantBubble.querySelector('details.thinking-block');
+        if (thinkingDetails) {
+          thinkingDetails.querySelector('summary')!.textContent = 'Thinking';
+        }
+        const responseEl = currentResponseContent;
+        if (responseEl) {
+          const text = responseEl.textContent ?? '';
+          if (text) {
+            responseEl.innerHTML = renderMarkdown(text);
+          } else {
+            responseEl.remove();
+          }
+        } else if (!thinkingDetails) {
           currentAssistantBubble.remove();
         }
-        currentAssistantBubble = null;
+        resetStreamState();
         scrollToBottom();
       }
     },
@@ -324,7 +362,7 @@ export async function initSidePanel(): Promise<void> {
       if (currentAssistantBubble) {
         currentAssistantBubble.classList.add('error');
         currentAssistantBubble.textContent = `Error: ${err}\n(Ollama at ${currentBaseUrl})`;
-        currentAssistantBubble = null;
+        resetStreamState();
         scrollToBottom();
       }
     },
@@ -367,7 +405,7 @@ export async function initSidePanel(): Promise<void> {
     setStreamingUI(false);
     controller.clear();
     messagesEl.innerHTML = '';
-    currentAssistantBubble = null;
+    resetStreamState();
   });
 
   // ── Send ────────────────────────────────────────────────────────
