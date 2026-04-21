@@ -44,6 +44,25 @@ export async function listFiles(config: ObsidianConfig): Promise<string[]> {
   );
 }
 
+export async function listFilesInFolder(config: ObsidianConfig, folder: string): Promise<string[]> {
+  const res = await fetch(`${baseUrl(config)}/vault/${encodeURIComponent(folder)}/`, {
+    headers: headers(config),
+    signal: AbortSignal.timeout(5000),
+  });
+  if (!res.ok) throw new Error(`Obsidian /vault/${folder}/ returned ${res.status}`);
+  const data: unknown = await res.json();
+  if (
+    typeof data !== 'object' ||
+    data === null ||
+    !Array.isArray((data as { files?: unknown }).files)
+  ) {
+    throw new Error('Obsidian /vault/ returned unexpected shape');
+  }
+  return (data as { files: unknown[] }).files
+    .filter((f): f is string => typeof f === 'string' && f.endsWith('.md'))
+    .map((f) => `${folder}/${f}`);
+}
+
 export async function getFile(config: ObsidianConfig, path: string): Promise<string> {
   const res = await fetch(`${baseUrl(config)}/vault/${encodeURIComponent(path)}`, {
     headers: { ...headers(config), Accept: 'text/markdown' },

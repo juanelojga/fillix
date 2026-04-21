@@ -1,5 +1,12 @@
 import { chatStream, inferFieldValue, listModels } from './lib/ollama';
-import { appendToFile, getFile, listFiles, testConnection, writeFile } from './lib/obsidian';
+import {
+  appendToFile,
+  getFile,
+  listFiles,
+  listFilesInFolder,
+  testConnection,
+  writeFile,
+} from './lib/obsidian';
 import { runDraft, runPlan, runReview, runUnderstand } from './lib/pipeline';
 import {
   getObsidianConfig,
@@ -410,8 +417,7 @@ async function handle(msg: Message): Promise<MessageResponse> {
     case 'WORKFLOWS_REFRESH': {
       const obsidian = await getObsidianConfig();
       const folder = await getWorkflowsFolder();
-      const allFiles = await listFiles(obsidian);
-      const workflowFiles = allFiles.filter((f) => f.startsWith(`${folder}/`));
+      const workflowFiles = await listFilesInFolder(obsidian, folder);
       const results = await Promise.all(
         workflowFiles.map(async (path) => {
           try {
