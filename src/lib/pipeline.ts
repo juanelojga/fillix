@@ -66,7 +66,8 @@ export async function runDraft(
     `Fields: ${JSON.stringify(fieldsPayload(fields))}`,
     `Plan: ${JSON.stringify(plan)}`,
     'Write the best value for each field based on the plan.',
-    'Return JSON mapping field_id to its proposed value: {"field_id":"value",...}.',
+    'Return a JSON object where each key is one of the actual field_id strings from the Fields list above, and each value is the proposed text string.',
+    'Use the exact field_id strings as keys — do not use the word "field_id" as a key. Example: {"matcherQuestionsAnswers[abc]": "some text"}.',
     'Never fill password, file, or hidden fields. Only use data from the plan.',
   ].join('\n');
   return generateStructured<DraftOutput>(config, workflow.systemPrompt, userPrompt, signal);
@@ -84,7 +85,8 @@ export async function runReview(
     `Plan: ${JSON.stringify(plan)}`,
     `Target tone: ${plan.tone}`,
     'Review each draft value for tone, accuracy, and completeness. Revise where needed.',
-    'Return JSON: {"field_id":{"revised_value":"...","change_reason":"..."},...}.',
+    'Return a JSON object where each key is one of the actual field_id strings from Draft values above, and each value is {"revised_value":"...","change_reason":"..."}.',
+    'Use the exact field_id strings as keys — do not use the word "field_id" as a key. Example: {"matcherQuestionsAnswers[abc]": {"revised_value": "...", "change_reason": "..."}}.',
     'Omit change_reason if no change was needed. Never invent data not present in the draft.',
   ].join('\n');
   return generateStructured<ReviewOutput>(config, workflow.systemPrompt, userPrompt, signal);

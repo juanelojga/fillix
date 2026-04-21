@@ -105,8 +105,8 @@ export async function generateStructured<T>(
     signal,
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
-  const data = (await res.json()) as { response: string };
-  return parseJsonResponse<T>(data.response);
+  const data = (await res.json()) as { response: string; thinking?: string };
+  return parseJsonResponse<T>(data.response || data.thinking || '');
 }
 
 function parseJsonResponse<T>(raw: string): T {
