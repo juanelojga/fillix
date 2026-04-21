@@ -416,6 +416,12 @@ export async function initSidePanel(): Promise<void> {
     }
   });
 
+  function resizeInput(): void {
+    input.style.height = 'auto';
+    input.style.height = `${input.scrollHeight}px`;
+  }
+  input.addEventListener('input', resizeInput);
+
   sendBtn.addEventListener('click', () => doSend());
 
   async function doSend(): Promise<void> {
@@ -423,6 +429,7 @@ export async function initSidePanel(): Promise<void> {
     if (!text) return;
 
     input.value = '';
+    input.style.height = 'auto';
 
     const [latestOllama, latestChat, latestObsidian] = await Promise.all([
       getOllamaConfig(),
