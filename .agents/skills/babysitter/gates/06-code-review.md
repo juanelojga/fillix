@@ -55,37 +55,32 @@ Apply the project's full code review checklist to all code produced in Gate 4. T
    ## Summary
    ```
 
-6. If CRITICAL or HIGH issues are found:
-   - Fix all of them
-   - Re-run `pnpm typecheck` (Gate 5 mini-run) to confirm fixes didn't break types
-   - Re-run this gate's checklist on the changed files
-7. When no CRITICAL or HIGH issues remain, ask:
-
-   > "Gate 6 complete. Code review passed — all critical and high issues resolved.
-   > Reply **APPROVE** to proceed to Gate 7 (Ship), or raise concerns."
-
-8. On APPROVE:
+6. Fix **every** issue found at any severity level (CRITICAL, HIGH, MEDIUM):
+   - Do not skip or defer any finding — fix it immediately.
+   - After fixing: re-run `pnpm typecheck` to confirm fixes didn't break types.
+   - Re-run this gate's checklist on the changed files.
+   - Repeat until the checklist passes with zero findings at all severity levels.
+7. When the checklist is fully clean:
    - Edit `docs/.babysitter-state.md`:
      - Update the YAML front matter `gate:` field to `6`
      - Update the metadata table `Last Gate` cell to "6 — Code Review" and `Completed At` to today's ISO date
      - Fill in the `## Gate 6 — Code Review` section: replace `<!-- Pending -->` with:
        1. A `### Review Output` sub-heading containing the full structured review output verbatim (Critical Issues, High Priority, Medium Priority, Summary sections)
-       2. A `### Resolution Status` sub-heading with the note: "All CRITICAL and HIGH issues resolved before APPROVE."
+       2. A `### Resolution Status` sub-heading with the note: "All issues at all severity levels resolved."
      - Do not modify any other section.
-   - Tell the user: "Gate 6 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 7 (Ship)."
+   - Announce: "Gate 6 complete — advancing to Gate 7 (Ship)." Then immediately begin Gate 7.
 
 ## Exit Criteria
 
 - [ ] Full checklist applied to all Gate 4 files
 - [ ] Zero CRITICAL issues
 - [ ] Zero HIGH issues
-- [ ] Medium issues either fixed or explicitly accepted by user with a TODO comment
-- [ ] User has typed APPROVE
+- [ ] Zero MEDIUM issues
 - [ ] `docs/.babysitter-state.md` updated with gate: 6 and full review output embedded
-- [ ] User prompted to type `/clear`
+- [ ] Auto-advanced to Gate 7
 
 ## What Must NOT Happen
 
 - Do not summarize as "no issues found" without running the checklist item by item
-- Do not advance with any CRITICAL or HIGH finding
+- Do not advance with any finding at any severity level — fix everything
 - Do not skip security checks for "non-security" changes — all content script code is security-sensitive

@@ -7,31 +7,34 @@ gate: 7
 
 ## Purpose
 
-Create a clean, traceable commit (and optionally a PR) representing the completed feature.
+Create a clean, traceable commit (and optionally a PR) representing the completed feature. **This is the only gate that requires explicit user approval before acting.**
 
 ## Procedure
 
 1. Announce: "Starting Gate 7: Final Ship."
-2. Show the list of all files to be staged (derived from Gate 4's summary table).
-3. Stage files by name — never use `git add -A` or `git add .`:
+2. Present a pre-flight summary:
+   - **Files to stage**: list all files from Gate 4's summary table
+   - **Draft commit message**: show the full message following the format below
+   - **Branch**: output of `git branch --show-current`
+3. Ask:
+
+   > "Ready to ship? Reply **APPROVE** to commit, or **NO** to abort."
+
+4. Do not stage or commit anything until APPROVE is received.
+5. On APPROVE: stage files by name — never use `git add -A` or `git add .`:
    ```bash
    git add src/lib/foo.ts src/lib/bar.ts src/__tests__/foo.spec.ts
    ```
-4. Write a commit message following this format:
-   - Imperative mood first line: "Add [feature name from PRD title]"
-   - Blank line
-   - Body: 1-3 bullet points summarizing what changed
-   - Footer: `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
-5. Commit using a heredoc to preserve formatting.
-6. Ask:
+6. Commit using a heredoc to preserve formatting.
+7. Ask:
 
    > "Committed. Would you like me to create a pull request? Reply **YES** or **NO**."
 
-7. If YES: run `gh pr create` with:
+8. If YES: run `gh pr create` with:
    - Title derived from the PRD title (≤ 70 characters)
    - Body using the PRD's Executive Summary as the PR summary
    - Include test plan checklist derived from the PRD's acceptance criteria
-8. After the commit (and after the PR step if applicable):
+9. After the commit (and after the PR step if applicable):
    - Edit `docs/.babysitter-state.md`:
      - Update the YAML front matter `gate:` field to `7`
      - Update the metadata table `Last Gate` cell to "7 — Ship" and `Completed At` to today's ISO date
@@ -73,6 +76,7 @@ Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
 
 ## Exit Criteria
 
+- [ ] User typed APPROVE at pre-flight before any git commands ran
 - [ ] Only files from Gate 4's summary are staged (no extras)
 - [ ] Commit message follows the format above
 - [ ] `git status` shows clean working tree after commit

@@ -2,37 +2,38 @@
 
 ## Gate Map
 
-| #   | Gate            | Skill Invoked          | User Action Required    |
-| --- | --------------- | ---------------------- | ----------------------- |
-| 1   | Story Expansion | `/prd`                 | APPROVE PRD             |
-| 2   | Plan Approval   | `/planner`             | APPROVE Plan            |
-| 3   | TDD             | (write specs)          | APPROVE Specs           |
-| 4   | Code Generation | (implement)            | PROCEED                 |
-| 5   | Verification    | `pnpm typecheck`       | PROCEED (auto if green) |
-| 6   | Code Review     | `/code-reviewer`       | APPROVE Review          |
-| 7   | Ship            | `git commit` + `gh pr` | YES/NO for PR           |
+| #   | Gate            | Skill Invoked          | User Action Required         |
+| --- | --------------- | ---------------------- | ---------------------------- |
+| 1   | Story Expansion | `/prd`                 | — (auto-advances)            |
+| 2   | Plan Approval   | `/planner`             | — (auto-advances)            |
+| 3   | TDD             | (write specs)          | — (auto-advances)            |
+| 4   | Code Generation | (implement)            | — (auto-advances)            |
+| 5   | Verification    | `pnpm typecheck`       | — (auto-advances if green)   |
+| 6   | Code Review     | `/code-reviewer`       | — (auto-advances if no HIGH) |
+| 7   | Ship            | `git commit` + `gh pr` | **APPROVE** + YES/NO for PR  |
 
-**After gates 1–6:** append gate content to `docs/.babysitter-state.md` (each gate fills its own section) and prompt user to type `/clear` before the next gate.
+**After each gate 1–6:** append gate content to `docs/.babysitter-state.md` (each gate fills its own section), then auto-advance to the next gate. Only Gate 7 pauses for user approval.
 
 ## Gate Exit Criteria (summary)
 
-- **Gate 1**: PRD written with full PRD schema, saved to `docs/<feature>-prd.md`, state file created with full PRD content embedded, user typed APPROVE, user prompted to `/clear`.
-- **Gate 2**: Phased plan with atomic tasks exists, saved to `docs/`, state file Gate 2 section filled with full plan content, user typed APPROVE, user prompted to `/clear`.
-- **Gate 3**: `.spec.ts` files exist with describe/it blocks, state file Gate 3 section filled with spec paths table and full spec contents, user typed APPROVE, user prompted to `/clear`.
-- **Gate 4**: All plan tasks implemented, state file Gate 4 section filled with changed-files table (File, Change Type, Summary), user typed PROCEED, user prompted to `/clear`.
-- **Gate 5**: `pnpm typecheck` exits with zero errors, state file Gate 5 section filled with exact typecheck output and result table, user typed PROCEED, user prompted to `/clear`.
-- **Gate 6**: Full code-reviewer checklist run, CRITICAL/HIGH issues resolved, state file Gate 6 section filled with full review output, user typed APPROVE, user prompted to `/clear`.
-- **Gate 7**: Commit created with named files only, state file Gate 7 section filled with commit hash and PR URL; PR created if user said YES.
+- **Gate 1**: PRD written with full PRD schema, saved to `docs/<feature>-prd.md`, state file created with full PRD content embedded. Auto-advance to Gate 2.
+- **Gate 2**: Phased plan with atomic tasks exists, saved to `docs/`, state file Gate 2 section filled with full plan content. Auto-advance to Gate 3.
+- **Gate 3**: `.spec.ts` files exist with describe/it blocks, state file Gate 3 section filled with spec paths table and full spec contents. Auto-advance to Gate 4.
+- **Gate 4**: All plan tasks implemented, state file Gate 4 section filled with changed-files table (File, Change Type, Summary). Auto-advance to Gate 5.
+- **Gate 5**: `pnpm typecheck` exits with zero errors, state file Gate 5 section filled with exact typecheck output and result table. Auto-advance to Gate 6.
+- **Gate 6**: Full code-reviewer checklist run, CRITICAL/HIGH issues resolved, state file Gate 6 section filled with full review output. Auto-advance to Gate 7.
+- **Gate 7**: User typed APPROVE pre-flight. Commit created with named files only, state file Gate 7 section filled with commit hash and PR URL; PR created if user said YES.
 
 ## Hard Rules
 
-1. Never advance a gate without the required user response.
-2. Never write implementation code before Gate 2 APPROVE.
+1. Never skip a gate — each gate's output feeds the next.
+2. Never write implementation code before Gate 2 plan exists.
 3. Never write implementation code before Gate 3 specs exist.
 4. Never advance past Gate 5 with typecheck errors.
 5. Never commit with `git add -A` or `git add .`.
 6. Never implement anything outside the approved plan — flag it instead.
-7. After each gate 1–6 APPROVE/PROCEED: fill that gate's section in `docs/.babysitter-state.md`, then prompt the user to type `/clear`.
+7. After each gate 1–6: fill that gate's section in `docs/.babysitter-state.md`, then auto-advance.
+8. Never commit before receiving APPROVE at Gate 7.
 
 ## Gate File Index
 

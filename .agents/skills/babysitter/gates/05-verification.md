@@ -29,12 +29,7 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
    pnpm test      : PASS | NO RUNNER
    ```
 
-7. If typecheck is PASS (test runner optional): ask:
-
-   > "Gate 5 complete. Verification passed. Ready for Gate 6 (Code Review).
-   > Reply **PROCEED**."
-
-8. On PROCEED:
+7. If typecheck is PASS (test runner optional):
    - Edit `docs/.babysitter-state.md`:
      - Update the YAML front matter `gate:` field to `5`
      - Update the metadata table `Last Gate` cell to "5 — Verification" and `Completed At` to today's ISO date
@@ -42,7 +37,7 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
        1. A `### typecheck Output` sub-heading containing the exact `pnpm typecheck` stdout from the final clean run in a plain fenced code block
        2. A `### Result` sub-heading with a two-column table (`Check` | `Status`) — rows for `pnpm typecheck` and `pnpm test` with their actual status (PASS / FAIL / NO RUNNER)
      - Do not modify any other section.
-   - Tell the user: "Gate 5 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 6 (Code Review)."
+   - Announce: "Gate 5 complete — advancing to Gate 6 (Code Review)." Then immediately begin Gate 6.
 
 ## Exit Criteria
 
@@ -50,8 +45,7 @@ Produce objective, tool-generated evidence that the codebase is structurally sou
 - [ ] If test runner exists: all tests pass
 - [ ] Verification summary reported with actual tool output shown
 - [ ] `docs/.babysitter-state.md` updated with gate: 5, exact typecheck output, and result table
-- [ ] User has typed PROCEED
-- [ ] User prompted to type `/clear`
+- [ ] Auto-advanced to Gate 6
 
 ## Typecheck Error Resolution Rules
 
