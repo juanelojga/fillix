@@ -53,6 +53,8 @@ vi.stubGlobal('chrome', {
     onConnect: {
       addListener: vi.fn((cb: (port: MockPort) => void) => connectListeners.push(cb)),
     },
+    onInstalled: { addListener: vi.fn() },
+    onStartup: { addListener: vi.fn() },
   },
   sidePanel: {
     setPanelBehavior: vi.fn(),
@@ -101,7 +103,7 @@ describe('background onConnect handler', () => {
     });
 
     // Allow microtasks to flush
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(mockChatStream).toHaveBeenCalledOnce();
     const [cfg, msgs, sys] = mockChatStream.mock.calls[0] as [unknown, unknown, string, unknown];
@@ -129,7 +131,7 @@ describe('background onConnect handler', () => {
       messages: [],
       systemPrompt: '',
     });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(port.postMessage).toHaveBeenCalledWith({
       type: 'token',
@@ -147,7 +149,7 @@ describe('background onConnect handler', () => {
     const port = makeMockPort('chat');
     fireConnect(port);
     port.onMessage._fire({ type: 'CHAT_START', messages: [], systemPrompt: '' });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(port.postMessage).toHaveBeenCalledWith({ type: 'done' } satisfies PortMessage);
   });
@@ -167,7 +169,7 @@ describe('background onConnect handler', () => {
     const port = makeMockPort('chat');
     fireConnect(port);
     port.onMessage._fire({ type: 'CHAT_START', messages: [], systemPrompt: '' });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(port.postMessage).toHaveBeenCalledWith({
       type: 'error',
@@ -188,13 +190,13 @@ describe('background onConnect handler', () => {
     const port = makeMockPort('chat');
     fireConnect(port);
     port.onMessage._fire({ type: 'CHAT_START', messages: [], systemPrompt: '' });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect(capturedSignal).not.toBeNull();
     expect((capturedSignal as AbortSignal).aborted).toBe(false);
 
     port.onMessage._fire({ type: 'CHAT_STOP' });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect((capturedSignal as AbortSignal).aborted).toBe(true);
   });
@@ -211,10 +213,10 @@ describe('background onConnect handler', () => {
     const port = makeMockPort('chat');
     fireConnect(port);
     port.onMessage._fire({ type: 'CHAT_START', messages: [], systemPrompt: '' });
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     port.onDisconnect._fire();
-    await vi.runAllMicrotasksAsync();
+    await new Promise<void>((r) => setTimeout(r, 0));
 
     expect((capturedSignal as AbortSignal).aborted).toBe(true);
   });
@@ -494,7 +496,8 @@ describe('log format: buildRunHeader contract', () => {
 
 describe('log format: redaction contract', () => {
   it('pattern matches password-like values', () => {
-    const REDACT = /\b(password|token|secret|key|bearer)\s*[:=]\s*\S+/gi;
+    const REDACT =
+      /\b(?:password|token|secret|key|bearer)\s*[:=]\s*\S+|\bBearer\s+\S+|(?<=\w+_(?:password|token|secret|key|bearer)\s*[:=]\s*)\S+/gi;
     expect('Authorization: Bearer abc123'.replace(REDACT, '[REDACTED]')).toBe(
       'Authorization: [REDACTED]',
     );
@@ -503,7 +506,8 @@ describe('log format: redaction contract', () => {
   });
 
   it('pattern does not redact innocuous text', () => {
-    const REDACT = /\b(password|token|secret|key|bearer)\s*[:=]\s*\S+/gi;
+    const REDACT =
+      /\b(?:password|token|secret|key|bearer)\s*[:=]\s*\S+|\bBearer\s+\S+|(?<=\w+_(?:password|token|secret|key|bearer)\s*[:=]\s*)\S+/gi;
     const safe = 'Fill the email field with the user name';
     expect(safe.replace(REDACT, '[REDACTED]')).toBe(safe);
   });

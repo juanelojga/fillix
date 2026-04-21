@@ -1,5 +1,6 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui jsdom @vitest/browser
 // Run with: pnpm exec vitest run
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ObsidianConfig } from '../../types';
 
@@ -24,7 +25,7 @@ function buildDOM() {
   `;
 }
 
-const mockSendMessage = vi.fn();
+const mockSendMessage = vi.fn().mockResolvedValue({ ok: true, models: [] });
 vi.stubGlobal('chrome', { runtime: { sendMessage: mockSendMessage } });
 
 vi.mock('../../lib/storage', () => ({
@@ -34,6 +35,8 @@ vi.mock('../../lib/storage', () => ({
     async (): Promise<ObsidianConfig> => ({ host: 'localhost', port: 27123, apiKey: '' }),
   ),
   setObsidianConfig: vi.fn(async () => undefined),
+  getWorkflowsFolder: vi.fn(async () => 'fillix-workflows'),
+  setWorkflowsFolder: vi.fn(async () => undefined),
 }));
 
 // ─── Task 5.1: syncBrowseButtonState — popup ─────────────────────────────────

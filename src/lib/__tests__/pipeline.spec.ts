@@ -30,7 +30,7 @@ const FIELDS: FieldSnapshot[] = [
   { id: 'email', label: 'Email', type: 'email', currentValue: '' },
 ];
 
-const mockGenerateStructured = vi.fn();
+const mockGenerateStructured = vi.hoisted(() => vi.fn());
 
 vi.mock('../ollama', () => ({
   generateStructured: mockGenerateStructured,

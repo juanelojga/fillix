@@ -1,5 +1,6 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui jsdom @vitest/browser
 // Run with: pnpm exec vitest run
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ObsidianConfig } from '../../types';
 

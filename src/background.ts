@@ -46,7 +46,8 @@ type AgentPortOut =
   | { type: 'AGENTIC_COMPLETE'; applied: number; logPath: string }
   | { type: 'AGENTIC_ERROR'; stage: PipelineStage; error: string };
 
-const REDACT_PATTERN = /\b(password|token|secret|key|bearer)\s*[:=]\s*\S+/gi;
+const REDACT_PATTERN =
+  /\b(?:password|token|secret|key|bearer)\s*[:=]\s*\S+|\bBearer\s+\S+|(?<=\w+_(?:password|token|secret|key|bearer)\s*[:=]\s*)\S+/gi;
 
 function redact(text: string): string {
   return text.replace(REDACT_PATTERN, '[REDACTED]');

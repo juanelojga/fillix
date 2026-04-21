@@ -61,11 +61,10 @@ export async function chatStream(
         if (!line.trim()) continue;
         if (signal.aborted) return;
         const parsed = JSON.parse(line) as ChatLine;
-        if (!parsed.done) {
-          const { content, thinking } = parsed.message;
-          if (thinking) onThinking?.(thinking);
-          if (content) onToken(content);
-        } else {
+        const { content, thinking } = parsed.message;
+        if (thinking) onThinking?.(thinking);
+        if (content) onToken(content);
+        if (parsed.done) {
           onDone();
           return;
         }

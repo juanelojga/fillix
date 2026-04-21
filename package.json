@@ -17,6 +17,9 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "prepare": "husky"
   },
   "lint-staged": {
@@ -34,16 +37,19 @@
     "@types/chrome": "^0.0.268",
     "@types/dompurify": "^3.2.0",
     "@types/js-yaml": "^4.0.9",
+    "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
     "globals": "^15.15.0",
     "husky": "^9.1.7",
     "jiti": "^2.6.1",
+    "jsdom": "^29.0.2",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.3",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.58.2",
-    "vite": "^5.2.0"
+    "vite": "^5.2.0",
+    "vitest": "^2.1.9"
   },
   "dependencies": {
     "dompurify": "^3.4.0",

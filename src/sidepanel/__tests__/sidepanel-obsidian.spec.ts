@@ -1,5 +1,6 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui jsdom @vitest/browser
 // Run with: pnpm exec vitest run
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { ObsidianConfig } from '../../types';
 
@@ -167,7 +168,7 @@ describe('sidepanel test button (OBSIDIAN_TEST_CONNECTION)', () => {
     const { wireSidepanelTestButton } = await import('../main');
     wireSidepanelTestButton();
     document.getElementById('sp-obsidian-test')!.click();
-    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
     expect(mockSendMessage).toHaveBeenCalledWith({ type: 'OBSIDIAN_TEST_CONNECTION' });
   });
 
@@ -190,6 +191,7 @@ describe('sidepanel test button (OBSIDIAN_TEST_CONNECTION)', () => {
   });
 
   it('disables test button during in-flight request, re-enables after', async () => {
+    (document.getElementById('sp-obsidian-api-key') as HTMLInputElement).value = 'key';
     let resolve!: () => void;
     mockSendMessage.mockReturnValue(
       new Promise<{ ok: true }>((r) => (resolve = () => r({ ok: true }))),

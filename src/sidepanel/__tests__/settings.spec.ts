@@ -4,8 +4,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loadSidepanelSettings, saveSidepanelSettings } from '../settings';
 
-const mockGetWorkflowsFolder = vi.fn();
-const mockSetWorkflowsFolder = vi.fn();
+const mockGetWorkflowsFolder = vi.hoisted(() => vi.fn());
+const mockSetWorkflowsFolder = vi.hoisted(() => vi.fn());
 
 vi.mock('../../lib/storage', () => ({
   getWorkflowsFolder: mockGetWorkflowsFolder,

@@ -19,10 +19,13 @@ export async function initAgentPanel(): Promise<void> {
   const stagesList = document.getElementById('pipeline-stages') as HTMLElement;
   const confirmDiv = document.getElementById('agent-confirm') as HTMLElement;
   const cancelBtn = document.getElementById('agent-cancel-btn') as HTMLButtonElement;
+  const applyBtn = document.getElementById('agent-apply-btn') as HTMLButtonElement;
+  const confirmTbody = document.getElementById('confirm-tbody') as HTMLElement;
   const completeEl = document.getElementById('agent-complete') as HTMLElement;
 
   let activePort: chrome.runtime.Port | null = null;
   let activeTabId: number | undefined;
+  const pendingFills: FieldFill[] = [];
 
   await populateWorkflows(select);
 
@@ -66,19 +69,47 @@ export async function initAgentPanel(): Promise<void> {
     resetToSelector();
   });
 
+  applyBtn.addEventListener('click', () => {
+    if (!activePort || activeTabId === undefined) return;
+    const inputs = confirmTbody.querySelectorAll<HTMLInputElement>('input');
+    const fieldMap: FieldFill[] = pendingFills.map((fill, i) => {
+      const input = inputs[i];
+      const edited = input?.value;
+      return edited !== undefined && edited !== fill.proposedValue
+        ? { ...fill, editedValue: edited }
+        : fill;
+    });
+    activePort.postMessage({ type: 'AGENTIC_APPLY', tabId: activeTabId, fieldMap });
+  });
+
   function handlePortMessage(msg: AgentMsg): void {
     switch (msg.type) {
       case 'AGENTIC_STAGE':
         updateStageItem(msg.stage, msg.status, msg.durationMs);
         break;
       case 'AGENTIC_CONFIRM':
-        if (activePort && activeTabId !== undefined) {
-          activePort.postMessage({
-            type: 'AGENTIC_APPLY',
-            tabId: activeTabId,
-            fieldMap: msg.proposed,
-          });
+        pendingFills.length = 0;
+        pendingFills.push(...msg.proposed);
+        confirmTbody.innerHTML = '';
+        for (const fill of msg.proposed) {
+          const tr = document.createElement('tr');
+          const tdLabel = document.createElement('td');
+          tdLabel.textContent = fill.label;
+          const tdCurrent = document.createElement('td');
+          tdCurrent.textContent = fill.currentValue;
+          const tdProposed = document.createElement('td');
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = fill.proposedValue;
+          input.dataset.fieldId = fill.fieldId;
+          input.dataset.original = fill.proposedValue;
+          tdProposed.appendChild(input);
+          tr.appendChild(tdLabel);
+          tr.appendChild(tdCurrent);
+          tr.appendChild(tdProposed);
+          confirmTbody.appendChild(tr);
         }
+        confirmDiv.hidden = false;
         break;
       case 'AGENTIC_COMPLETE':
         showComplete(msg.applied);

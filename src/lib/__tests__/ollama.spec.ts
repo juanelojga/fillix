@@ -146,7 +146,10 @@ describe('chatStream', () => {
   });
 
   it('calls onError when fetch returns a non-ok status', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500, body: null }));
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 500, body: null, text: async () => '' }),
+    );
 
     const onToken = vi.fn();
     const onDone = vi.fn();

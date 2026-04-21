@@ -1,5 +1,6 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui
 // Run with: pnpm exec vitest run
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // DOM wiring is tested via jsdom (Vitest default environment).
@@ -15,11 +16,19 @@ vi.mock('../chat', () => ({
   })),
 }));
 
+vi.mock('../agent', () => ({
+  initAgentPanel: vi.fn(async () => {}),
+}));
+
 vi.mock('../../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
   getChatConfig: vi.fn(async () => ({ systemPrompt: 'You are helpful.' })),
+  getObsidianConfig: vi.fn(async () => ({ host: 'localhost', port: 27123, apiKey: '' })),
+  getWorkflowsFolder: vi.fn(async () => 'fillix-workflows'),
   setOllamaConfig: vi.fn(async () => undefined),
   setChatConfig: vi.fn(async () => undefined),
+  setObsidianConfig: vi.fn(async () => undefined),
+  setWorkflowsFolder: vi.fn(async () => undefined),
 }));
 
 vi.mock('../../lib/ollama', () => ({
@@ -31,6 +40,7 @@ function buildDOM() {
   document.body.innerHTML = `
     <button id="chat-tab">Chat</button>
     <button id="settings-tab">Settings</button>
+    <button id="agent-tab">Agent</button>
     <button id="new-conversation">New conversation</button>
     <div id="chat-view">
       <div id="messages"></div>
@@ -47,6 +57,7 @@ function buildDOM() {
       <div id="settings-status"></div>
       <div id="localhost-warning" hidden></div>
     </div>
+    <div id="agent-view" hidden></div>
   `;
 }
 
@@ -101,8 +112,9 @@ describe('side panel main — send behaviour', () => {
     const input = document.getElementById('input') as HTMLTextAreaElement;
     input.value = 'Hello world';
     input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await new Promise((r) => setTimeout(r, 0));
 
-    expect(mockSend).toHaveBeenCalledWith('Hello world', expect.any(String));
+    expect(mockSend).toHaveBeenCalledWith('Hello world', expect.any(String), expect.any(String));
   });
 
   it('Shift+Enter does NOT send — inserts newline', async () => {
@@ -166,8 +178,9 @@ describe('side panel main — send behaviour', () => {
     const input = document.getElementById('input') as HTMLTextAreaElement;
     input.value = 'Hello';
     document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
 
-    expect(mockSend).toHaveBeenCalledWith('Hello', expect.any(String));
+    expect(mockSend).toHaveBeenCalledWith('Hello', expect.any(String), expect.any(String));
   });
 });
 
@@ -199,6 +212,7 @@ describe('side panel main — streaming UI state', () => {
     const input = document.getElementById('input') as HTMLTextAreaElement;
     input.value = 'Hello';
     document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0)); // let doSend() run and call setStreamingUI(true)
 
     // Simulate streaming starting
     capturedOnToken?.('tok');
@@ -327,6 +341,7 @@ describe('side panel main — onToken appends to current assistant bubble', () =
     const input = document.getElementById('input') as HTMLTextAreaElement;
     input.value = 'Hi';
     document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0)); // let doSend() set up currentAssistantBubble
 
     capturedOnToken?.('Hello');
     capturedOnToken?.(' world');
@@ -364,6 +379,7 @@ describe('side panel main — error handling', () => {
     const input = document.getElementById('input') as HTMLTextAreaElement;
     input.value = 'Hi';
     document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0)); // let doSend() set up currentAssistantBubble
 
     capturedOnError?.('connection refused');
 
@@ -583,7 +599,7 @@ describe('side panel main — save settings', () => {
     await initSidePanel();
 
     document.getElementById('saveSettings')!.click();
-    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(document.getElementById('settings-status')!.textContent).toBe('Saved');
   });

@@ -2,14 +2,38 @@
 // Run with: pnpm exec vitest run
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
+// popup/main.ts has module-level DOM side effects — build the required elements
+// before the static import triggers them.
+vi.hoisted(() => {
+  document.body.innerHTML = `
+    <button id="save"></button>
+    <button id="refresh"></button>
+    <input id="baseUrl" />
+    <select id="model"></select>
+    <input id="obsidian-host" />
+    <input id="obsidian-port" type="number" />
+    <input id="obsidian-api-key" />
+    <input id="obsidian-system-prompt-path" />
+    <button id="obsidian-test"></button>
+    <div id="obsidian-status"></div>
+    <div id="status"></div>
+    <button id="obsidian-browse-system-prompt"></button>
+  `;
+});
+
 import { load, save } from '../main';
 
-const mockGetWorkflowsFolder = vi.fn();
-const mockSetWorkflowsFolder = vi.fn();
-const mockGetOllamaConfig = vi.fn();
-const mockGetObsidianConfig = vi.fn();
-const mockSetOllamaConfig = vi.fn();
-const mockSetObsidianConfig = vi.fn();
+const mockGetWorkflowsFolder = vi.hoisted(() => vi.fn().mockResolvedValue('fillix-workflows'));
+const mockSetWorkflowsFolder = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockGetOllamaConfig = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' }),
+);
+const mockGetObsidianConfig = vi.hoisted(() =>
+  vi.fn().mockResolvedValue({ host: 'localhost', port: 27123, apiKey: '' }),
+);
+const mockSetOllamaConfig = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+const mockSetObsidianConfig = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
 
 vi.mock('../../lib/storage', () => ({
   getWorkflowsFolder: mockGetWorkflowsFolder,
@@ -50,6 +74,10 @@ describe('popup load() — workflowsFolder', () => {
     buildDOM();
     mockGetOllamaConfig.mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
     mockGetObsidianConfig.mockResolvedValue({ host: 'localhost', port: 27123, apiKey: '' });
+    (chrome.runtime.sendMessage as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      models: [],
+    });
   });
 
   it('populates #workflows-folder input from getWorkflowsFolder()', async () => {
