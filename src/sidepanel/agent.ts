@@ -18,14 +18,11 @@ export async function initAgentPanel(): Promise<void> {
   const runBtn = document.getElementById('agent-run-btn') as HTMLButtonElement;
   const stagesList = document.getElementById('pipeline-stages') as HTMLElement;
   const confirmDiv = document.getElementById('agent-confirm') as HTMLElement;
-  const confirmTbody = document.getElementById('confirm-tbody') as HTMLTableSectionElement;
-  const applyBtn = document.getElementById('agent-apply-btn') as HTMLButtonElement;
   const cancelBtn = document.getElementById('agent-cancel-btn') as HTMLButtonElement;
   const completeEl = document.getElementById('agent-complete') as HTMLElement;
 
   let activePort: chrome.runtime.Port | null = null;
   let activeTabId: number | undefined;
-  let pendingFills: FieldFill[] = [];
 
   await populateWorkflows(select);
 
@@ -35,6 +32,7 @@ export async function initAgentPanel(): Promise<void> {
 
   refreshBtn.addEventListener('click', () => {
     void (async () => {
+      resetToSelector();
       await chrome.runtime.sendMessage({ type: 'WORKFLOWS_REFRESH' } satisfies Message);
       await populateWorkflows(select);
     })();
@@ -61,17 +59,6 @@ export async function initAgentPanel(): Promise<void> {
     })();
   });
 
-  applyBtn.addEventListener('click', () => {
-    if (!activePort || activeTabId === undefined) return;
-    const inputs = confirmTbody.querySelectorAll<HTMLInputElement>('input[data-field-id]');
-    const fieldMap: FieldFill[] = pendingFills.map((fill) => {
-      const input = Array.from(inputs).find((el) => el.dataset.fieldId === fill.fieldId);
-      const editedValue = input?.value !== fill.proposedValue ? input?.value : undefined;
-      return { ...fill, editedValue };
-    });
-    activePort.postMessage({ type: 'AGENTIC_APPLY', tabId: activeTabId, fieldMap });
-  });
-
   cancelBtn.addEventListener('click', () => {
     activePort?.postMessage({ type: 'AGENTIC_CANCEL' });
     activePort?.disconnect();
@@ -85,8 +72,13 @@ export async function initAgentPanel(): Promise<void> {
         updateStageItem(msg.stage, msg.status, msg.durationMs);
         break;
       case 'AGENTIC_CONFIRM':
-        pendingFills = msg.proposed;
-        showConfirmTable(msg.proposed);
+        if (activePort && activeTabId !== undefined) {
+          activePort.postMessage({
+            type: 'AGENTIC_APPLY',
+            tabId: activeTabId,
+            fieldMap: msg.proposed,
+          });
+        }
         break;
       case 'AGENTIC_COMPLETE':
         showComplete(msg.applied);
@@ -129,32 +121,6 @@ export async function initAgentPanel(): Promise<void> {
       small.textContent = ` — ${errorText}`;
       if (!existing) li.appendChild(small);
     }
-  }
-
-  function showConfirmTable(fills: FieldFill[]): void {
-    confirmTbody.innerHTML = '';
-    for (const fill of fills) {
-      const tr = document.createElement('tr');
-
-      const tdLabel = document.createElement('td');
-      tdLabel.textContent = fill.label;
-
-      const tdCurrent = document.createElement('td');
-      tdCurrent.textContent = fill.currentValue;
-
-      const tdProposed = document.createElement('td');
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.value = fill.proposedValue;
-      input.dataset.fieldId = fill.fieldId;
-      tdProposed.appendChild(input);
-
-      tr.appendChild(tdLabel);
-      tr.appendChild(tdCurrent);
-      tr.appendChild(tdProposed);
-      confirmTbody.appendChild(tr);
-    }
-    confirmDiv.hidden = false;
   }
 
   function showComplete(applied: number): void {

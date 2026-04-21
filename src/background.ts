@@ -181,14 +181,33 @@ async function runAgentPipeline(
   } catch (err) {
     const isNotConnected =
       err instanceof Error && err.message.includes('Could not establish connection');
-    const error = isNotConnected
-      ? 'Fillix is not loaded on this page yet — please reload the page and try again.'
-      : err instanceof Error
-        ? err.message
-        : String(err);
-    emit({ type: 'AGENTIC_ERROR', stage: 'collect', error });
-    emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
-    return;
+    if (isNotConnected) {
+      try {
+        const manifest = chrome.runtime.getManifest();
+        const file = manifest.content_scripts?.[0]?.js?.[0];
+        if (!file) throw new Error('no content script in manifest');
+        await chrome.scripting.executeScript({ target: { tabId }, files: [file] });
+        await new Promise<void>((r) => setTimeout(r, 50));
+        const resp2 = (await chrome.tabs.sendMessage(tabId, { type: 'DETECT_FIELDS' })) as
+          | { ok: true; fields: FieldSnapshot[] }
+          | { ok: false; error: string };
+        if (!resp2.ok) throw new Error(resp2.error);
+        fields = resp2.fields;
+      } catch {
+        emit({
+          type: 'AGENTIC_ERROR',
+          stage: 'collect',
+          error: 'Could not access this page. Try navigating to a regular web page.',
+        });
+        emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
+        return;
+      }
+    } else {
+      const error = err instanceof Error ? err.message : String(err);
+      emit({ type: 'AGENTIC_ERROR', stage: 'collect', error });
+      emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
+      return;
+    }
   }
   emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'done' });
 
