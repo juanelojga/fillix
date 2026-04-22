@@ -7,11 +7,12 @@
 
   let currentTab = $state('chat');
 
+  const chatPort = chrome.runtime.connect({ name: 'chat' });
+  const agentPort = chrome.runtime.connect({ name: 'agent' });
+  setContext('chatPort', chatPort);
+  setContext('agentPort', agentPort);
+
   onMount(() => {
-    const chatPort = chrome.runtime.connect({ name: 'chat' });
-    const agentPort = chrome.runtime.connect({ name: 'agent' });
-    setContext('chatPort', chatPort);
-    setContext('agentPort', agentPort);
     return () => {
       chatPort.disconnect();
       agentPort.disconnect();
