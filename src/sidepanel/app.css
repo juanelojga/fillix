@@ -110,6 +110,42 @@
   }
 }
 
+@layer base {
+  .prose table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.72rem;
+    margin: 0.6rem 0;
+    border: 1px solid hsl(var(--border));
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .prose th {
+    background-color: hsl(var(--muted));
+    color: hsl(var(--foreground));
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 0.35rem 0.65rem;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .prose td {
+    padding: 0.3rem 0.65rem;
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+    vertical-align: top;
+    line-height: 1.4;
+  }
+
+  .prose tr:nth-child(even) td {
+    background-color: hsl(var(--muted) / 0.4);
+  }
+}
+
 @custom-variant data-open {
   &:where([data-state='open']),
   &:where([data-open]:not([data-open='false'])) {
