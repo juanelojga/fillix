@@ -1,5 +1,6 @@
 import { initAgentPanel } from './agent';
 import { createChatController } from './chat';
+import { appendToolIndicator, resolveToolIndicator } from './chat-tools';
 import { renderMarkdown } from './markdown';
 import {
   loadProviderSettings,
@@ -305,12 +306,14 @@ export async function initSidePanel(): Promise<void> {
   let currentAssistantBubble: HTMLElement | null = null;
   let currentThinkingContent: HTMLElement | null = null;
   let currentResponseContent: HTMLElement | null = null;
+  let currentToolIndicator: HTMLElement | null = null;
   let currentBaseUrl = ollamaConfig.baseUrl;
 
   function resetStreamState(): void {
     currentAssistantBubble = null;
     currentThinkingContent = null;
     currentResponseContent = null;
+    currentToolIndicator = null;
   }
 
   // ── Chat controller ─────────────────────────────────────────────
@@ -372,6 +375,17 @@ export async function initSidePanel(): Promise<void> {
         resetStreamState();
         scrollToBottom();
       }
+    },
+    onToolCall(toolName, args) {
+      currentToolIndicator = appendToolIndicator(toolName, args, messagesEl);
+      scrollToBottom();
+    },
+    onToolResult(_toolName, result) {
+      if (currentToolIndicator) {
+        resolveToolIndicator(currentToolIndicator, result);
+        currentToolIndicator = null;
+      }
+      scrollToBottom();
     },
   });
 
