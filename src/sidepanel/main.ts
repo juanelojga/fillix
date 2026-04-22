@@ -1,16 +1,22 @@
 import { initAgentPanel } from './agent';
 import { createChatController } from './chat';
 import { renderMarkdown } from './markdown';
-import { loadSidepanelSettings, saveSidepanelSettings } from './settings';
+import {
+  loadProviderSettings,
+  loadSidepanelSettings,
+  refreshModelsFromProvider,
+  saveProviderSettings,
+  saveSidepanelSettings,
+  updateProviderFieldVisibility,
+} from './settings';
 import {
   getChatConfig,
   getObsidianConfig,
   getOllamaConfig,
   setChatConfig,
   setObsidianConfig,
-  setOllamaConfig,
 } from '../lib/storage';
-import type { Message, MessageResponse, ObsidianConfig } from '../types';
+import type { Message, MessageResponse, ObsidianConfig, ProviderType } from '../types';
 
 // ── Exported helpers (also called by initSidePanel) ─────────────────────────
 
@@ -288,6 +294,7 @@ export async function initSidePanel(): Promise<void> {
   // Settings refs
   const baseUrlInput = document.getElementById('baseUrl') as HTMLInputElement;
   const modelSelect = document.getElementById('model') as HTMLSelectElement;
+  const providerSelectEl = document.getElementById('provider-select') as HTMLSelectElement | null;
   const refreshModelsBtn = document.getElementById('refreshModels') as HTMLButtonElement;
   const systemPromptInput = document.getElementById('systemPrompt') as HTMLTextAreaElement;
   const saveSettingsBtn = document.getElementById('saveSettings') as HTMLButtonElement;
@@ -340,7 +347,7 @@ export async function initSidePanel(): Promise<void> {
       if (currentAssistantBubble) {
         const thinkingDetails = currentAssistantBubble.querySelector('details.thinking-block');
         if (thinkingDetails) {
-          thinkingDetails.querySelector('summary')!.textContent = 'Thinking';
+          (thinkingDetails.querySelector('summary') as HTMLElement).textContent = 'Thinking';
         }
         const responseEl = currentResponseContent;
         if (responseEl) {
@@ -361,7 +368,7 @@ export async function initSidePanel(): Promise<void> {
       setStreamingUI(false);
       if (currentAssistantBubble) {
         currentAssistantBubble.classList.add('error');
-        currentAssistantBubble.textContent = `Error: ${err}\n(Ollama at ${currentBaseUrl})`;
+        currentAssistantBubble.textContent = `Error: ${err}\n(at ${currentBaseUrl})`;
         resetStreamState();
         scrollToBottom();
       }
@@ -450,11 +457,11 @@ export async function initSidePanel(): Promise<void> {
   stopBtn.addEventListener('click', () => controller.stop());
 
   // ── Settings population ─────────────────────────────────────────
-  baseUrlInput.value = ollamaConfig.baseUrl;
   systemPromptInput.value = chatConfig.systemPrompt;
   updateLocalhostWarning(ollamaConfig.baseUrl);
   await loadSidepanelObsidian();
   await loadSidepanelSettings();
+  await loadProviderSettings();
 
   // Auto-test connection on open if an API key is stored
   const storedObsidian = await getObsidianConfig();
@@ -476,23 +483,30 @@ export async function initSidePanel(): Promise<void> {
   document
     .getElementById('sp-obsidian-api-key')
     ?.addEventListener('input', syncSidepanelBrowseState);
-  await refreshModels(ollamaConfig.model);
+  await refreshModelsFromProvider(ollamaConfig.model);
+
+  providerSelectEl?.addEventListener('change', () => {
+    updateProviderFieldVisibility(providerSelectEl.value as ProviderType);
+    void refreshModelsFromProvider();
+  });
 
   baseUrlInput.addEventListener('input', () => {
     updateLocalhostWarning(baseUrlInput.value);
   });
 
-  refreshModelsBtn.addEventListener('click', () => refreshModels(modelSelect.value));
+  refreshModelsBtn.addEventListener(
+    'click',
+    () => void refreshModelsFromProvider(modelSelect.value),
+  );
 
   saveSettingsBtn.addEventListener('click', async () => {
     await Promise.all([
-      setOllamaConfig({ baseUrl: baseUrlInput.value, model: modelSelect.value }),
+      saveProviderSettings(),
       setChatConfig({ systemPrompt: systemPromptInput.value }),
       saveSidepanelObsidian(),
       saveSidepanelSettings(),
     ]);
     updateConnectionUI(obsidianConnected);
-
     settingsStatus.textContent = 'Saved';
     setTimeout(() => (settingsStatus.textContent = ''), 2000);
   });
@@ -521,29 +535,6 @@ export async function initSidePanel(): Promise<void> {
 
   function updateLocalhostWarning(url: string): void {
     localhostWarning.hidden = url === 'http://localhost:11434';
-  }
-
-  async function refreshModels(selectedModel?: string): Promise<void> {
-    try {
-      const res = await chrome.runtime.sendMessage({ type: 'OLLAMA_LIST_MODELS' });
-      const response = res as MessageResponse;
-      if (response.ok && 'models' in response) {
-        populateModelSelect(response.models, selectedModel);
-      }
-    } catch {
-      // Silently fail — Ollama may not be running yet.
-    }
-  }
-
-  function populateModelSelect(models: string[], selected?: string): void {
-    modelSelect.innerHTML = '';
-    for (const m of models) {
-      const opt = document.createElement('option');
-      opt.value = m;
-      opt.textContent = m;
-      if (m === selected) opt.selected = true;
-      modelSelect.appendChild(opt);
-    }
   }
 }
 

@@ -616,8 +616,28 @@
 
     <div id="settings-view" hidden>
       <div class="field-group">
-        <label for="baseUrl">Ollama base URL</label>
+        <label for="provider-select">Provider</label>
+        <select id="provider-select">
+          <option value="ollama">Ollama (local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="custom">Custom (OpenAI-compatible)</option>
+        </select>
+      </div>
+
+      <div id="provider-baseurl-row" class="field-group">
+        <label for="baseUrl">Base URL</label>
         <input id="baseUrl" type="url" placeholder="http://localhost:11434" />
+      </div>
+
+      <div id="provider-apikey-row" class="field-group" hidden>
+        <label for="provider-apikey">API key</label>
+        <input id="provider-apikey" type="password" placeholder="Paste your API key" />
+      </div>
+
+      <div id="search-apikey-row" class="field-group">
+        <label for="brave-apikey">Brave Search API key (optional)</label>
+        <input id="brave-apikey" type="password" placeholder="Paste your Brave Search key" />
       </div>
 
       <div class="field-group">
