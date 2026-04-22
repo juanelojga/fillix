@@ -144,7 +144,23 @@
   }
 </script>
 
-<div class="flex flex-col h-full">
+<div class="flex flex-col h-full bg-background">
+  <!-- Header: New conversation button -->
+  <div class="flex items-center justify-end px-3 py-2 border-b border-border/50">
+    <button
+      class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 active:scale-95"
+      onclick={newConversation}
+      title="New conversation"
+      aria-label="New conversation"
+    >
+      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+      </svg>
+      New chat
+    </button>
+  </div>
+
   <!-- Message list -->
   <ScrollArea
     class="flex-1"
@@ -152,66 +168,79 @@
     role="log"
     aria-label="Chat messages"
   >
-    <div class="flex flex-col gap-2 p-3">
-      {#each $messages as msg}
-        <MessageBubble role={msg.role} content={msg.content} />
-      {/each}
+    {#if $messages.length === 0 && $activeMessage === null}
+      <div class="flex flex-col items-center justify-center h-40 gap-3 text-center px-8 mt-8">
+        <div class="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
+          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
+            <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/>
+          </svg>
+        </div>
+        <p class="text-sm text-muted-foreground leading-relaxed">How can I help you today?</p>
+      </div>
+    {:else}
+      <div class="flex flex-col py-3 gap-0.5">
+        {#each $messages as msg}
+          <MessageBubble role={msg.role} content={msg.content} />
+        {/each}
 
-      {#if $activeMessage !== null}
-        <MessageBubble role="assistant" content={$activeMessage.content} isStreaming={true}>
-          {#if $activeMessage.thinking}
-            <ThinkingBlock
-              content={$activeMessage.thinking}
-              isStreaming={$streamingState === 'streaming'}
-            />
-          {/if}
-          {#each $activeMessage.toolCalls as toolCall (toolCall.toolName)}
-            <ToolCallBlock toolName={toolCall.toolName} args={toolCall.args} result={toolCall.result} />
-          {/each}
-        </MessageBubble>
-      {/if}
+        {#if $activeMessage !== null}
+          <MessageBubble role="assistant" content={$activeMessage.content} isStreaming={true}>
+            {#if $activeMessage.thinking}
+              <ThinkingBlock
+                content={$activeMessage.thinking}
+                isStreaming={$streamingState === 'streaming'}
+              />
+            {/if}
+            {#each $activeMessage.toolCalls as toolCall (toolCall.toolName)}
+              <ToolCallBlock toolName={toolCall.toolName} args={toolCall.args} result={toolCall.result} />
+            {/each}
+          </MessageBubble>
+        {/if}
 
-      <div bind:this={sentinelEl} aria-hidden="true"></div>
-    </div>
+        <div bind:this={sentinelEl} aria-hidden="true"></div>
+      </div>
+    {/if}
   </ScrollArea>
 
-  <!-- Controls -->
-  <div class="border-t border-border p-2 flex flex-col gap-1">
-    <div class="flex gap-1 items-end">
+  <!-- Input area -->
+  <div class="p-3">
+    <div class="relative rounded-2xl border border-input bg-background shadow-sm focus-within:border-ring/50 focus-within:shadow-md transition-all duration-200">
       <textarea
         bind:this={textareaEl}
         bind:value={inputText}
         rows={1}
-        placeholder="Message…"
-        class="flex-1 resize-none rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring overflow-hidden"
+        placeholder="Message Fillix…"
+        class="w-full resize-none bg-transparent px-4 pt-3 pb-3 pr-14 text-sm leading-relaxed placeholder:text-muted-foreground focus:outline-none overflow-hidden"
         aria-label="Message input"
         onkeydown={handleKeydown}
         oninput={handleInput}
       ></textarea>
-      {#if $streamingState === 'streaming'}
-        <button
-          class="px-3 py-2 rounded-md bg-destructive text-destructive-foreground text-sm font-medium"
-          onclick={stop}
-          aria-label="Stop"
-        >
-          Stop
-        </button>
-      {:else}
-        <button
-          class="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50"
-          onclick={send}
-          disabled={!inputText.trim()}
-          aria-label="Send"
-        >
-          Send
-        </button>
-      {/if}
+
+      <div class="absolute bottom-2.5 right-2.5">
+        {#if $streamingState === 'streaming'}
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-80 active:scale-95 transition-all duration-100"
+            onclick={stop}
+            aria-label="Stop generating"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <rect x="5" y="5" width="14" height="14" rx="2"/>
+            </svg>
+          </button>
+        {:else}
+          <button
+            class="flex items-center justify-center w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-80 active:scale-95 transition-all duration-100 disabled:opacity-20 disabled:cursor-not-allowed disabled:active:scale-100"
+            onclick={send}
+            disabled={!inputText.trim()}
+            aria-label="Send message"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z"/>
+            </svg>
+          </button>
+        {/if}
+      </div>
     </div>
-    <button
-      class="text-xs text-muted-foreground hover:text-foreground self-start"
-      onclick={newConversation}
-    >
-      New conversation
-    </button>
+    <p class="text-center text-[10px] text-muted-foreground/40 mt-1.5">Enter to send · Shift+Enter for new line</p>
   </div>
 </div>
