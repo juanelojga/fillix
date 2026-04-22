@@ -25,10 +25,20 @@ vi.mock('../../lib/storage', () => ({
   getChatConfig: vi.fn(async () => ({ systemPrompt: 'You are helpful.' })),
   getObsidianConfig: vi.fn(async () => ({ host: 'localhost', port: 27123, apiKey: '' })),
   getWorkflowsFolder: vi.fn(async () => 'fillix-workflows'),
+  getProviderConfig: vi.fn(async () => ({
+    provider: 'ollama',
+    baseUrl: 'http://localhost:11434',
+    model: 'llama3.2',
+  })),
+  getSearchConfig: vi.fn(async () => ({})),
+  getFavoriteModels: vi.fn(async () => ({})),
   setOllamaConfig: vi.fn(async () => undefined),
   setChatConfig: vi.fn(async () => undefined),
   setObsidianConfig: vi.fn(async () => undefined),
   setWorkflowsFolder: vi.fn(async () => undefined),
+  setProviderConfig: vi.fn(async () => undefined),
+  setSearchConfig: vi.fn(async () => undefined),
+  setFavoriteModels: vi.fn(async () => undefined),
 }));
 
 vi.mock('../../lib/ollama', () => ({
@@ -58,13 +68,22 @@ function buildDOM() {
       <button id="stop" hidden>Stop</button>
     </div>
     <div id="settings-view" hidden>
+      <select id="provider-select"><option value="ollama">Ollama</option><option value="openai">OpenAI</option><option value="openrouter">OpenRouter</option><option value="custom">Custom</option></select>
       <input id="baseUrl" />
+      <input id="provider-apikey" type="password" />
+      <input id="brave-apikey" type="password" />
+      <div class="model-row">
+        <input id="model-search" type="text" />
+        <button id="refreshModels">Refresh</button>
+      </div>
       <select id="model"></select>
-      <button id="refreshModels">Refresh</button>
+      <button id="toggle-favorite" class="favorite-btn">☆ Pin model</button>
       <textarea id="systemPrompt"></textarea>
       <button id="saveSettings">Save</button>
       <div id="settings-status"></div>
       <div id="localhost-warning" hidden></div>
+      <div id="provider-baseurl-row"></div>
+      <div id="provider-apikey-row" hidden></div>
     </div>
     <div id="agent-view" hidden></div>
   `;

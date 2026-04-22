@@ -20,6 +20,8 @@ vi.mock('../../lib/storage', async (importOriginal) => {
     setSearchConfig: vi.fn(),
     getOllamaConfig: vi.fn(),
     setOllamaConfig: vi.fn(),
+    getFavoriteModels: vi.fn(async () => ({})),
+    setFavoriteModels: vi.fn(async () => undefined),
   };
 });
 
@@ -44,7 +46,9 @@ function buildDOM(): void {
     <div id="search-apikey-row">
       <input id="brave-apikey" type="password" />
     </div>
+    <input id="model-search" type="text" />
     <select id="model"><option value="llama3.2">llama3.2</option></select>
+    <button id="toggle-favorite" class="favorite-btn">☆ Pin model</button>
     <button id="refreshModels">Refresh</button>
     <div id="settings-status"></div>
   `;

@@ -116,7 +116,7 @@ async function handle(msg: Message): Promise<MessageResponse> {
       return { ok: true, models };
     }
     case 'LIST_MODELS': {
-      const providerConfig = await getProviderConfig();
+      const providerConfig = msg.config ?? (await getProviderConfig());
       const models = await resolveProvider(providerConfig).listModels();
       return { ok: true, models };
     }

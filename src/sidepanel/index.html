@@ -291,8 +291,13 @@
         align-items: center;
       }
 
-      .model-row select {
+      #model-search {
         flex: 1;
+        min-width: 0;
+      }
+
+      #model {
+        width: 100%;
       }
 
       #refreshModels {
@@ -303,6 +308,22 @@
         cursor: pointer;
         font-size: 0.8125rem;
         white-space: nowrap;
+      }
+
+      .favorite-btn {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+        align-self: flex-start;
+      }
+
+      .favorite-btn.active {
+        color: #f5a623;
+        border-color: #f5a623;
       }
 
       #saveSettings {
@@ -689,9 +710,11 @@
       <div class="field-group">
         <label>Model</label>
         <div class="model-row">
-          <select id="model"></select>
+          <input id="model-search" type="text" placeholder="Search models…" />
           <button id="refreshModels">Refresh</button>
         </div>
+        <select id="model"></select>
+        <button id="toggle-favorite" class="favorite-btn">☆ Pin model</button>
       </div>
 
       <div id="system-prompt-local-section" class="field-group">

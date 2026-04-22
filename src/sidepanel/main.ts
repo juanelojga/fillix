@@ -3,11 +3,14 @@ import { createChatController } from './chat';
 import { appendToolIndicator, resolveToolIndicator } from './chat-tools';
 import { renderMarkdown } from './markdown';
 import {
+  filterModelList,
+  handleToggleFavorite,
   loadProviderSettings,
   loadSidepanelSettings,
   refreshModelsFromProvider,
   saveProviderSettings,
   saveSidepanelSettings,
+  updateFavoriteButton,
   updateProviderFieldVisibility,
 } from './settings';
 import {
@@ -44,6 +47,8 @@ export async function initSidePanel(): Promise<void> {
   const modelSelect = document.getElementById('model') as HTMLSelectElement;
   const providerSelectEl = document.getElementById('provider-select') as HTMLSelectElement | null;
   const refreshModelsBtn = document.getElementById('refreshModels') as HTMLButtonElement;
+  const modelSearchEl = document.getElementById('model-search') as HTMLInputElement | null;
+  const toggleFavoriteBtn = document.getElementById('toggle-favorite') as HTMLButtonElement | null;
   const systemPromptInput = document.getElementById('systemPrompt') as HTMLTextAreaElement;
   const saveSettingsBtn = document.getElementById('saveSettings') as HTMLButtonElement;
   const settingsStatus = document.getElementById('settings-status') as HTMLElement;
@@ -255,7 +260,6 @@ export async function initSidePanel(): Promise<void> {
   document
     .getElementById('sp-obsidian-api-key')
     ?.addEventListener('input', syncSidepanelBrowseState);
-  await refreshModelsFromProvider(ollamaConfig.model);
 
   providerSelectEl?.addEventListener('change', () => {
     updateProviderFieldVisibility(providerSelectEl.value as ProviderType);
@@ -270,6 +274,17 @@ export async function initSidePanel(): Promise<void> {
     'click',
     () => void refreshModelsFromProvider(modelSelect.value),
   );
+
+  modelSearchEl?.addEventListener('input', () => void filterModelList(modelSearchEl.value));
+
+  toggleFavoriteBtn?.addEventListener('click', () => void handleToggleFavorite());
+
+  modelSelect.addEventListener('change', async () => {
+    const { getFavoriteModels } = await import('../lib/storage');
+    const favorites = await getFavoriteModels();
+    const provider = (providerSelectEl?.value ?? 'ollama') as ProviderType;
+    updateFavoriteButton(favorites[provider] ?? [], modelSelect.value);
+  });
 
   saveSettingsBtn.addEventListener('click', async () => {
     await Promise.all([

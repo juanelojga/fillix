@@ -2,9 +2,21 @@ import type {
   ObsidianConfig,
   OllamaConfig,
   ProviderConfig,
+  ProviderType,
   SearchConfig,
   WorkflowDefinition,
 } from '../types';
+
+export type FavoriteModels = Partial<Record<ProviderType, string[]>>;
+
+export async function getFavoriteModels(): Promise<FavoriteModels> {
+  const { favoriteModels } = await chrome.storage.local.get('favoriteModels');
+  return (favoriteModels as FavoriteModels | undefined) ?? {};
+}
+
+export async function setFavoriteModels(models: FavoriteModels): Promise<void> {
+  await chrome.storage.local.set({ favoriteModels: models });
+}
 
 export type ChatConfig = { systemPrompt: string };
 

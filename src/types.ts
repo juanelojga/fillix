@@ -46,7 +46,7 @@ export interface ObsidianConfig {
 export type Message =
   | { type: 'OLLAMA_INFER'; field: FieldContext }
   | { type: 'OLLAMA_LIST_MODELS' }
-  | { type: 'LIST_MODELS' }
+  | { type: 'LIST_MODELS'; config?: ProviderConfig }
   | {
       type: 'CHAT_START';
       messages: ChatMessage[];
