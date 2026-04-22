@@ -70,8 +70,9 @@ export async function saveProviderSettings(): Promise<void> {
   const modelSelect = document.getElementById('model') as HTMLSelectElement | null;
 
   const provider = (providerSelect?.value ?? 'ollama') as ProviderType;
-  const baseUrl =
-    baseUrlInput?.value.trim() || (provider === 'ollama' ? 'http://localhost:11434' : '');
+  const defaultUrl = PROVIDER_DEFAULT_URLS[provider];
+  const usesFixedUrl = provider === 'openai' || provider === 'openrouter';
+  const baseUrl = usesFixedUrl ? defaultUrl : baseUrlInput?.value.trim() || defaultUrl;
   const model = modelSelect?.value ?? '';
   const apiKey = apiKeyInput?.value.trim() || undefined;
   const braveApiKey = braveKeyInput?.value.trim() || undefined;
@@ -93,7 +94,9 @@ function buildLiveConfig(): ProviderConfig {
 
   const provider = (providerSelect?.value ?? 'ollama') as ProviderType;
   const defaultUrl = PROVIDER_DEFAULT_URLS[provider];
-  const baseUrl = baseUrlInput?.value.trim() || defaultUrl;
+  // openai/openrouter hide the baseUrl field — read from defaultUrl to avoid stale values
+  const usesFixedUrl = provider === 'openai' || provider === 'openrouter';
+  const baseUrl = usesFixedUrl ? defaultUrl : baseUrlInput?.value.trim() || defaultUrl;
   const apiKey = apiKeyInput?.value.trim() || undefined;
 
   return { provider, baseUrl, model: '', apiKey };
