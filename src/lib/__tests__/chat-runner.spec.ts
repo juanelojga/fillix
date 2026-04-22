@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { detectToolCall } from '../chat-runner';
+import { detectToolCall, handleChatPort } from '../chat-runner';
 import type * as StorageModule from '../storage';
 
 // ---------- detectToolCall ----------
@@ -83,19 +83,36 @@ function makePort() {
   };
 }
 
-function makeChatStream(turns: Array<{ tokens?: string[]; toolCallLine?: string }>) {
+type Turn = {
+  tokens?: string[];
+  toolCallLine?: string;
+  thinkingTokens?: string[];
+  error?: string;
+};
+
+function makeChatStream(turns: Turn[]) {
   let callCount = 0;
   return vi.fn(
     async (
       _messages: unknown,
       _system: unknown,
-      opts: { onToken: (t: string) => void; onDone: () => void },
+      opts: {
+        onToken: (t: string) => void;
+        onDone: () => void;
+        onThinking?: (t: string) => void;
+        onError?: (e: string) => void;
+      },
     ) => {
       const turn = turns[callCount++];
       if (!turn) {
         opts.onDone();
         return;
       }
+      if (turn.error) {
+        opts.onError?.(turn.error);
+        return;
+      }
+      for (const t of turn.thinkingTokens ?? []) opts.onThinking?.(t);
       if (turn.toolCallLine) {
         opts.onToken(turn.toolCallLine + '\n');
       } else {
@@ -196,20 +213,130 @@ describe('chat port handler — ReAct loop', () => {
   });
 });
 
-async function simulateChatPort(port: ReturnType<typeof makePort>) {
-  const mod = await import('../../background');
-  void mod;
-  const connectListeners =
-    (chrome.runtime.onConnect as unknown as { _listeners: ((p: unknown) => void)[] })._listeners ??
-    [];
-  const listener = connectListeners[connectListeners.length - 1];
+describe('chat port handler — thinking tokens', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
+  });
 
+  it('forwards thinking tokens to port as type:thinking messages', async () => {
+    const chatStreamFn = makeChatStream([
+      { thinkingTokens: ['step 1', ' step 2'], tokens: ['Answer'] },
+    ]);
+    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+
+    const thinkingMessages = port.sent.filter(
+      (m: unknown) => (m as { type: string }).type === 'thinking',
+    );
+    expect(thinkingMessages).toHaveLength(2);
+    expect(thinkingMessages[0]).toMatchObject({ type: 'thinking', value: 'step 1' });
+    expect(thinkingMessages[1]).toMatchObject({ type: 'thinking', value: ' step 2' });
+  });
+});
+
+describe('chat port handler — error handling', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
+  });
+
+  it('posts type:error to port when chatStream calls onError', async () => {
+    const chatStreamFn = makeChatStream([{ error: 'connection refused' }]);
+    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+
+    const errorMessages = port.sent.filter(
+      (m: unknown) => (m as { type: string }).type === 'error',
+    );
+    expect(errorMessages).toHaveLength(1);
+    expect(errorMessages[0]).toMatchObject({ type: 'error', error: 'connection refused' });
+  });
+
+  it('redacts API key from error message', async () => {
+    const apiKey = 'sk-secret-key-12345';
+    vi.mocked(storage.getProviderConfig).mockResolvedValue({
+      ...defaultProvider,
+      apiKey,
+    });
+    const chatStreamFn = makeChatStream([{ error: `Auth failed: ${apiKey} is invalid` }]);
+    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+
+    const errorMsg = port.sent.find((m: unknown) => (m as { type: string }).type === 'error') as
+      | { type: string; error: string }
+      | undefined;
+    expect(errorMsg).toBeDefined();
+    expect(errorMsg!.error).toContain('[REDACTED]');
+    expect(errorMsg!.error).not.toContain(apiKey);
+  });
+});
+
+describe('chat port handler — CHAT_STOP', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
+  });
+
+  it('CHAT_STOP message posts done immediately', async () => {
+    vi.mocked(resolveProvider).mockReturnValue({
+      chatStream: vi.fn(async () => {}),
+      listModels: vi.fn(),
+    });
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_STOP' });
+
+    const doneMessages = port.sent.filter((m: unknown) => (m as { type: string }).type === 'done');
+    expect(doneMessages).toHaveLength(1);
+  });
+});
+
+describe('chat port handler — model override', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
+  });
+
+  it('msg.model overrides providerConfig.model when provided', async () => {
+    const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
+    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({
+      type: 'CHAT_START',
+      messages: [],
+      systemPrompt: 'sys',
+      model: 'gpt-4',
+    });
+
+    const resolveCall = vi.mocked(resolveProvider).mock.calls[0][0];
+    expect(resolveCall.model).toBe('gpt-4');
+  });
+});
+
+function simulateChatPort(port: ReturnType<typeof makePort>) {
   let chatStartListener: ((msg: unknown) => Promise<void>) | null = null;
   port.onMessage.addListener.mockImplementation((fn: (msg: unknown) => Promise<void>) => {
     chatStartListener = fn;
   });
 
-  if (listener) listener({ ...port, name: 'chat' });
+  handleChatPort(port as unknown as chrome.runtime.Port);
 
   return {
     triggerChatStart: async (msg: unknown) => {

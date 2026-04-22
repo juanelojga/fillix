@@ -35,6 +35,15 @@ vi.mock('../../lib/ollama', () => ({
   listModels: vi.fn(async () => ['llama3.2', 'mistral']),
 }));
 
+vi.mock('../chat-tools', () => ({
+  appendToolIndicator: vi.fn(() => document.createElement('div')),
+  resolveToolIndicator: vi.fn(),
+}));
+
+vi.mock('../markdown', () => ({
+  renderMarkdown: vi.fn((text: string) => text),
+}));
+
 // Helper: build the minimal HTML the side panel needs
 function buildDOM() {
   document.body.innerHTML = `
@@ -602,5 +611,247 @@ describe('side panel main — save settings', () => {
     await new Promise((r) => setTimeout(r, 0));
 
     expect(document.getElementById('settings-status')!.textContent).toBe('Saved');
+  });
+});
+
+describe('side panel main — agent tab', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('clicking agent-tab hides chat-view and settings-view, shows agent-view', async () => {
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    document.getElementById('agent-tab')!.click();
+
+    expect((document.getElementById('chat-view') as HTMLElement).hidden).toBe(true);
+    expect((document.getElementById('settings-view') as HTMLElement).hidden).toBe(true);
+    expect((document.getElementById('agent-view') as HTMLElement).hidden).toBe(false);
+  });
+});
+
+describe('side panel main — onThinking callback', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('creates a thinking-block details element with token content', async () => {
+    const chatModule = await import('../chat');
+    let capturedOnThinking: ((t: string) => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({ onThinking }: { onThinking: (t: string) => void }) => {
+        capturedOnThinking = onThinking;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    // Trigger send to create currentAssistantBubble
+    const input = document.getElementById('input') as HTMLTextAreaElement;
+    input.value = 'Hi';
+    document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    capturedOnThinking?.('step 1');
+    capturedOnThinking?.(' step 2');
+
+    const bubble = document.querySelector('.message.assistant') as HTMLElement;
+    const details = bubble.querySelector('details.thinking-block');
+    expect(details).not.toBeNull();
+    const pre = details!.querySelector('pre');
+    expect(pre!.textContent).toBe('step 1 step 2');
+  });
+});
+
+describe('side panel main — onDone callback', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('updates thinking-block summary from "Thinking…" to "Thinking" on done', async () => {
+    const chatModule = await import('../chat');
+    let capturedOnThinking: ((t: string) => void) | undefined;
+    let capturedOnDone: (() => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({ onThinking, onDone }: { onThinking: (t: string) => void; onDone: () => void }) => {
+        capturedOnThinking = onThinking;
+        capturedOnDone = onDone;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const input = document.getElementById('input') as HTMLTextAreaElement;
+    input.value = 'Hi';
+    document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    capturedOnThinking?.('thinking...');
+    capturedOnDone?.();
+
+    const summary = document.querySelector('details.thinking-block summary') as HTMLElement;
+    expect(summary.textContent).toBe('Thinking');
+  });
+
+  it('removes assistant bubble when done with no response content and no thinking', async () => {
+    const chatModule = await import('../chat');
+    let capturedOnDone: (() => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({ onDone }: { onDone: () => void }) => {
+        capturedOnDone = onDone;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const input = document.getElementById('input') as HTMLTextAreaElement;
+    input.value = 'Hi';
+    document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    // No onToken or onThinking — empty bubble
+    capturedOnDone?.();
+
+    const assistantBubbles = document.querySelectorAll('.message.assistant');
+    expect(assistantBubbles).toHaveLength(0);
+  });
+});
+
+describe('side panel main — onToolCall and onToolResult callbacks', () => {
+  beforeEach(() => {
+    buildDOM();
+    vi.resetModules();
+  });
+
+  it('onToolCall calls appendToolIndicator with tool name, args, and messages element', async () => {
+    const chatModule = await import('../chat');
+    const chatToolsModule = await import('../chat-tools');
+    let capturedOnToolCall: ((name: string, args: Record<string, string>) => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({ onToolCall }: { onToolCall: (name: string, args: Record<string, string>) => void }) => {
+        capturedOnToolCall = onToolCall;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const input = document.getElementById('input') as HTMLTextAreaElement;
+    input.value = 'Hi';
+    document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    capturedOnToolCall?.('web_search', { query: 'AI' });
+
+    expect(chatToolsModule.appendToolIndicator).toHaveBeenCalledWith(
+      'web_search',
+      { query: 'AI' },
+      document.getElementById('messages'),
+    );
+  });
+
+  it('onToolResult calls resolveToolIndicator with the indicator element and result', async () => {
+    const chatModule = await import('../chat');
+    const chatToolsModule = await import('../chat-tools');
+    const mockIndicator = document.createElement('div');
+    (chatToolsModule.appendToolIndicator as ReturnType<typeof vi.fn>).mockReturnValue(
+      mockIndicator,
+    );
+
+    let capturedOnToolCall: ((name: string, args: Record<string, string>) => void) | undefined;
+    let capturedOnToolResult: ((name: string, result: string) => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({
+        onToolCall,
+        onToolResult,
+      }: {
+        onToolCall: (name: string, args: Record<string, string>) => void;
+        onToolResult: (name: string, result: string) => void;
+      }) => {
+        capturedOnToolCall = onToolCall;
+        capturedOnToolResult = onToolResult;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    const input = document.getElementById('input') as HTMLTextAreaElement;
+    input.value = 'Hi';
+    document.getElementById('send')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    capturedOnToolCall?.('web_search', { query: 'AI' });
+    capturedOnToolResult?.('web_search', 'some result');
+
+    expect(chatToolsModule.resolveToolIndicator).toHaveBeenCalledWith(mockIndicator, 'some result');
+  });
+
+  it('onToolResult is a no-op when no active tool indicator exists', async () => {
+    const chatModule = await import('../chat');
+    const chatToolsModule = await import('../chat-tools');
+    let capturedOnToolResult: ((name: string, result: string) => void) | undefined;
+    (chatModule.createChatController as ReturnType<typeof vi.fn>).mockImplementation(
+      ({ onToolResult }: { onToolResult: (name: string, result: string) => void }) => {
+        capturedOnToolResult = onToolResult;
+        return {
+          send: vi.fn(),
+          stop: vi.fn(),
+          clear: vi.fn(),
+          messages: [],
+          state: 'idle' as const,
+        };
+      },
+    );
+
+    const { initSidePanel } = await import('../main');
+    await initSidePanel();
+
+    // Call onToolResult without a prior onToolCall (no active indicator)
+    capturedOnToolResult?.('web_search', 'result');
+
+    expect(chatToolsModule.resolveToolIndicator).not.toHaveBeenCalled();
   });
 });
