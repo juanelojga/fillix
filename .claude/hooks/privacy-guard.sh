@@ -2,8 +2,9 @@
 set -euo pipefail
 
 # PreToolUse hook for Edit/Write/MultiEdit.
-# Blocks edits that would break Fillix's local-only inference model
-# (see CLAUDE.md): remote LLM endpoints and telemetry SDKs.
+# Blocks edits that introduce telemetry or analytics SDKs.
+# LLM provider API endpoints are permitted — Fillix now supports external
+# providers (see docs/prd-internet-access-multi-provider.md).
 
 input=$(cat)
 tool=$(jq -r '.tool_name // empty' <<<"$input")
@@ -26,15 +27,6 @@ esac
 [ -z "$content" ] && exit 0
 
 patterns=(
-  'api\.openai\.com'
-  'api\.anthropic\.com'
-  'generativelanguage\.googleapis\.com'
-  'api\.mistral\.ai'
-  'api\.cohere\.ai'
-  'api\.together\.xyz'
-  'api\.perplexity\.ai'
-  'api\.groq\.com'
-  'api\.replicate\.com'
   'sentry\.io'
   '@sentry/'
   'posthog'
@@ -57,14 +49,12 @@ done
 
 if [ ${#hits[@]} -gt 0 ]; then
   {
-    echo "PRIVACY GUARD: this edit matches pattern(s) that would break Fillix's"
-    echo "local-only inference model: ${hits[*]}"
+    echo "PRIVACY GUARD: this edit introduces a telemetry or analytics SDK."
+    echo "Matched pattern(s): ${hits[*]}"
     echo
-    echo "Fillix only talks to the user's local Ollama at http://localhost:11434."
-    echo "Remote LLM APIs and telemetry SDKs violate this invariant (see CLAUDE.md)."
-    echo
+    echo "Fillix does not collect any telemetry or analytics (see CLAUDE.md)."
     echo "If the user genuinely asked for this change, have them confirm explicitly"
-    echo "before retrying; otherwise revise the edit to keep inference local."
+    echo "before retrying; otherwise remove the telemetry dependency."
   } >&2
   exit 2
 fi

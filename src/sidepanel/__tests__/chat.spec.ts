@@ -203,3 +203,44 @@ describe('createChatController', () => {
     expect(chrome.runtime.connect).toHaveBeenCalledTimes(2);
   });
 });
+
+// ── Tool-call and tool-result port messages ──────────────────────────────────
+
+describe('chat controller — tool-call and tool-result callbacks', () => {
+  function makePortMock(): {
+    port: {
+      onMessage: { addListener: ReturnType<typeof vi.fn> };
+      onDisconnect: { addListener: ReturnType<typeof vi.fn> };
+      postMessage: ReturnType<typeof vi.fn>;
+    };
+    listeners: ((msg: unknown) => void)[];
+  } {
+    const listeners: ((msg: unknown) => void)[] = [];
+    const port = {
+      onMessage: { addListener: vi.fn((fn: (msg: unknown) => void) => listeners.push(fn)) },
+      onDisconnect: { addListener: vi.fn() },
+      postMessage: vi.fn(),
+    };
+    return { port, listeners };
+  }
+
+  it('calls onToolCall when a tool-call port message is received', () => {
+    const onToolCall = vi.fn();
+    const { port, listeners } = makePortMock();
+    vi.stubGlobal('chrome', { runtime: { connect: vi.fn(() => port), id: 'test-id' } });
+
+    createChatController({ onToken: vi.fn(), onDone: vi.fn(), onError: vi.fn(), onToolCall });
+    listeners[0]({ type: 'tool-call', toolName: 'wikipedia', args: { title: 'AI' } });
+    expect(onToolCall).toHaveBeenCalledWith('wikipedia', { title: 'AI' });
+  });
+
+  it('calls onToolResult when a tool-result port message is received', () => {
+    const onToolResult = vi.fn();
+    const { port, listeners } = makePortMock();
+    vi.stubGlobal('chrome', { runtime: { connect: vi.fn(() => port), id: 'test-id' } });
+
+    createChatController({ onToken: vi.fn(), onDone: vi.fn(), onError: vi.fn(), onToolResult });
+    listeners[0]({ type: 'tool-result', toolName: 'wikipedia', result: 'TypeScript is...' });
+    expect(onToolResult).toHaveBeenCalledWith('wikipedia', 'TypeScript is...');
+  });
+});

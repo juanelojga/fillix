@@ -7,6 +7,8 @@ interface ChatControllerOptions {
   onThinking?: (token: string) => void;
   onDone: () => void;
   onError: (err: string) => void;
+  onToolCall?: (toolName: string, args: Record<string, string>) => void;
+  onToolResult?: (toolName: string, result: string) => void;
 }
 
 interface ChatController {
@@ -18,7 +20,7 @@ interface ChatController {
 }
 
 export function createChatController(options: ChatControllerOptions): ChatController {
-  const { onToken, onThinking, onDone, onError } = options;
+  const { onToken, onThinking, onDone, onError, onToolCall, onToolResult } = options;
 
   const ctrl: ChatController = {
     messages: [],
@@ -44,6 +46,10 @@ export function createChatController(options: ChatControllerOptions): ChatContro
       } else if (msg.type === 'error') {
         ctrl.state = 'idle';
         onError(msg.error);
+      } else if (msg.type === 'tool-call') {
+        onToolCall?.(msg.toolName, msg.args);
+      } else if (msg.type === 'tool-result') {
+        onToolResult?.(msg.toolName, msg.result);
       }
     });
     p.onDisconnect.addListener(() => {

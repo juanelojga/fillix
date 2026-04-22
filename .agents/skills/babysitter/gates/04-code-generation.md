@@ -22,18 +22,12 @@ Implement all tasks from the approved plan, in sprint order, so that the Gate 3 
    | src/lib/foo.ts | added       |
    | src/lib/bar.ts | modified    |
 
-6. Ask:
-
-   > "Gate 4 complete. Implementation summary above. Ready for Gate 5 (Verification).
-   > Reply **PROCEED**."
-
-7. On PROCEED:
-   - Edit `docs/.babysitter-state.md`:
-     - Update the YAML front matter `gate:` field to `4`
-     - Update the metadata table `Last Gate` cell to "4 — Code Generation" and `Completed At` to today's ISO date
-     - Fill in the `## Gate 4 — Code Generation` section: replace `<!-- Pending -->` with a `### Changed Files` sub-heading and a three-column table (`File` | `Change Type` | `Summary`) — one row per file, where `Change Type` is `added`, `modified`, or `deleted`, and `Summary` is one sentence describing what was implemented in that file (reuse the summary table from step 5 and add the Summary column)
-     - Do not modify any other section.
-   - Tell the user: "Gate 4 complete. Type `/clear` to free up context, then come back and type `/babysitter` to continue from Gate 5 (Verification)."
+6. Edit `docs/.babysitter-state.md`:
+   - Update the YAML front matter `gate:` field to `4`
+   - Update the metadata table `Last Gate` cell to "4 — Code Generation" and `Completed At` to today's ISO date
+   - Fill in the `## Gate 4 — Code Generation` section: replace `<!-- Pending -->` with a `### Changed Files` sub-heading and a three-column table (`File` | `Change Type` | `Summary`) — one row per file, where `Change Type` is `added`, `modified`, or `deleted`, and `Summary` is one sentence describing what was implemented in that file (reuse the summary table from step 5 and add the Summary column)
+   - Do not modify any other section.
+7. Announce: "Gate 4 complete — advancing to Gate 5 (Verification)." Then immediately begin Gate 5.
 
 ## CLAUDE.md Conventions (must be followed)
 
@@ -60,8 +54,7 @@ Do not implement it silently.
 - [ ] No files were modified outside the scope of the plan (except bug fixes flagged to user)
 - [ ] Summary table of changed files presented
 - [ ] `docs/.babysitter-state.md` updated with gate: 4 and changed-files table with per-file summaries
-- [ ] User has typed PROCEED
-- [ ] User prompted to type `/clear`
+- [ ] Auto-advanced to Gate 5
 
 ## What Must NOT Happen
 

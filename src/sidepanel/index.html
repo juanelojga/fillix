@@ -291,8 +291,13 @@
         align-items: center;
       }
 
-      .model-row select {
+      #model-search {
         flex: 1;
+        min-width: 0;
+      }
+
+      #model {
+        width: 100%;
       }
 
       #refreshModels {
@@ -303,6 +308,22 @@
         cursor: pointer;
         font-size: 0.8125rem;
         white-space: nowrap;
+      }
+
+      .favorite-btn {
+        padding: 5px 10px;
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        background: #f5f5f5;
+        cursor: pointer;
+        font-size: 0.8125rem;
+        white-space: nowrap;
+        align-self: flex-start;
+      }
+
+      .favorite-btn.active {
+        color: #f5a623;
+        border-color: #f5a623;
       }
 
       #saveSettings {
@@ -594,6 +615,52 @@
         border-radius: 4px;
         padding: 6px 10px;
       }
+
+      /* ── Tool indicators ─────────────────────────────────── */
+
+      .tool-indicator {
+        align-self: flex-start;
+        font-size: 0.75rem;
+        font-family: monospace;
+        padding: 4px 10px;
+        border-radius: 4px;
+        border-left: 3px solid #999;
+        background: #f4f4f4;
+        color: #555;
+        cursor: pointer;
+        max-width: 85%;
+        word-break: break-word;
+      }
+
+      .tool-indicator.loading {
+        border-left-color: #0070f3;
+        color: #0070f3;
+        background: #f0f6ff;
+      }
+
+      .tool-indicator.done {
+        border-left-color: #080;
+        color: #444;
+        background: #f4f4f4;
+      }
+
+      .tool-indicator.done:hover {
+        background: #ebebeb;
+      }
+
+      .tool-result-preview {
+        margin-top: 6px;
+        padding: 6px 8px;
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 3px;
+        font-size: 0.6875rem;
+        color: #333;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 160px;
+        overflow-y: auto;
+      }
     </style>
   </head>
   <body>
@@ -616,16 +683,38 @@
 
     <div id="settings-view" hidden>
       <div class="field-group">
-        <label for="baseUrl">Ollama base URL</label>
+        <label for="provider-select">Provider</label>
+        <select id="provider-select">
+          <option value="ollama">Ollama (local)</option>
+          <option value="openai">OpenAI</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="custom">Custom (OpenAI-compatible)</option>
+        </select>
+      </div>
+
+      <div id="provider-baseurl-row" class="field-group">
+        <label for="baseUrl">Base URL</label>
         <input id="baseUrl" type="url" placeholder="http://localhost:11434" />
+      </div>
+
+      <div id="provider-apikey-row" class="field-group" hidden>
+        <label for="provider-apikey">API key</label>
+        <input id="provider-apikey" type="password" placeholder="Paste your API key" />
+      </div>
+
+      <div id="search-apikey-row" class="field-group">
+        <label for="brave-apikey">Brave Search API key (optional)</label>
+        <input id="brave-apikey" type="password" placeholder="Paste your Brave Search key" />
       </div>
 
       <div class="field-group">
         <label>Model</label>
         <div class="model-row">
-          <select id="model"></select>
+          <input id="model-search" type="text" placeholder="Search models…" />
           <button id="refreshModels">Refresh</button>
         </div>
+        <select id="model"></select>
+        <button id="toggle-favorite" class="favorite-btn">☆ Pin model</button>
       </div>
 
       <div id="system-prompt-local-section" class="field-group">
