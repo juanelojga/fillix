@@ -119,7 +119,11 @@
           {/if}
         </div>
 
-        <Button onclick={handleSave} class="self-end">Save Obsidian settings</Button>
+        <Button
+          variant="outline"
+          onclick={handleSave}
+          class="self-end border-violet-500 text-violet-600 hover:bg-violet-50 hover:border-violet-600"
+        >Save Obsidian settings</Button>
       </div>
     </AccordionContent>
   </AccordionItem>

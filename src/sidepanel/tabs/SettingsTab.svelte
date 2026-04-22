@@ -183,7 +183,7 @@
   <ObsidianPanel />
 
   <!-- Save -->
-  <Button onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end px-6" size="lg">
+  <Button variant="default" onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end px-6" size="lg">
     {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : 'Save Settings'}
   </Button>
   </div>
