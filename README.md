@@ -14,6 +14,36 @@ Configuration lives in a settings view inside the panel: choose your LLM provide
 
 ---
 
+## Internet tools — prompt examples
+
+The model decides whether to call an internet tool based on how you phrase your message. There is no toggle — phrasing is the control.
+
+### Prompts that trigger a tool call
+
+| What you want             | Example prompt                                                    |
+| ------------------------- | ----------------------------------------------------------------- |
+| Current news              | `What's the latest news about the EU AI Act?`                     |
+| Web search                | `Search for the best open-source vector databases in 2025.`       |
+| Wikipedia summary         | `Give me a Wikipedia summary of the Byzantine Empire.`            |
+| Fetch a URL               | `Fetch https://example.com/changelog and summarize what changed.` |
+| Recent prices / live data | `What is the current price of Brent crude oil?`                   |
+
+The model emits a tool call JSON line, the background fetches the result, and the model continues with that context.
+
+### Prompts that skip tool calls
+
+| What you want                | Example prompt                                                 |
+| ---------------------------- | -------------------------------------------------------------- |
+| Reasoning from training data | `Explain how HTTPS works. No need to search anything.`         |
+| Code help                    | `Refactor this TypeScript function to use async/await.`        |
+| Summarize text you paste     | `Summarize the following article: <paste text here>`           |
+| Conceptual questions         | `What are the tradeoffs between REST and GraphQL?`             |
+| Explicit opt-out             | `Without searching the internet, explain what WebSockets are.` |
+
+If the model already has enough context to answer — or if you explicitly say not to search — it will reply in plain prose and no tool is dispatched.
+
+---
+
 ## Requirements
 
 - Chrome (MV3 side panel support — Chrome 114+)

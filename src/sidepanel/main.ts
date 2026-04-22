@@ -125,20 +125,11 @@ export async function initSidePanel(): Promise<void> {
     },
     onToolCall(toolName, args) {
       if (currentResponseContent) {
-        const lines = (currentResponseContent.textContent ?? '').split('\n');
-        const filtered = lines.filter((line) => {
-          const trimmed = line.trim();
-          if (!trimmed.startsWith('{')) return true;
-          try {
-            const parsed = JSON.parse(trimmed) as Record<string, unknown>;
-            return typeof parsed['tool'] !== 'string';
-          } catch {
-            return true;
-          }
-        });
-        const remaining = filtered.join('\n').trim();
-        if (remaining) {
-          currentResponseContent.textContent = remaining;
+        let text = currentResponseContent.textContent ?? '';
+        const toolJson = `{"tool":"${toolName}","args":${JSON.stringify(args)}}`;
+        text = text.replace(toolJson, '').trim();
+        if (text) {
+          currentResponseContent.textContent = text;
         } else {
           currentResponseContent.remove();
           currentResponseContent = null;
