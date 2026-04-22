@@ -8,9 +8,14 @@ import {
   setWorkflows,
   getWorkflowsFolder,
   setWorkflowsFolder,
+  getOllamaConfig,
+  getProviderConfig,
+  setProviderConfig,
+  getSearchConfig,
+  setSearchConfig,
 } from '../storage';
 import type { ChatConfig } from '../storage';
-import type { WorkflowDefinition } from '../../types';
+import type { ProviderConfig, SearchConfig, WorkflowDefinition } from '../../types';
 
 const mockGet = vi.fn();
 const mockSet = vi.fn();
@@ -147,5 +152,125 @@ describe('setWorkflows', () => {
     const stub: WorkflowDefinition[] = [];
     await setWorkflows(stub);
     expect(mockSet).toHaveBeenCalledWith({ workflows: stub });
+  });
+});
+
+// Sprint 1 — ProviderConfig + SearchConfig
+
+describe('getProviderConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns DEFAULT_PROVIDER on a fresh profile (no keys in storage)', async () => {
+    mockGet.mockResolvedValue({});
+    const config = await getProviderConfig();
+    expect(config.provider).toBe('ollama');
+    expect(config.baseUrl).toBe('http://localhost:11434');
+    expect(config.model).toBe('llama3.2');
+  });
+
+  it('returns stored ProviderConfig when provider key exists', async () => {
+    const stored: ProviderConfig = {
+      provider: 'openai',
+      baseUrl: 'https://api.openai.com',
+      model: 'gpt-4o',
+      apiKey: 'sk-test',
+    };
+    mockGet.mockResolvedValue({ provider: stored });
+    const config = await getProviderConfig();
+    expect(config).toEqual(stored);
+  });
+
+  it('migrates existing ollama key to ProviderConfig when provider key is absent', async () => {
+    mockGet.mockResolvedValue({ ollama: { baseUrl: 'http://custom:11434', model: 'mistral' } });
+    const config = await getProviderConfig();
+    expect(config.provider).toBe('ollama');
+    expect(config.baseUrl).toBe('http://custom:11434');
+    expect(config.model).toBe('mistral');
+  });
+
+  it('fills in DEFAULT_PROVIDER fields for missing fields in legacy ollama key', async () => {
+    mockGet.mockResolvedValue({ ollama: { model: 'phi3' } });
+    const config = await getProviderConfig();
+    expect(config.provider).toBe('ollama');
+    expect(config.baseUrl).toBe('http://localhost:11434');
+    expect(config.model).toBe('phi3');
+  });
+});
+
+describe('setProviderConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSet.mockResolvedValue(undefined);
+  });
+
+  it('writes to the provider storage key', async () => {
+    const cfg: ProviderConfig = {
+      provider: 'custom',
+      baseUrl: 'http://lm-studio:1234',
+      model: 'local',
+    };
+    await setProviderConfig(cfg);
+    expect(mockSet).toHaveBeenCalledWith({ provider: cfg });
+  });
+
+  it('includes apiKey when present', async () => {
+    const cfg: ProviderConfig = {
+      provider: 'openai',
+      baseUrl: 'https://api.openai.com',
+      model: 'gpt-4o',
+      apiKey: 'sk-abc',
+    };
+    await setProviderConfig(cfg);
+    expect(mockSet).toHaveBeenCalledWith({ provider: cfg });
+  });
+});
+
+describe('getSearchConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('returns empty object on a fresh profile', async () => {
+    mockGet.mockResolvedValue({});
+    const config = await getSearchConfig();
+    expect(config).toEqual({});
+  });
+
+  it('returns stored SearchConfig when search key exists', async () => {
+    const stored: SearchConfig = {
+      braveApiKey: 'bsak-abc',
+      searxngUrl: 'https://searx.example.com',
+    };
+    mockGet.mockResolvedValue({ search: stored });
+    const config = await getSearchConfig();
+    expect(config).toEqual(stored);
+  });
+});
+
+describe('setSearchConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSet.mockResolvedValue(undefined);
+  });
+
+  it('writes to the search storage key', async () => {
+    const cfg: SearchConfig = { braveApiKey: 'bsak-write' };
+    await setSearchConfig(cfg);
+    expect(mockSet).toHaveBeenCalledWith({ search: cfg });
+  });
+});
+
+describe('getOllamaConfig (must remain functional — pipeline depends on it)', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('still returns OllamaConfig from the ollama key after Sprint 1 changes', async () => {
+    mockGet.mockResolvedValue({ ollama: { baseUrl: 'http://localhost:11434', model: 'llama3.2' } });
+    const config = await getOllamaConfig();
+    expect(config.baseUrl).toBe('http://localhost:11434');
+    expect(config.model).toBe('llama3.2');
   });
 });

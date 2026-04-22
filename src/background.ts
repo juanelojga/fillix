@@ -471,6 +471,10 @@ async function handle(msg: Message): Promise<MessageResponse> {
       const models = await listModels(config);
       return { ok: true, models };
     }
+    case 'LIST_MODELS': {
+      const models = await listModels(config);
+      return { ok: true, models };
+    }
     case 'CHAT_START':
     case 'CHAT_STOP':
       return { ok: false, error: 'Use port channel for chat' };

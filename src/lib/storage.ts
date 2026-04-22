@@ -1,4 +1,10 @@
-import type { ObsidianConfig, OllamaConfig, WorkflowDefinition } from '../types';
+import type {
+  ObsidianConfig,
+  OllamaConfig,
+  ProviderConfig,
+  SearchConfig,
+  WorkflowDefinition,
+} from '../types';
 
 export type ChatConfig = { systemPrompt: string };
 
@@ -70,4 +76,30 @@ export async function getWorkflowsFolder(): Promise<string> {
 
 export async function setWorkflowsFolder(folder: string): Promise<void> {
   await chrome.storage.local.set({ workflowsFolder: folder });
+}
+
+const DEFAULT_PROVIDER: ProviderConfig = {
+  provider: 'ollama',
+  baseUrl: 'http://localhost:11434',
+  model: 'llama3.2',
+};
+
+export async function getProviderConfig(): Promise<ProviderConfig> {
+  const { provider, ollama } = await chrome.storage.local.get(['provider', 'ollama']);
+  if (provider) return provider as ProviderConfig;
+  if (ollama) return { ...DEFAULT_PROVIDER, ...((ollama as Partial<OllamaConfig>) ?? {}) };
+  return DEFAULT_PROVIDER;
+}
+
+export async function setProviderConfig(config: ProviderConfig): Promise<void> {
+  await chrome.storage.local.set({ provider: config });
+}
+
+export async function getSearchConfig(): Promise<SearchConfig> {
+  const { search } = await chrome.storage.local.get('search');
+  return (search as SearchConfig | undefined) ?? {};
+}
+
+export async function setSearchConfig(config: SearchConfig): Promise<void> {
+  await chrome.storage.local.set({ search: config });
 }
