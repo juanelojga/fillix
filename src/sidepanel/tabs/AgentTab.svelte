@@ -114,28 +114,45 @@
         <TooltipContent>Refresh workflows</TooltipContent>
       </Tooltip>
 
-      <Button onclick={handleRun} disabled={!selectedWorkflowId || $isAgentRunning || activeTabId === 0} class="shrink-0">
+      <Button
+        onclick={handleRun}
+        disabled={!selectedWorkflowId || $isAgentRunning || activeTabId === 0}
+        size="lg"
+        class="shrink-0"
+      >
         Run
       </Button>
     </div>
 
     <!-- Pipeline stages — shown when running or any stage has data -->
     {#if $isAgentRunning || $pipelineStages.some((s) => s.status !== 'idle')}
-      <PipelineStages stages={$pipelineStages} />
+      <div class="rounded-xl border border-border bg-muted/30 p-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Pipeline</p>
+        <PipelineStages stages={$pipelineStages} />
+      </div>
     {/if}
 
     <!-- Completion message -->
     {#if completionMessage}
-      <p class="text-sm text-success">{completionMessage}</p>
+      <div class="rounded-lg bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20 px-3 py-2 text-sm text-success font-medium">
+        {completionMessage}
+      </div>
     {/if}
 
-    <!-- Confirm table + Apply/Cancel — shown only when confirming -->
+    <!-- Confirm fields + Apply/Cancel — shown only when confirming -->
     {#if localConfirmFields.length > 0}
-      <ConfirmTable fields={localConfirmFields} />
-
-      <div class="flex flex-col gap-2 mt-1">
-        <Button onclick={handleApply} class="w-full">Apply</Button>
-        <Button variant="ghost" onclick={handleCancel} class="w-full">Cancel</Button>
+      <div class="rounded-xl border border-border bg-muted/30 p-3 flex flex-col gap-3">
+        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review & Edit</p>
+        <ConfirmTable fields={localConfirmFields} />
+        <div class="flex flex-col gap-2">
+          <Button
+            onclick={handleApply}
+            class="w-full bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] hover:bg-[hsl(var(--success))]/90 border-transparent"
+          >
+            Apply
+          </Button>
+          <Button variant="destructive" onclick={handleCancel} class="w-full">Cancel</Button>
+        </div>
       </div>
     {/if}
   </div>
