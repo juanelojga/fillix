@@ -11,8 +11,8 @@
   "packageManager": "pnpm@10.33.0",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
-    "typecheck": "tsc --noEmit",
+    "build": "vite build",
+    "typecheck": "svelte-check --tsconfig tsconfig.json && tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
@@ -34,9 +34,14 @@
   "devDependencies": {
     "@crxjs/vite-plugin": "^2.0.0-beta.25",
     "@eslint/js": "^9.39.4",
+    "@sveltejs/vite-plugin-svelte": "^4.0.4",
+    "@tailwindcss/vite": "^4.2.4",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/svelte": "^5.3.1",
     "@types/chrome": "^0.0.268",
     "@types/dompurify": "^3.2.0",
     "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^2.1.9",
     "eslint": "^9.39.4",
     "eslint-config-prettier": "^9.1.2",
@@ -46,14 +51,22 @@
     "jsdom": "^29.0.2",
     "lint-staged": "^15.5.2",
     "prettier": "^3.8.3",
+    "svelte-check": "^4.4.6",
+    "tailwindcss": "^4.2.4",
     "typescript": "^5.4.0",
     "typescript-eslint": "^8.58.2",
     "vite": "^5.2.0",
     "vitest": "^2.1.9"
   },
   "dependencies": {
+    "@lucide/svelte": "^1.8.0",
+    "bits-ui": "^2.18.0",
+    "clsx": "^2.1.1",
     "dompurify": "^3.4.0",
     "js-yaml": "^4.1.1",
-    "marked": "^18.0.0"
+    "marked": "^18.0.0",
+    "svelte": "^5.55.4",
+    "tailwind-merge": "^3.5.0",
+    "tailwind-variants": "^3.2.2"
   }
 }

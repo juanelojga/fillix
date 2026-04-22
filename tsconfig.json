@@ -11,9 +11,14 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
-    "types": ["chrome", "vite/client"],
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "types": ["chrome", "vite/client", "svelte"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "baseUrl": ".",
+    "paths": {
+      "$lib/*": ["./src/lib/*"],
+      "$components/*": ["./src/sidepanel/components/*"]
+    }
   },
-  "include": ["src", "manifest.config.ts", "vite.config.ts", "eslint.config.ts"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
+  "include": ["src", "src/**/*.svelte", "manifest.config.ts", "vite.config.ts", "eslint.config.ts"],
+  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts", "src/sidepanel/components/ui/**/*.ts"]
 }
