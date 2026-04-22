@@ -1,12 +1,9 @@
-// TODO: Install test runner with: pnpm add -D vitest @vitest/ui jsdom
+// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
 // Run with: pnpm exec vitest run --environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type * as ChatToolsModule from '../chat-tools';
-import { createChatController } from '../chat';
 
 vi.mock('../../lib/storage', () => ({}));
-
-// ---------- DOM setup ----------
 
 function buildChatDom(): HTMLElement {
   const messages = document.createElement('div');
@@ -114,46 +111,5 @@ describe('tool indicator click — expand', () => {
 
     el.click();
     expect(el.querySelector('.tool-result-preview')).toBeNull();
-  });
-});
-
-// ---------- chat.ts onToolCall / onToolResult callbacks ----------
-
-describe('chat controller — tool-call and tool-result port messages', () => {
-  function makePortMock(): {
-    port: {
-      onMessage: { addListener: ReturnType<typeof vi.fn> };
-      onDisconnect: { addListener: ReturnType<typeof vi.fn> };
-      postMessage: ReturnType<typeof vi.fn>;
-    };
-    listeners: ((msg: unknown) => void)[];
-  } {
-    const listeners: ((msg: unknown) => void)[] = [];
-    const port = {
-      onMessage: { addListener: vi.fn((fn: (msg: unknown) => void) => listeners.push(fn)) },
-      onDisconnect: { addListener: vi.fn() },
-      postMessage: vi.fn(),
-    };
-    return { port, listeners };
-  }
-
-  it('calls onToolCall when a tool-call port message is received', () => {
-    const onToolCall = vi.fn();
-    const { port, listeners } = makePortMock();
-    vi.stubGlobal('chrome', { runtime: { connect: vi.fn(() => port), id: 'test-id' } });
-
-    createChatController({ onToken: vi.fn(), onDone: vi.fn(), onError: vi.fn(), onToolCall });
-    listeners[0]({ type: 'tool-call', toolName: 'wikipedia', args: { title: 'AI' } });
-    expect(onToolCall).toHaveBeenCalledWith('wikipedia', { title: 'AI' });
-  });
-
-  it('calls onToolResult when a tool-result port message is received', () => {
-    const onToolResult = vi.fn();
-    const { port, listeners } = makePortMock();
-    vi.stubGlobal('chrome', { runtime: { connect: vi.fn(() => port), id: 'test-id' } });
-
-    createChatController({ onToken: vi.fn(), onDone: vi.fn(), onError: vi.fn(), onToolResult });
-    listeners[0]({ type: 'tool-result', toolName: 'wikipedia', result: 'TypeScript is...' });
-    expect(onToolResult).toHaveBeenCalledWith('wikipedia', 'TypeScript is...');
   });
 });

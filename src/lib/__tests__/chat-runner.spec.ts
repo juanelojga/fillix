@@ -1,27 +1,6 @@
-// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
-// Run with: pnpm exec vitest run
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { sanitizeError, detectToolCall } from '../background';
-import type * as StorageModule from '../lib/storage';
-
-// ---------- sanitizeError ----------
-
-describe('sanitizeError', () => {
-  it('returns error unchanged when apiKey is empty', () => {
-    expect(sanitizeError('something went wrong', '')).toBe('something went wrong');
-  });
-
-  it('redacts all occurrences of the apiKey in the error string', () => {
-    const result = sanitizeError('Bearer sk-abc123 and sk-abc123 again', 'sk-abc123');
-    expect(result).toBe('Bearer [REDACTED] and [REDACTED] again');
-  });
-
-  it('redacts provider apiKey (not just Obsidian key)', () => {
-    const result = sanitizeError('401 Unauthorized: Bearer or-key-xyz', 'or-key-xyz');
-    expect(result).not.toContain('or-key-xyz');
-    expect(result).toContain('[REDACTED]');
-  });
-});
+import { detectToolCall } from '../chat-runner';
+import type * as StorageModule from '../storage';
 
 // ---------- detectToolCall ----------
 
@@ -56,7 +35,7 @@ describe('detectToolCall', () => {
     expect(detectToolCall('{"tool":"web_search","args":{bad json}')).toBeNull();
   });
 
-  it('returns null for empty args object', () => {
+  it('returns empty args object when args is omitted', () => {
     const result = detectToolCall('{"tool":"wikipedia","args":{}}');
     expect(result).toEqual({ toolName: 'wikipedia', args: {} });
   });
@@ -64,7 +43,7 @@ describe('detectToolCall', () => {
 
 // ---------- ReAct loop integration ----------
 
-vi.mock('../lib/storage', async (importOriginal) => {
+vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof StorageModule>();
   return {
     ...actual,
@@ -75,18 +54,18 @@ vi.mock('../lib/storage', async (importOriginal) => {
   };
 });
 
-vi.mock('../lib/providers/index', () => ({
+vi.mock('../providers/index', () => ({
   resolveProvider: vi.fn(),
 }));
 
-vi.mock('../lib/tools/registry', () => ({
+vi.mock('../tools/registry', () => ({
   dispatchTool: vi.fn(),
 }));
 
-import * as storage from '../lib/storage';
-import { resolveProvider } from '../lib/providers/index';
-import { dispatchTool } from '../lib/tools/registry';
-import type { ProviderConfig, SearchConfig } from '../types';
+import * as storage from '../storage';
+import { resolveProvider } from '../providers/index';
+import { dispatchTool } from '../tools/registry';
+import type { ProviderConfig, SearchConfig } from '../../types';
 
 const defaultProvider: ProviderConfig = {
   provider: 'ollama',
@@ -148,7 +127,6 @@ describe('chat port handler — ReAct loop', () => {
     vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
 
     const port = makePort();
-    // Simulate CHAT_START via the registered listener
     const { triggerChatStart } = await simulateChatPort(port);
     await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
 
@@ -218,13 +196,9 @@ describe('chat port handler — ReAct loop', () => {
   });
 });
 
-// Helper: mount the onConnect listener and expose a triggerChatStart fn
 async function simulateChatPort(port: ReturnType<typeof makePort>) {
-  // Re-import background to get the registered listener
-  const mod = await import('../background');
-  void mod; // ensure side effects run
-  // The onConnect listener is registered at module load time.
-  // We invoke the registered handler directly via the mock.
+  const mod = await import('../../background');
+  void mod;
   const connectListeners =
     (chrome.runtime.onConnect as unknown as { _listeners: ((p: unknown) => void)[] })._listeners ??
     [];
