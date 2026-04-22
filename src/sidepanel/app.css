@@ -67,6 +67,14 @@
 }
 
 @layer base {
+  html,
+  body,
+  #app {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+  }
   * {
     border-color: hsl(var(--border));
     outline-color: hsl(var(--ring));

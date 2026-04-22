@@ -7,7 +7,6 @@
   import MessageBubble from '../components/MessageBubble.svelte';
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
   import ThinkingBlock from '../components/ThinkingBlock.svelte';
-  import { ScrollArea } from '$components/ui/scroll-area';
 
   const chatPort = getContext<chrome.runtime.Port>('chatPort');
 
@@ -162,14 +161,14 @@
   </div>
 
   <!-- Message list -->
-  <ScrollArea
-    class="flex-1"
-    bind:viewportRef
+  <div
+    bind:this={viewportRef}
+    class="flex-1 overflow-y-auto min-h-0"
     role="log"
     aria-label="Chat messages"
   >
     {#if $messages.length === 0 && $activeMessage === null}
-      <div class="flex flex-col items-center justify-center h-40 gap-3 text-center px-8 mt-8">
+      <div class="flex flex-col items-center justify-center h-full gap-3 text-center px-8">
         <div class="w-10 h-10 rounded-full bg-muted flex items-center justify-center">
           <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground">
             <path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/>
@@ -200,7 +199,7 @@
         <div bind:this={sentinelEl} aria-hidden="true"></div>
       </div>
     {/if}
-  </ScrollArea>
+  </div>
 
   <!-- Input area -->
   <div class="p-3">
