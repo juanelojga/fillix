@@ -52,11 +52,17 @@
   }
 </script>
 
+<div class="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
 <Accordion type="single">
-  <AccordionItem value="obsidian">
-    <AccordionTrigger class="text-sm font-semibold">Obsidian</AccordionTrigger>
+  <AccordionItem value="obsidian" class="border-none">
+    <AccordionTrigger class="text-sm font-semibold px-4 py-3 hover:no-underline">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-violet-500 shrink-0"></div>
+        Obsidian
+      </div>
+    </AccordionTrigger>
     <AccordionContent>
-      <div class="flex flex-col gap-3 pt-2">
+      <div class="flex flex-col gap-3 px-4 pb-4 pt-1 border-t border-slate-200">
         <div class="flex flex-col gap-1">
           <label class="text-xs text-muted-foreground" for="obs-host">Host</label>
           <Input id="obs-host" bind:value={host} placeholder="localhost" />
@@ -97,12 +103,17 @@
           />
         </div>
 
-        <div class="flex items-center gap-2">
-          <Button variant="outline" onclick={handleTestConnection} disabled={testStatus === 'testing'}>
+        <div class="flex items-center gap-3 pt-1">
+          <Button
+            variant="outline"
+            onclick={handleTestConnection}
+            disabled={testStatus === 'testing'}
+            class="border-emerald-500 text-emerald-600 hover:bg-emerald-50 hover:border-emerald-600"
+          >
             {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
           </Button>
           {#if testStatus === 'ok'}
-            <span class="text-xs text-success">Connected</span>
+            <span class="text-xs text-emerald-600 font-medium">✓ Connected</span>
           {:else if testStatus === 'error'}
             <span class="text-xs text-destructive">{testError || 'Connection failed'}</span>
           {/if}
@@ -113,3 +124,4 @@
     </AccordionContent>
   </AccordionItem>
 </Accordion>
+</div>

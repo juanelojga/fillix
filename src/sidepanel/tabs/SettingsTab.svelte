@@ -13,7 +13,6 @@
   import type { ProviderConfig, ProviderType, SearchConfig } from '../../types';
   import { Input } from '$components/ui/input';
   import { Button } from '$components/ui/button';
-  import { Separator } from '$components/ui/separator';
   import {
     Tooltip,
     TooltipContent,
@@ -88,10 +87,13 @@
 </script>
 
 <TooltipProvider>
-  <div class="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+  <div class="flex flex-col gap-3 p-4 overflow-y-auto h-full">
   <!-- Provider section -->
-  <section class="flex flex-col gap-3">
-    <h2 class="text-sm font-semibold">Provider</h2>
+  <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <div class="flex items-center gap-2">
+      <div class="w-1 h-4 rounded-full bg-indigo-500 shrink-0"></div>
+      <h2 class="text-sm font-semibold text-slate-800">Provider</h2>
+    </div>
 
     <div class="flex flex-col gap-1">
       <label class="text-xs text-muted-foreground" for="provider-select">Provider type</label>
@@ -156,11 +158,12 @@
     </div>
   </section>
 
-  <Separator />
-
   <!-- Search section -->
-  <section class="flex flex-col gap-3">
-    <h2 class="text-sm font-semibold">Search</h2>
+  <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+    <div class="flex items-center gap-2">
+      <div class="w-1 h-4 rounded-full bg-sky-500 shrink-0"></div>
+      <h2 class="text-sm font-semibold text-slate-800">Search</h2>
+    </div>
     <div class="flex flex-col gap-1">
       <label class="text-xs text-muted-foreground" for="brave-api-key">Brave Search API key</label>
       <Input
@@ -176,16 +179,12 @@
     </div>
   </section>
 
-  <Separator />
-
   <!-- Obsidian section -->
   <ObsidianPanel />
 
-  <Separator />
-
   <!-- Save -->
-  <Button onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end">
-    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
+  <Button onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end px-6" size="lg">
+    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : 'Save Settings'}
   </Button>
   </div>
 </TooltipProvider>
