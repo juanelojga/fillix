@@ -1,4 +1,4 @@
-import { chatStream, inferFieldValue, listModels } from './lib/ollama';
+import { inferFieldValue, listModels } from './lib/ollama';
 import {
   appendToFile,
   getFile,
@@ -8,14 +8,18 @@ import {
   writeFile,
 } from './lib/obsidian';
 import { runDraft, runPlan, runReview, runUnderstand } from './lib/pipeline';
+import { resolveProvider } from './lib/providers/index';
 import {
   getObsidianConfig,
   getOllamaConfig,
   getProfile,
+  getProviderConfig,
+  getSearchConfig,
   getWorkflows,
   getWorkflowsFolder,
   setWorkflows,
 } from './lib/storage';
+import { dispatchTool } from './lib/tools/registry';
 import { parseWorkflow } from './lib/workflow';
 import type {
   DraftOutput,
@@ -388,20 +392,83 @@ chrome.runtime.onConnect.addListener((port) => {
       if (msg.type === 'CHAT_START') {
         controller?.abort();
         controller = new AbortController();
-        const config = await getOllamaConfig();
-        await chatStream(
-          { ...config, model: msg.model ?? config.model },
-          msg.messages,
-          msg.systemPrompt,
-          {
-            signal: controller.signal,
-            onToken: (value) => port.postMessage({ type: 'token', value } satisfies PortMessage),
+        const signal = controller.signal;
+
+        const providerConfig = await getProviderConfig();
+        const searchConfig = await getSearchConfig();
+        const effectiveModel = msg.model ?? providerConfig.model;
+        const provider = resolveProvider({ ...providerConfig, model: effectiveModel });
+
+        const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${msg.systemPrompt}`;
+        const messages = [...msg.messages];
+        const MAX_ITERATIONS = 8;
+
+        for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+          if (signal.aborted) return;
+
+          let accumulated = '';
+          let streamDone = false;
+
+          await provider.chatStream(messages, systemPrompt, {
+            signal,
+            onToken: (value) => {
+              accumulated += value;
+              port.postMessage({ type: 'token', value } satisfies PortMessage);
+            },
             onThinking: (value) =>
               port.postMessage({ type: 'thinking', value } satisfies PortMessage),
-            onDone: () => port.postMessage({ type: 'done' } satisfies PortMessage),
-            onError: (error) => port.postMessage({ type: 'error', error } satisfies PortMessage),
-          },
-        );
+            onDone: () => {
+              streamDone = true;
+            },
+            onError: (error) => {
+              const sanitized = sanitizeError(error, providerConfig.apiKey ?? '');
+              port.postMessage({ type: 'error', error: sanitized } satisfies PortMessage);
+            },
+          });
+
+          if (signal.aborted) return;
+
+          // Scan accumulated response for a tool call line
+          let detectedTool: ReturnType<typeof detectToolCall> = null;
+          for (const line of accumulated.split('\n')) {
+            detectedTool = detectToolCall(line.trim());
+            if (detectedTool) break;
+          }
+
+          if (!detectedTool) {
+            // No tool call — final answer; stream already forwarded tokens
+            if (streamDone) port.postMessage({ type: 'done' } satisfies PortMessage);
+            return;
+          }
+
+          port.postMessage({
+            type: 'tool-call',
+            toolName: detectedTool.toolName,
+            args: detectedTool.args,
+          } satisfies PortMessage);
+
+          const result = await dispatchTool(detectedTool.toolName, detectedTool.args, searchConfig);
+
+          port.postMessage({
+            type: 'tool-result',
+            toolName: detectedTool.toolName,
+            result,
+          } satisfies PortMessage);
+
+          messages.push(
+            {
+              role: 'assistant',
+              content: `{"tool":"${detectedTool.toolName}","args":${JSON.stringify(detectedTool.args)}}`,
+            },
+            {
+              role: 'user',
+              content: `[Tool: ${detectedTool.toolName}]\nResult:\n${result}`,
+            },
+          );
+        }
+
+        // Max iterations reached without a final answer
+        port.postMessage({ type: 'done' } satisfies PortMessage);
       } else if (msg.type === 'CHAT_STOP') {
         controller?.abort();
         port.postMessage({ type: 'done' } satisfies PortMessage);
@@ -443,9 +510,40 @@ chrome.runtime.onConnect.addListener((port) => {
   }
 });
 
-export function sanitizeError(error: string, apiKey: string): string {
-  if (!apiKey) return error;
-  return error.split(apiKey).join('[REDACTED]');
+export function sanitizeError(error: string, ...apiKeys: string[]): string {
+  let result = error;
+  for (const key of apiKeys) {
+    if (key) result = result.split(key).join('[REDACTED]');
+  }
+  return result;
+}
+
+const TOOL_SYSTEM_PROMPT = `
+## Tools Available
+When you need real-time or external information, emit a tool call on its own line:
+{"tool":"<name>","args":{...}}
+Stop generating. A result will be appended as a user message. Then continue.
+Available tools: web_search, fetch_url, news_feed, wikipedia.
+Only call one tool per turn. Never fabricate tool results.
+`.trim();
+
+export function detectToolCall(
+  line: string,
+): { toolName: string; args: Record<string, string> } | null {
+  if (!line.trimStart().startsWith('{')) return null;
+  try {
+    const parsed = JSON.parse(line) as unknown;
+    if (
+      typeof parsed !== 'object' ||
+      parsed === null ||
+      typeof (parsed as Record<string, unknown>)['tool'] !== 'string'
+    )
+      return null;
+    const { tool, args } = parsed as { tool: string; args: Record<string, string> };
+    return { toolName: tool, args: args ?? {} };
+  } catch {
+    return null;
+  }
 }
 
 chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
@@ -454,8 +552,14 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
     .then(sendResponse)
     .catch(async (err: unknown) => {
       const raw = err instanceof Error ? err.message : String(err);
-      const { apiKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
-      sendResponse({ ok: false, error: sanitizeError(raw, apiKey) } satisfies MessageResponse);
+      const { apiKey: obsidianKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
+      const { apiKey: providerKey = '' } = await getProviderConfig().catch(() => ({
+        apiKey: undefined,
+      }));
+      sendResponse({
+        ok: false,
+        error: sanitizeError(raw, obsidianKey, providerKey),
+      } satisfies MessageResponse);
     });
   return true;
 });
@@ -472,7 +576,8 @@ async function handle(msg: Message): Promise<MessageResponse> {
       return { ok: true, models };
     }
     case 'LIST_MODELS': {
-      const models = await listModels(config);
+      const providerConfig = await getProviderConfig();
+      const models = await resolveProvider(providerConfig).listModels();
       return { ok: true, models };
     }
     case 'CHAT_START':
