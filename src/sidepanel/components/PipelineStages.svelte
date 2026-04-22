@@ -34,7 +34,7 @@
         {:else if stage.status === 'running'}
           <span class="animate-spin inline-block">⟳</span>
         {:else if stage.status === 'done'}
-          <span class="text-green-600">✓</span>
+          <span class="text-success">✓</span>
         {:else if stage.status === 'error'}
           <span class="text-destructive">✗</span>
         {/if}

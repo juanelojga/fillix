@@ -14,6 +14,12 @@
   import { Input } from '$components/ui/input';
   import { Button } from '$components/ui/button';
   import { Separator } from '$components/ui/separator';
+  import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+    TooltipProvider,
+  } from '$components/ui/tooltip';
   import ObsidianPanel from '../components/ObsidianPanel.svelte';
 
   let provider = $state<ProviderType>('ollama');
@@ -56,6 +62,11 @@
     apiKey = '';
   }
 
+  function handleRefreshModels() {
+    const cfg = get(providerConfig);
+    if (cfg) refreshModels(cfg);
+  }
+
   async function handleSave() {
     saveStatus = 'saving';
     const providerCfg: ProviderConfig = {
@@ -76,7 +87,8 @@
   }
 </script>
 
-<div class="flex flex-col gap-4 p-4 overflow-y-auto h-full">
+<TooltipProvider>
+  <div class="flex flex-col gap-4 p-4 overflow-y-auto h-full">
   <!-- Provider section -->
   <section class="flex flex-col gap-3">
     <h2 class="text-sm font-semibold">Provider</h2>
@@ -115,7 +127,19 @@
     {/if}
 
     <div class="flex flex-col gap-1">
-      <label class="text-xs text-muted-foreground" for="model-query">Model</label>
+      <div class="flex items-center gap-2">
+        <label class="text-xs text-muted-foreground" for="model-query">Model</label>
+        <Tooltip>
+          <TooltipTrigger
+            aria-label="Refresh models"
+            class="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
+            onclick={handleRefreshModels}
+          >
+            ↻
+          </TooltipTrigger>
+          <TooltipContent>Refresh models</TooltipContent>
+        </Tooltip>
+      </div>
       <Input id="model-query" bind:value={modelQuery} placeholder="Filter models…" />
       {#if filteredModels.length > 0}
         <select
@@ -163,4 +187,5 @@
   <Button onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end">
     {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved!' : 'Save'}
   </Button>
-</div>
+  </div>
+</TooltipProvider>

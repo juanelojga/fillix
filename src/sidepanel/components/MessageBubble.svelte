@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
+  import { fly } from 'svelte/transition';
   import { renderMarkdown } from '../markdown';
 
   interface Props {
@@ -20,6 +21,7 @@
   class:bg-muted={role === 'assistant'}
   class:bg-destructive={role === 'error'}
   class:text-destructive-foreground={role === 'error'}
+  in:fly={{ y: 8, duration: 150 }}
 >
   {#if isStreaming}
     <span class="whitespace-pre-wrap">{content}</span>

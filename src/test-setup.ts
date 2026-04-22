@@ -20,7 +20,18 @@ if (typeof chrome !== 'undefined') {
   }
 }
 
-// jsdom stub for DOM methods not implemented in the test environment
+// jsdom stubs for DOM methods not implemented in the test environment
 if (typeof window !== 'undefined') {
   window.HTMLElement.prototype.scrollIntoView = function () {};
+  // Web Animations API — used by Svelte transitions (fly, fade, etc.)
+  if (!window.Element.prototype.animate) {
+    window.Element.prototype.animate = function () {
+      return {
+        cancel: () => {},
+        finish: () => {},
+        onfinish: null,
+        finished: Promise.resolve(),
+      } as unknown as Animation;
+    };
+  }
 }

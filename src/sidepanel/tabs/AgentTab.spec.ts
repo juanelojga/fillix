@@ -37,3 +37,17 @@ describe('AgentTab (smoke)', () => {
     expect(screen.getByText('Select workflow…')).toBeInTheDocument();
   });
 });
+
+describe('AgentTab (accessibility + polish)', () => {
+  const context = new Map([['agentPort', mockPort]]);
+
+  it('workflow selector has an accessible label', () => {
+    render(AgentTab, { context });
+    expect(screen.getByRole('combobox', { name: /workflow/i })).toBeInTheDocument();
+  });
+
+  it('renders a Refresh workflows button', () => {
+    render(AgentTab, { context });
+    expect(screen.getByRole('button', { name: /refresh workflow/i })).toBeInTheDocument();
+  });
+});

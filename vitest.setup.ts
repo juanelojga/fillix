@@ -21,6 +21,15 @@ if (typeof chrome === 'undefined') {
   };
 }
 
+// Polyfill ResizeObserver — used by bits-ui ScrollArea; not implemented in jsdom
+if (typeof ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
 // Polyfill CSS.escape for jsdom environments where it's missing
 if (typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
   const cssObj = typeof CSS !== 'undefined' ? (CSS as Record<string, unknown>) : {};

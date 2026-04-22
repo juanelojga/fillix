@@ -14,6 +14,12 @@
     cancelRun,
   } from '../stores/agent';
   import { Button } from '$components/ui/button';
+  import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+    TooltipProvider,
+  } from '$components/ui/tooltip';
   import PipelineStages from '../components/PipelineStages.svelte';
   import ConfirmTable from '../components/ConfirmTable.svelte';
 
@@ -80,42 +86,57 @@
   }
 </script>
 
-<div class="flex flex-col h-full gap-3 p-3 overflow-y-auto">
-  <!-- Workflow selector + Run -->
-  <div class="flex gap-2 items-center">
-    <select
-      class="flex h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-      bind:value={selectedWorkflowId}
-      disabled={$isAgentRunning}
-    >
-      <option value="" disabled>Select workflow…</option>
-      {#each $workflowList as workflow (workflow.id)}
-        <option value={workflow.id}>{workflow.name}</option>
-      {/each}
-    </select>
+<TooltipProvider>
+  <div class="flex flex-col h-full gap-3 p-3 overflow-y-auto">
+    <!-- Workflow selector + Run + Refresh -->
+    <div class="flex gap-2 items-center">
+      <select
+        aria-label="Select workflow"
+        class="flex h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        bind:value={selectedWorkflowId}
+        disabled={$isAgentRunning}
+      >
+        <option value="" disabled>Select workflow…</option>
+        {#each $workflowList as workflow (workflow.id)}
+          <option value={workflow.id}>{workflow.name}</option>
+        {/each}
+      </select>
 
-    <Button onclick={handleRun} disabled={!selectedWorkflowId || $isAgentRunning || activeTabId === 0} class="shrink-0">
-      Run
-    </Button>
-  </div>
+      <Tooltip>
+        <TooltipTrigger
+          aria-label="Refresh workflows"
+          class="flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
+          onclick={loadWorkflows}
+          disabled={$isAgentRunning}
+        >
+          ↻
+        </TooltipTrigger>
+        <TooltipContent>Refresh workflows</TooltipContent>
+      </Tooltip>
 
-  <!-- Pipeline stages — shown when running or any stage has data -->
-  {#if $isAgentRunning || $pipelineStages.some((s) => s.status !== 'idle')}
-    <PipelineStages stages={$pipelineStages} />
-  {/if}
-
-  <!-- Completion message -->
-  {#if completionMessage}
-    <p class="text-sm text-green-600">{completionMessage}</p>
-  {/if}
-
-  <!-- Confirm table + Apply/Cancel — shown only when confirming -->
-  {#if localConfirmFields.length > 0}
-    <ConfirmTable fields={localConfirmFields} />
-
-    <div class="flex flex-col gap-2 mt-1">
-      <Button onclick={handleApply} class="w-full">Apply</Button>
-      <Button variant="ghost" onclick={handleCancel} class="w-full">Cancel</Button>
+      <Button onclick={handleRun} disabled={!selectedWorkflowId || $isAgentRunning || activeTabId === 0} class="shrink-0">
+        Run
+      </Button>
     </div>
-  {/if}
-</div>
+
+    <!-- Pipeline stages — shown when running or any stage has data -->
+    {#if $isAgentRunning || $pipelineStages.some((s) => s.status !== 'idle')}
+      <PipelineStages stages={$pipelineStages} />
+    {/if}
+
+    <!-- Completion message -->
+    {#if completionMessage}
+      <p class="text-sm text-success">{completionMessage}</p>
+    {/if}
+
+    <!-- Confirm table + Apply/Cancel — shown only when confirming -->
+    {#if localConfirmFields.length > 0}
+      <ConfirmTable fields={localConfirmFields} />
+
+      <div class="flex flex-col gap-2 mt-1">
+        <Button onclick={handleApply} class="w-full">Apply</Button>
+        <Button variant="ghost" onclick={handleCancel} class="w-full">Cancel</Button>
+      </div>
+    {/if}
+  </div>
+</TooltipProvider>

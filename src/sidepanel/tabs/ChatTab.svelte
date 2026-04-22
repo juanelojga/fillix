@@ -7,12 +7,14 @@
   import MessageBubble from '../components/MessageBubble.svelte';
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
   import ThinkingBlock from '../components/ThinkingBlock.svelte';
+  import { ScrollArea } from '$components/ui/scroll-area';
 
   const chatPort = getContext<chrome.runtime.Port>('chatPort');
 
   let inputText = $state('');
   let textareaEl: HTMLTextAreaElement | null = $state(null);
   let sentinelEl: HTMLDivElement | null = $state(null);
+  let viewportRef: HTMLElement | null = $state(null);
   let isUserScrolled = $state(false);
 
   // Composite trigger so $effect reads both stores as reactive deps
@@ -22,6 +24,18 @@
     if (scrollTrigger >= 0 && !isUserScrolled && sentinelEl) {
       sentinelEl.scrollIntoView({ block: 'end' });
     }
+  });
+
+  // Track whether the user has scrolled away from the bottom
+  $effect(() => {
+    if (!viewportRef) return;
+    const viewport = viewportRef;
+    function onScroll() {
+      const atBottom = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight < 10;
+      isUserScrolled = !atBottom;
+    }
+    viewport.addEventListener('scroll', onScroll);
+    return () => viewport.removeEventListener('scroll', onScroll);
   });
 
   onMount(() => {
@@ -128,42 +142,38 @@
     textareaEl.style.height = `${Math.min(textareaEl.scrollHeight, maxHeight)}px`;
     textareaEl.style.overflowY = textareaEl.scrollHeight > maxHeight ? 'scroll' : 'hidden';
   }
-
-  function handleScroll(e: Event) {
-    const el = e.currentTarget as HTMLElement;
-    const atBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 10;
-    isUserScrolled = !atBottom;
-  }
 </script>
 
 <div class="flex flex-col h-full">
   <!-- Message list -->
-  <div
-    class="flex-1 overflow-y-auto flex flex-col gap-2 p-3"
+  <ScrollArea
+    class="flex-1"
+    bind:viewportRef
     role="log"
     aria-label="Chat messages"
-    onscroll={handleScroll}
   >
-    {#each $messages as msg}
-      <MessageBubble role={msg.role} content={msg.content} />
-    {/each}
+    <div class="flex flex-col gap-2 p-3">
+      {#each $messages as msg}
+        <MessageBubble role={msg.role} content={msg.content} />
+      {/each}
 
-    {#if $activeMessage !== null}
-      <MessageBubble role="assistant" content={$activeMessage.content} isStreaming={true}>
-        {#if $activeMessage.thinking}
-          <ThinkingBlock
-            content={$activeMessage.thinking}
-            isStreaming={$streamingState === 'streaming'}
-          />
-        {/if}
-        {#each $activeMessage.toolCalls as toolCall (toolCall.toolName)}
-          <ToolCallBlock toolName={toolCall.toolName} args={toolCall.args} result={toolCall.result} />
-        {/each}
-      </MessageBubble>
-    {/if}
+      {#if $activeMessage !== null}
+        <MessageBubble role="assistant" content={$activeMessage.content} isStreaming={true}>
+          {#if $activeMessage.thinking}
+            <ThinkingBlock
+              content={$activeMessage.thinking}
+              isStreaming={$streamingState === 'streaming'}
+            />
+          {/if}
+          {#each $activeMessage.toolCalls as toolCall (toolCall.toolName)}
+            <ToolCallBlock toolName={toolCall.toolName} args={toolCall.args} result={toolCall.result} />
+          {/each}
+        </MessageBubble>
+      {/if}
 
-    <div bind:this={sentinelEl} aria-hidden="true"></div>
-  </div>
+      <div bind:this={sentinelEl} aria-hidden="true"></div>
+    </div>
+  </ScrollArea>
 
   <!-- Controls -->
   <div class="border-t border-border p-2 flex flex-col gap-1">

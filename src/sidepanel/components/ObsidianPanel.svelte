@@ -102,7 +102,7 @@
             {testStatus === 'testing' ? 'Testing…' : 'Test connection'}
           </Button>
           {#if testStatus === 'ok'}
-            <span class="text-xs text-green-600">Connected</span>
+            <span class="text-xs text-success">Connected</span>
           {:else if testStatus === 'error'}
             <span class="text-xs text-destructive">{testError || 'Connection failed'}</span>
           {/if}

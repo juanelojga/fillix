@@ -17,3 +17,10 @@ describe('SettingsTab (smoke)', () => {
     expect(screen.getByText(/ollama/i)).toBeInTheDocument();
   });
 });
+
+describe('SettingsTab (accessibility + polish)', () => {
+  it('renders a Refresh models button', () => {
+    render(SettingsTab);
+    expect(screen.getByRole('button', { name: /refresh model/i })).toBeInTheDocument();
+  });
+});
