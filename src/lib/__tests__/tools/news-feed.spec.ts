@@ -1,5 +1,6 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui
 // Run with: pnpm exec vitest run
+// @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { newsFeed } from '../../tools/news-feed';
 

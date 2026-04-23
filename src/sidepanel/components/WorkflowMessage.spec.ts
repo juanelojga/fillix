@@ -53,6 +53,10 @@ describe('WorkflowMessage.svelte — source integrity (Task 5.2)', () => {
     it('renders form fills (label + proposed value)', () => {
       expect(src()).toMatch(/proposedValue|proposed_value|label/);
     });
+
+    it('renders reply text block for message-reply (Task 6.2)', () => {
+      expect(src()).toContain('replyText');
+    });
   });
 
   describe('user-feedback variant', () => {

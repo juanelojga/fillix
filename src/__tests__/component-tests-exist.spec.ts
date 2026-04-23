@@ -49,36 +49,36 @@ describe('component spec files exist (Sprint 6)', () => {
     });
   });
 
-  describe('Task 6.5 — PipelineStages.spec.ts', () => {
+  describe('Task 6.5 — WorkflowMessage.spec.ts (replaced PipelineStages)', () => {
     it('exists', () => {
-      expect(existsSync(comp('PipelineStages.spec.ts'))).toBe(true);
+      expect(existsSync(comp('WorkflowMessage.spec.ts'))).toBe(true);
     });
 
-    it('tests all 5 stage names render', () => {
-      const src = readFileSync(comp('PipelineStages.spec.ts'), 'utf-8');
-      expect(src).toContain('collect');
-      expect(src).toContain('understand');
+    it('tests plan-review variant', () => {
+      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
+      expect(src).toContain('plan-review');
     });
 
-    it('tests error stage shows error text', () => {
-      const src = readFileSync(comp('PipelineStages.spec.ts'), 'utf-8');
-      expect(src).toContain('error');
+    it('tests summary variant', () => {
+      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
+      expect(src).toContain('summary');
     });
   });
 
-  describe('Task 6.6 — ConfirmTable.spec.ts', () => {
-    it('exists', () => {
-      expect(existsSync(comp('ConfirmTable.spec.ts'))).toBe(true);
+  describe('Task 6.6 — WorkflowMessage fills-review (replaced ConfirmTable)', () => {
+    it('WorkflowMessage.spec.ts covers fills-review', () => {
+      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
+      expect(src).toContain('fills-review');
     });
 
-    it('tests one row per FieldFill entry', () => {
-      const src = readFileSync(comp('ConfirmTable.spec.ts'), 'utf-8');
-      expect(src).toMatch(/FieldFill|fieldId/);
+    it('WorkflowMessage.spec.ts covers replyText', () => {
+      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
+      expect(src).toContain('replyText');
     });
 
-    it('tests editing proposed value updates editedValue', () => {
-      const src = readFileSync(comp('ConfirmTable.spec.ts'), 'utf-8');
-      expect(src).toContain('editedValue');
+    it('WorkflowMessage.spec.ts covers error variant', () => {
+      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
+      expect(src).toContain('error');
     });
   });
 
@@ -91,8 +91,8 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(tab('SettingsTab.spec.ts'))).toBe(true);
     });
 
-    it('AgentTab.spec.ts exists', () => {
-      expect(existsSync(tab('AgentTab.spec.ts'))).toBe(true);
+    it('WorkflowTab.spec.ts exists', () => {
+      expect(existsSync(tab('WorkflowTab.spec.ts'))).toBe(true);
     });
   });
 });

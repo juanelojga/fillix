@@ -19,10 +19,10 @@ describe('vanilla DOM deletion (Task 2.6)', () => {
       'App.svelte',
       'tabs/ChatTab.svelte',
       'tabs/SettingsTab.svelte',
-      'tabs/AgentTab.svelte',
+      'tabs/WorkflowTab.svelte',
       'stores/chat.ts',
       'stores/settings.ts',
-      'stores/agent.ts',
+      'stores/workflow.ts',
     ];
     required.forEach((file) => {
       it(`${file} exists`, () => {
