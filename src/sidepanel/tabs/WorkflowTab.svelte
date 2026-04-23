@@ -1,15 +1,15 @@
 <script lang="ts">
-  import { getContext, onMount } from 'svelte';
-  import type { AgentPortOut } from '../../lib/agent-runner';
+  import { getContext, onMount, tick } from 'svelte';
+  import type { AgentPortIn, AgentPortOut } from '../../lib/agent-runner';
   import {
     workflowList,
-    pipelineStages,
-    confirmFields,
     isAgentRunning,
+    agentMessages,
+    pendingGate,
     loadWorkflows,
     startRun,
-    handleStageUpdate,
-    applyFields,
+    addMessage,
+    setPendingGate,
     cancelRun,
   } from '../stores/workflow';
   import { Button } from '$components/ui/button';
@@ -19,19 +19,19 @@
     TooltipTrigger,
     TooltipProvider,
   } from '$components/ui/tooltip';
-  import PipelineStages from '../components/PipelineStages.svelte';
-  import ConfirmTable from '../components/ConfirmTable.svelte';
+  import WorkflowMessage from '../components/WorkflowMessage.svelte';
 
   const workflowPort = getContext<chrome.runtime.Port>('workflowPort');
 
   let selectedWorkflowId = $state('');
   let activeTabId = $state(0);
-  let completionMessage = $state('');
-  let localConfirmFields = $state($confirmFields);
+  let feedbackText = $state('');
+  let threadEl = $state<HTMLDivElement | null>(null);
 
-  $effect(() => {
-    localConfirmFields = [...$confirmFields];
-  });
+  async function scrollToBottom() {
+    await tick();
+    threadEl?.scrollTo({ top: threadEl.scrollHeight, behavior: 'smooth' });
+  }
 
   onMount(async () => {
     await loadWorkflows();
@@ -43,24 +43,37 @@
       const msg = rawMsg as AgentPortOut;
       switch (msg.type) {
         case 'AGENTIC_STAGE':
-          handleStageUpdate(msg);
+          // loading indicator handled via isAgentRunning; no thread bubble needed
           break;
         case 'AGENTIC_PLAN_REVIEW':
+          addMessage({ kind: 'plan-review', plan: msg.plan });
+          setPendingGate('plan');
+          void scrollToBottom();
+          break;
         case 'AGENTIC_FILLS_REVIEW':
-          // handled in Sprint 5 (thread UI)
+          if (msg.kind === 'form') {
+            addMessage({ kind: 'fills-review', fills: msg.fills });
+          }
+          setPendingGate('fills');
+          void scrollToBottom();
           break;
         case 'AGENTIC_SUMMARY':
+          addMessage({
+            kind: 'summary',
+            applied: msg.applied,
+            skipped: msg.skipped,
+            durationMs: msg.durationMs,
+            ...(msg.wordCount !== undefined ? { wordCount: msg.wordCount } : {}),
+          });
+          setPendingGate(null);
           isAgentRunning.set(false);
-          completionMessage = `Applied ${msg.applied} field(s).`;
+          void scrollToBottom();
           break;
         case 'AGENTIC_ERROR':
-          handleStageUpdate({
-            type: 'AGENTIC_STAGE',
-            stage: msg.stage,
-            status: 'error',
-            summary: msg.error,
-          });
+          addMessage({ kind: 'error', stage: msg.stage, error: msg.error });
+          setPendingGate(null);
           isAgentRunning.set(false);
+          void scrollToBottom();
           break;
         default: {
           const _never: never = msg;
@@ -72,24 +85,45 @@
 
   function handleRun() {
     if (!selectedWorkflowId || $isAgentRunning) return;
-    completionMessage = '';
     startRun(selectedWorkflowId, activeTabId, workflowPort);
   }
 
-  function handleApply() {
-    applyFields(localConfirmFields, activeTabId, workflowPort);
+  function handleApprove() {
+    if ($pendingGate === null) return;
+    const type = $pendingGate === 'plan' ? 'AGENTIC_PLAN_FEEDBACK' : 'AGENTIC_FILLS_FEEDBACK';
+    const msg: AgentPortIn = { type, approved: true };
+    workflowPort.postMessage(msg);
+    setPendingGate(null);
+  }
+
+  function handleFeedback() {
+    const text = feedbackText.trim();
+    if (!text || $pendingGate === null) return;
+    addMessage({ kind: 'user-feedback', text });
+    feedbackText = '';
+    const type = $pendingGate === 'plan' ? 'AGENTIC_PLAN_FEEDBACK' : 'AGENTIC_FILLS_FEEDBACK';
+    const msg: AgentPortIn = { type, approved: false, feedback: text };
+    workflowPort.postMessage(msg);
+    setPendingGate(null);
+    void scrollToBottom();
+  }
+
+  function handleFeedbackKeydown(e: KeyboardEvent) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleFeedback();
+    }
   }
 
   function handleCancel() {
     cancelRun(workflowPort);
-    completionMessage = '';
   }
 </script>
 
 <TooltipProvider>
-  <div class="flex flex-col h-full gap-3 p-3 overflow-y-auto">
+  <div class="flex flex-col h-full gap-3 p-3">
     <!-- Workflow selector + Run + Refresh -->
-    <div class="flex gap-2 items-center">
+    <div class="flex gap-2 items-center shrink-0">
       <select
         aria-label="Select workflow"
         class="flex h-9 flex-1 rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -124,35 +158,45 @@
       </Button>
     </div>
 
-    <!-- Pipeline stages — shown when running or any stage has data -->
-    {#if $isAgentRunning || $pipelineStages.some((s) => s.status !== 'idle')}
-      <div class="rounded-xl border border-border bg-muted/30 p-3">
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Pipeline</p>
-        <PipelineStages stages={$pipelineStages} />
-      </div>
-    {/if}
+    <!-- Message thread -->
+    <div
+      bind:this={threadEl}
+      class="flex flex-col gap-3 flex-1 overflow-y-auto min-h-0"
+    >
+      {#each $agentMessages as msg, i (i)}
+        <WorkflowMessage message={msg} />
+      {/each}
 
-    <!-- Completion message -->
-    {#if completionMessage}
-      <div class="rounded-lg bg-[hsl(var(--success))]/10 border border-[hsl(var(--success))]/20 px-3 py-2 text-sm text-success font-medium">
-        {completionMessage}
-      </div>
-    {/if}
+      {#if $isAgentRunning && $pendingGate === null}
+        <div class="text-xs text-muted-foreground animate-pulse px-1">Processing…</div>
+      {/if}
+    </div>
 
-    <!-- Confirm fields + Apply/Cancel — shown only when confirming -->
-    {#if localConfirmFields.length > 0}
-      <div class="rounded-xl border border-border bg-muted/30 p-3 flex flex-col gap-3">
-        <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Review & Edit</p>
-        <ConfirmTable fields={localConfirmFields} />
-        <div class="flex flex-col gap-2">
-          <Button
-            onclick={handleApply}
-            class="w-full bg-[hsl(var(--success))] text-[hsl(var(--success-foreground))] hover:bg-[hsl(var(--success))]/90 border-transparent"
-          >
-            Apply
+    <!-- Feedback input — shown only when gate is pending -->
+    {#if $pendingGate !== null}
+      <div class="shrink-0 flex flex-col gap-2 border-t border-border pt-3">
+        <textarea
+          class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm resize-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          rows="2"
+          placeholder="Type feedback (Enter to send) or click Approve…"
+          bind:value={feedbackText}
+          onkeydown={handleFeedbackKeydown}
+        ></textarea>
+        <div class="flex gap-2">
+          <Button onclick={handleFeedback} variant="outline" class="flex-1" disabled={!feedbackText.trim()}>
+            Send feedback
           </Button>
-          <Button variant="destructive" onclick={handleCancel} class="w-full">Cancel</Button>
+          <Button onclick={handleApprove} class="flex-1 bg-success text-success-foreground hover:bg-success/90">
+            Approve
+          </Button>
         </div>
+      </div>
+    {/if}
+
+    <!-- Cancel — shown while running -->
+    {#if $isAgentRunning}
+      <div class="shrink-0">
+        <Button variant="destructive" onclick={handleCancel} class="w-full">Cancel</Button>
       </div>
     {/if}
   </div>

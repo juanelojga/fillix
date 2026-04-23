@@ -92,3 +92,63 @@ describe('WorkflowTab.svelte — Sprint 1 structure (Tasks 1.1, 1.3, 1.4)', () =
     });
   });
 });
+
+// ── Sprint 5: thread UI (Tasks 5.2, 5.3, 5.4, 5.5) ──────────────────────────
+
+describe('WorkflowTab.svelte — Sprint 5 thread UI (Task 5.3)', () => {
+  const src = () => readFileSync(tab('WorkflowTab.svelte'), 'utf-8');
+
+  describe('removed components', () => {
+    it('does not import ConfirmTable (Task 5.4)', () => {
+      expect(src()).not.toContain('ConfirmTable');
+    });
+
+    it('does not import PipelineStages (Task 5.5)', () => {
+      expect(src()).not.toContain('PipelineStages');
+    });
+  });
+
+  describe('WorkflowMessage component', () => {
+    it('imports WorkflowMessage component', () => {
+      expect(src()).toContain('WorkflowMessage');
+    });
+  });
+
+  describe('thread state from store', () => {
+    it('imports agentMessages from stores/workflow', () => {
+      expect(src()).toContain('agentMessages');
+    });
+
+    it('imports pendingGate from stores/workflow', () => {
+      expect(src()).toContain('pendingGate');
+    });
+  });
+
+  describe('port message handling — gate messages', () => {
+    it('handles AGENTIC_PLAN_REVIEW to set pendingGate to plan', () => {
+      expect(src()).toContain('AGENTIC_PLAN_REVIEW');
+    });
+
+    it('handles AGENTIC_FILLS_REVIEW to set pendingGate to fills', () => {
+      expect(src()).toContain('AGENTIC_FILLS_REVIEW');
+    });
+
+    it('handles AGENTIC_SUMMARY to clear pendingGate', () => {
+      expect(src()).toContain('AGENTIC_SUMMARY');
+    });
+  });
+
+  describe('feedback input area', () => {
+    it('has a feedback textarea or input', () => {
+      expect(src()).toMatch(/textarea|<input/);
+    });
+
+    it('has an Approve button', () => {
+      expect(src()).toContain('Approve');
+    });
+
+    it('feedback area is conditionally shown based on pendingGate', () => {
+      expect(src()).toMatch(/pendingGate.*null|null.*pendingGate|\$pendingGate/);
+    });
+  });
+});

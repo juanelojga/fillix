@@ -158,6 +158,14 @@ export interface ReviewOutput {
   [fieldId: string]: { revised_value: string; change_reason?: string };
 }
 
+// Thread message variants for the Workflow tab chat-like UI
+export type AgentThreadMessage =
+  | { kind: 'plan-review'; plan: PlanOutput }
+  | { kind: 'fills-review'; fills: FieldFill[] }
+  | { kind: 'user-feedback'; text: string }
+  | { kind: 'summary'; applied: number; skipped: number; durationMs: number; wordCount?: number }
+  | { kind: 'error'; stage: PipelineStage; error: string };
+
 export type MessageResponse =
   | { ok: true; value: string }
   | { ok: true; models: string[] }

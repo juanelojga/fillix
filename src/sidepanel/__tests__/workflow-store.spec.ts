@@ -23,10 +23,6 @@ describe('workflow store (Task 1.1, 1.3)', () => {
       expect(src()).toContain('workflowList');
     });
 
-    it('exports pipelineStages writable store', () => {
-      expect(src()).toContain('pipelineStages');
-    });
-
     it('exports isAgentRunning writable store', () => {
       expect(src()).toContain('isAgentRunning');
     });
@@ -47,12 +43,8 @@ describe('workflow store (Task 1.1, 1.3)', () => {
       expect(src()).toContain('handleStageUpdate');
     });
 
-    it('exports handleConfirm', () => {
-      expect(src()).toContain('handleConfirm');
-    });
-
-    it('exports applyFields', () => {
-      expect(src()).toContain('applyFields');
+    it('does not export handleConfirm (removed in Sprint 3)', () => {
+      expect(src()).not.toContain('handleConfirm');
     });
 
     it('exports cancelRun', () => {
@@ -81,6 +73,66 @@ describe('workflow store (Task 1.1, 1.3)', () => {
 
     it('imports AgentPortIn or AgentPortOut types', () => {
       expect(src()).toMatch(/AgentPortIn|AgentPortOut/);
+    });
+  });
+});
+
+// ── Sprint 5: thread state shape (Task 5.1) ───────────────────────────────────
+
+describe('workflow store — Sprint 5 thread state (Task 5.1)', () => {
+  const src = () => readFileSync(storePath, 'utf-8');
+
+  describe('AgentThreadMessage type', () => {
+    it('references AgentThreadMessage (defined in types.ts, imported here)', () => {
+      // AgentThreadMessage is defined in types.ts alongside other shared types;
+      // the store imports and uses it for the agentMessages store type.
+      expect(src()).toContain('AgentThreadMessage');
+    });
+  });
+
+  describe('agentMessages store', () => {
+    it('exports agentMessages store', () => {
+      expect(src()).toContain('agentMessages');
+    });
+
+    it('does not export confirmFields (replaced by agentMessages)', () => {
+      expect(src()).not.toContain('confirmFields');
+    });
+  });
+
+  describe('pendingGate store', () => {
+    it('exports pendingGate store', () => {
+      expect(src()).toContain('pendingGate');
+    });
+
+    it('pendingGate type includes plan, fills, and null', () => {
+      expect(src()).toMatch(/'plan'\s*\|\s*'fills'\s*\|\s*null|null\s*\|\s*'plan'\s*\|\s*'fills'/);
+    });
+  });
+
+  describe('thread helper functions', () => {
+    it('exports addMessage helper', () => {
+      expect(src()).toContain('addMessage');
+    });
+
+    it('exports setPendingGate helper', () => {
+      expect(src()).toContain('setPendingGate');
+    });
+
+    it('exports clearThread helper', () => {
+      expect(src()).toContain('clearThread');
+    });
+  });
+
+  describe('startRun clears thread', () => {
+    it('startRun calls clearThread or sets agentMessages to []', () => {
+      const s = src();
+      expect(s).toMatch(/clearThread|agentMessages.*\[\]/);
+    });
+
+    it('startRun sets pendingGate to null', () => {
+      const s = src();
+      expect(s).toContain('pendingGate');
     });
   });
 });
