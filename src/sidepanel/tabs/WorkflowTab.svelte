@@ -12,7 +12,7 @@
     handleConfirm,
     applyFields,
     cancelRun,
-  } from '../stores/agent';
+  } from '../stores/workflow';
   import { Button } from '$components/ui/button';
   import {
     Tooltip,
@@ -23,7 +23,7 @@
   import PipelineStages from '../components/PipelineStages.svelte';
   import ConfirmTable from '../components/ConfirmTable.svelte';
 
-  const agentPort = getContext<chrome.runtime.Port>('agentPort');
+  const workflowPort = getContext<chrome.runtime.Port>('workflowPort');
 
   let selectedWorkflowId = $state('');
   let activeTabId = $state(0);
@@ -40,7 +40,7 @@
     const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tabs[0]?.id) activeTabId = tabs[0].id;
 
-    agentPort.onMessage.addListener((rawMsg: unknown) => {
+    workflowPort.onMessage.addListener((rawMsg: unknown) => {
       const msg = rawMsg as AgentPortOut;
       switch (msg.type) {
         case 'AGENTIC_STAGE':
@@ -73,15 +73,15 @@
   function handleRun() {
     if (!selectedWorkflowId || $isAgentRunning) return;
     completionMessage = '';
-    startRun(selectedWorkflowId, activeTabId, agentPort);
+    startRun(selectedWorkflowId, activeTabId, workflowPort);
   }
 
   function handleApply() {
-    applyFields(localConfirmFields, activeTabId, agentPort);
+    applyFields(localConfirmFields, activeTabId, workflowPort);
   }
 
   function handleCancel() {
-    cancelRun(agentPort);
+    cancelRun(workflowPort);
     completionMessage = '';
   }
 </script>

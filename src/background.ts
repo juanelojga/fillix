@@ -44,7 +44,7 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'chat') {
     handleChatPort(port);
-  } else if (port.name === 'agent') {
+  } else if (port.name === 'workflow') {
     let controller: AbortController | null = null;
 
     port.onMessage.addListener(async (msg: AgentPortIn) => {
@@ -180,6 +180,27 @@ async function handle(msg: Message): Promise<MessageResponse> {
         type: 'APPLY_FIELDS',
         fieldMap: msg.fieldMap,
       });
+      return resp as MessageResponse;
+    }
+    case 'AGENTIC_PLAN_REVIEW':
+    case 'AGENTIC_PLAN_FEEDBACK':
+    case 'AGENTIC_FILLS_REVIEW':
+    case 'AGENTIC_FILLS_FEEDBACK':
+    case 'AGENTIC_SUMMARY':
+    case 'CONVERSATION_DATA':
+      throw new Error('not implemented');
+    case 'EXTRACT_CONVERSATION': {
+      const resp = await chrome.tabs.sendMessage(
+        (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ?? 0,
+        { type: 'EXTRACT_CONVERSATION' },
+      );
+      return resp as MessageResponse;
+    }
+    case 'INSERT_TEXT': {
+      const resp = await chrome.tabs.sendMessage(
+        (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ?? 0,
+        { type: 'INSERT_TEXT', text: msg.text },
+      );
       return resp as MessageResponse;
     }
     default: {

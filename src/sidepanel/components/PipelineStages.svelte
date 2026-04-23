@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { PipelineStageState } from '../stores/agent';
+  import type { PipelineStageState } from '../stores/workflow';
   import type { PipelineStage } from '../../types';
   import { Badge } from '$components/ui/badge';
 
@@ -13,6 +13,8 @@
     plan: 'Plan',
     draft: 'Draft',
     review: 'Review',
+    'plan-review': 'Plan Review',
+    'fills-review': 'Fills Review',
   };
 
   function getStage(name: PipelineStage): PipelineStageState {

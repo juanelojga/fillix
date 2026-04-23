@@ -12,7 +12,7 @@ type AgentMsg =
   | { type: 'AGENTIC_COMPLETE'; applied: number; logPath: string }
   | { type: 'AGENTIC_ERROR'; stage: PipelineStage; error: string };
 
-export async function initAgentPanel(): Promise<void> {
+export async function initWorkflowPanel(): Promise<void> {
   const select = document.getElementById('workflow-select') as HTMLSelectElement;
   const refreshBtn = document.getElementById('workflow-refresh-btn') as HTMLButtonElement;
   const runBtn = document.getElementById('agent-run-btn') as HTMLButtonElement;
@@ -50,7 +50,7 @@ export async function initAgentPanel(): Promise<void> {
       activeTabId = tabs[0]?.id;
       if (activeTabId === undefined) return;
 
-      activePort = chrome.runtime.connect({ name: 'agent' });
+      activePort = chrome.runtime.connect({ name: 'workflow' });
       stagesList.hidden = false;
       runBtn.disabled = true;
 

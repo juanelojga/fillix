@@ -63,7 +63,27 @@ export type Message =
   | { type: 'WORKFLOWS_REFRESH' }
   | { type: 'WORKFLOWS_LIST' }
   | { type: 'DETECT_FIELDS'; tabId: number }
-  | { type: 'APPLY_FIELDS'; tabId: number; fieldMap: FieldFill[] };
+  | { type: 'APPLY_FIELDS'; tabId: number; fieldMap: FieldFill[] }
+  // Gate messages (bg ↔ sidepanel port)
+  | { type: 'AGENTIC_PLAN_REVIEW'; plan: PlanOutput }
+  | { type: 'AGENTIC_PLAN_FEEDBACK'; approved: true }
+  | { type: 'AGENTIC_PLAN_FEEDBACK'; approved: false; feedback: string }
+  | { type: 'AGENTIC_FILLS_REVIEW'; kind: 'form'; fills: FieldFill[] }
+  | { type: 'AGENTIC_FILLS_REVIEW'; kind: 'reply'; replyText: string }
+  | { type: 'AGENTIC_FILLS_FEEDBACK'; approved: true }
+  | { type: 'AGENTIC_FILLS_FEEDBACK'; approved: false; feedback: string }
+  | {
+      type: 'AGENTIC_SUMMARY';
+      applied: number;
+      skipped: number;
+      durationMs: number;
+      wordCount?: number;
+    }
+  // Conversation extraction (bg → content script)
+  | { type: 'EXTRACT_CONVERSATION' }
+  | { type: 'CONVERSATION_DATA'; messages: ConversationMessage[]; platform: string | null }
+  // Text insertion (bg → content script)
+  | { type: 'INSERT_TEXT'; text: string };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {
@@ -88,13 +108,26 @@ export interface FieldFill {
 }
 
 // Pipeline stage identifiers
-export type PipelineStage = 'understand' | 'collect' | 'plan' | 'draft' | 'review';
+export type PipelineStage =
+  | 'understand'
+  | 'collect'
+  | 'plan'
+  | 'draft'
+  | 'review'
+  | 'plan-review'
+  | 'fills-review';
+
+// A single message in a conversation thread (WhatsApp, LinkedIn, etc.)
+export interface ConversationMessage {
+  sender: 'me' | 'them';
+  text: string;
+}
 
 // Workflow definition (parsed from Obsidian frontmatter + body)
 export interface WorkflowDefinition {
   id: string; // vault path (e.g., "workflows/job-application.md")
   name: string;
-  taskType: 'form' | 'field-by-field' | 'linkedin-post' | 'rewrite';
+  taskType: 'form' | 'field-by-field' | 'linkedin-post' | 'rewrite' | 'message-reply';
   tone: string;
   requiredProfileFields: string[];
   review: boolean;

@@ -1,0 +1,86 @@
+// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
+// Run with: pnpm exec vitest run
+import { existsSync, readFileSync } from 'fs';
+import { resolve } from 'path';
+import { describe, it, expect } from 'vitest';
+
+const storePath = resolve(process.cwd(), 'src/sidepanel/stores/workflow.ts');
+const oldStorePath = resolve(process.cwd(), 'src/sidepanel/stores/agent.ts');
+
+describe('workflow store (Task 1.1, 1.3)', () => {
+  it('exists at new path src/sidepanel/stores/workflow.ts', () => {
+    expect(existsSync(storePath)).toBe(true);
+  });
+
+  it('old path src/sidepanel/stores/agent.ts no longer exists', () => {
+    expect(existsSync(oldStorePath)).toBe(false);
+  });
+
+  describe('store exports', () => {
+    const src = () => readFileSync(storePath, 'utf-8');
+
+    it('exports workflowList writable store', () => {
+      expect(src()).toContain('workflowList');
+    });
+
+    it('exports pipelineStages writable store', () => {
+      expect(src()).toContain('pipelineStages');
+    });
+
+    it('exports isAgentRunning writable store', () => {
+      expect(src()).toContain('isAgentRunning');
+    });
+  });
+
+  describe('function exports', () => {
+    const src = () => readFileSync(storePath, 'utf-8');
+
+    it('exports loadWorkflows', () => {
+      expect(src()).toContain('loadWorkflows');
+    });
+
+    it('exports startRun', () => {
+      expect(src()).toContain('startRun');
+    });
+
+    it('exports handleStageUpdate', () => {
+      expect(src()).toContain('handleStageUpdate');
+    });
+
+    it('exports handleConfirm', () => {
+      expect(src()).toContain('handleConfirm');
+    });
+
+    it('exports applyFields', () => {
+      expect(src()).toContain('applyFields');
+    });
+
+    it('exports cancelRun', () => {
+      expect(src()).toContain('cancelRun');
+    });
+  });
+
+  describe('agent protocol messages', () => {
+    const src = () => readFileSync(storePath, 'utf-8');
+
+    it('sends WORKFLOWS_LIST message', () => {
+      expect(src()).toContain('WORKFLOWS_LIST');
+    });
+
+    it('sends AGENTIC_RUN to start a pipeline', () => {
+      expect(src()).toContain('AGENTIC_RUN');
+    });
+
+    it('sends AGENTIC_CANCEL to abort a running pipeline', () => {
+      expect(src()).toContain('AGENTIC_CANCEL');
+    });
+  });
+
+  describe('type imports — Task 1.3', () => {
+    const src = () => readFileSync(storePath, 'utf-8');
+
+    it('imports AgentPortIn or AgentPortOut types', () => {
+      expect(src()).toMatch(/AgentPortIn|AgentPortOut/);
+    });
+  });
+});

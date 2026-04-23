@@ -107,7 +107,7 @@ describe('WorkflowDefinition', () => {
       systemPrompt: 'prompt',
     };
     expectTypeOf(wf.taskType).toEqualTypeOf<
-      'form' | 'field-by-field' | 'linkedin-post' | 'rewrite'
+      'form' | 'field-by-field' | 'linkedin-post' | 'rewrite' | 'message-reply'
     >();
   });
 });
