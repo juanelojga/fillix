@@ -110,6 +110,7 @@ function requireGate<T>(gate: T | null, name: string): T {
 }
 
 function setupDefaultStubs(workflow = WORKFLOW_FORM) {
+  mockSendMessage.mockReset();
   mockGetWorkflows.mockResolvedValue([workflow]);
   mockRunUnderstand.mockResolvedValue(UNDERSTAND);
   mockRunPlan.mockResolvedValue(PLAN);
@@ -336,6 +337,7 @@ const CONVERSATION_MESSAGES = [
 const WORKFLOW_MESSAGE_REPLY = { ...WORKFLOW_FORM, taskType: 'message-reply' as const };
 
 function setupMessageReplyStubs() {
+  mockSendMessage.mockReset();
   mockGetWorkflows.mockResolvedValue([WORKFLOW_MESSAGE_REPLY]);
   mockRunUnderstand.mockResolvedValue(UNDERSTAND);
   mockRunPlan.mockResolvedValue(PLAN);
@@ -343,9 +345,8 @@ function setupMessageReplyStubs() {
   mockBuildFieldFills.mockReturnValue(FILLS);
   mockTabsGet.mockResolvedValue({ url: 'https://web.whatsapp.com/' });
   mockSendMessage
-    .mockResolvedValueOnce({ ok: true, fields: FIELDS }) // DETECT_FIELDS
-    .mockResolvedValueOnce({ ok: true, messages: CONVERSATION_MESSAGES, platform: 'whatsapp' }) // EXTRACT_CONVERSATION
-    .mockResolvedValueOnce({ ok: true, applied: 1 }); // APPLY_FIELDS
+    .mockResolvedValueOnce({ ok: true, messages: CONVERSATION_MESSAGES, platform: 'whatsapp' }) // EXTRACT_CONVERSATION (no DETECT_FIELDS for message-reply)
+    .mockResolvedValueOnce({ ok: true }); // INSERT_TEXT (replaces APPLY_FIELDS)
 }
 
 describe('runAgentPipeline — message-reply conversation extraction', () => {
@@ -427,9 +428,8 @@ describe('runAgentPipeline — message-reply conversation extraction', () => {
   it('continues with empty conversation when extraction fails', async () => {
     mockSendMessage.mockReset();
     mockSendMessage
-      .mockResolvedValueOnce({ ok: true, fields: FIELDS }) // DETECT_FIELDS
       .mockRejectedValueOnce(new Error('tab not connected')) // EXTRACT_CONVERSATION fails
-      .mockResolvedValueOnce({ ok: true, applied: 1 }); // APPLY_FIELDS
+      .mockResolvedValueOnce({ ok: true }); // INSERT_TEXT
 
     const port = makeMockPort();
     const registry: GateRegistry = { plan: null, fills: null };
@@ -449,6 +449,159 @@ describe('runAgentPipeline — message-reply conversation extraction', () => {
     await pipelinePromise;
 
     expect(port.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AGENTIC_SUMMARY' }),
+    );
+  });
+});
+
+// ── Sprint 6: message-reply end-to-end ────────────────────────────────────────
+
+const REPLY_TEXT = 'Hey! Absolutely, Tuesday works great for me.';
+
+function setupMessageReplyStubs6() {
+  mockSendMessage.mockReset();
+  // Sprint 6 behavior: DETECT_FIELDS is skipped; EXTRACT_CONVERSATION comes first
+  mockGetWorkflows.mockResolvedValue([WORKFLOW_MESSAGE_REPLY]);
+  mockRunUnderstand.mockResolvedValue(UNDERSTAND);
+  mockRunPlan.mockResolvedValue(PLAN);
+  mockRunDraft.mockResolvedValue({ reply: REPLY_TEXT });
+  mockTabsGet.mockResolvedValue({ url: 'https://web.whatsapp.com/' });
+  mockSendMessage
+    .mockResolvedValueOnce({ ok: true, messages: CONVERSATION_MESSAGES, platform: 'whatsapp' }) // EXTRACT_CONVERSATION
+    .mockResolvedValueOnce({ ok: true }); // INSERT_TEXT
+}
+
+describe('runAgentPipeline — message-reply end-to-end (Sprint 6)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMessageReplyStubs6();
+  });
+
+  it('does not send DETECT_FIELDS for message-reply workflows (Task 6.1)', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    const msgTypes = mockSendMessage.mock.calls.map((c) => (c[1] as { type: string }).type);
+    expect(msgTypes).not.toContain('DETECT_FIELDS');
+    expect(msgTypes).toContain('EXTRACT_CONVERSATION');
+  });
+
+  it('emits AGENTIC_FILLS_REVIEW with kind=reply and replyText (Task 6.2)', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    expect(port.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'AGENTIC_FILLS_REVIEW',
+        kind: 'reply',
+        replyText: REPLY_TEXT,
+      }),
+    );
+  });
+
+  it('sends INSERT_TEXT to the tab after fills gate approval (Task 6.3)', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    const msgTypes = mockSendMessage.mock.calls.map((c) => (c[1] as { type: string }).type);
+    expect(msgTypes).toContain('INSERT_TEXT');
+  });
+
+  it('emits AGENTIC_SUMMARY with wordCount when INSERT_TEXT succeeds (Task 6.5)', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    const summaryCall = port.postMessage.mock.calls.find(
+      (c) => (c[0] as AgentMsg).type === 'AGENTIC_SUMMARY',
+    );
+    expect(summaryCall).toBeDefined();
+    expect((summaryCall![0] as AgentMsg).wordCount).toBeDefined();
+    expect(typeof (summaryCall![0] as AgentMsg).wordCount).toBe('number');
+  });
+
+  it('emits AGENTIC_ERROR and no AGENTIC_SUMMARY when INSERT_TEXT returns ok: false (Task 6.4)', async () => {
+    mockSendMessage.mockReset();
+    mockSendMessage
+      .mockResolvedValueOnce({ ok: true, messages: CONVERSATION_MESSAGES, platform: 'whatsapp' }) // EXTRACT_CONVERSATION
+      .mockResolvedValueOnce({ ok: false, error: 'no-compose-box' }); // INSERT_TEXT fails
+
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    expect(port.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AGENTIC_ERROR' }),
+    );
+    expect(port.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({ type: 'AGENTIC_SUMMARY' }),
     );
   });

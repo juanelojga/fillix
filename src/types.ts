@@ -161,7 +161,8 @@ export interface ReviewOutput {
 // Thread message variants for the Workflow tab chat-like UI
 export type AgentThreadMessage =
   | { kind: 'plan-review'; plan: PlanOutput }
-  | { kind: 'fills-review'; fills: FieldFill[] }
+  | { kind: 'fills-review'; subKind: 'form'; fills: FieldFill[] }
+  | { kind: 'fills-review'; subKind: 'reply'; replyText: string }
   | { kind: 'user-feedback'; text: string }
   | { kind: 'summary'; applied: number; skipped: number; durationMs: number; wordCount?: number }
   | { kind: 'error'; stage: PipelineStage; error: string };

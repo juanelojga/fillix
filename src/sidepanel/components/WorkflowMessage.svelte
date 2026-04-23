@@ -40,18 +40,22 @@
 {:else if message.kind === 'fills-review'}
   <div class="rounded-xl border border-border bg-muted/40 p-3 text-sm">
     <p class="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-      Draft values — review & approve
+      {message.subKind === 'reply' ? 'Reply — review & approve' : 'Draft values — review & approve'}
     </p>
-    <ul class="space-y-2">
-      {#each message.fills as fill (fill.fieldId)}
-        <li class="flex flex-col gap-0.5">
-          <span class="text-xs text-muted-foreground">{fill.label || fill.fieldId}</span>
-          <span class="rounded bg-background border border-border px-2 py-1 text-xs font-mono">
-            {fill.proposedValue}
-          </span>
-        </li>
-      {/each}
-    </ul>
+    {#if message.subKind === 'reply'}
+      <p class="whitespace-pre-wrap text-sm">{message.replyText}</p>
+    {:else}
+      <ul class="space-y-2">
+        {#each message.fills as fill (fill.fieldId)}
+          <li class="flex flex-col gap-0.5">
+            <span class="text-xs text-muted-foreground">{fill.label || fill.fieldId}</span>
+            <span class="rounded bg-background border border-border px-2 py-1 text-xs font-mono">
+              {fill.proposedValue}
+            </span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
   </div>
 
 {:else if message.kind === 'user-feedback'}

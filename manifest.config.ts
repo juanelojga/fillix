@@ -29,6 +29,8 @@ export default defineManifest({
     'https://api.search.brave.com/*',
     'https://en.wikipedia.org/*',
     'https://news.google.com/*',
+    'https://web.whatsapp.com/*',
+    'https://www.linkedin.com/*',
     '<all_urls>',
   ],
 });

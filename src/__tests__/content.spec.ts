@@ -211,3 +211,41 @@ describe('content.ts EXTRACT_CONVERSATION handler', () => {
     expect(sendResponse).toHaveBeenCalledWith({ ok: true, messages: [], platform: null });
   });
 });
+
+// ---- INSERT_TEXT (Task 6.3) ----
+
+describe('content.ts INSERT_TEXT handler', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    // jsdom does not implement execCommand; add a stub so vi.spyOn can instrument it
+    if (!('execCommand' in document)) {
+      Object.defineProperty(document, 'execCommand', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+    }
+    await loadContent();
+  });
+
+  it('inserts text into a focused contenteditable element and returns { ok: true }', () => {
+    document.body.innerHTML = '<div id="compose" contenteditable="true"></div>';
+    const compose = document.getElementById('compose') as HTMLElement;
+    compose.focus();
+
+    const execCommandSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'INSERT_TEXT', text: 'Hello world' }, sendResponse);
+
+    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, 'Hello world');
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
+  it('returns { ok: false, error: "no-compose-box" } when no compose box is found', () => {
+    document.body.innerHTML = '<p>No inputs here</p>';
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'INSERT_TEXT', text: 'Hello' }, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false, error: 'no-compose-box' });
+  });
+});

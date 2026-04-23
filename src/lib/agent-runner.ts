@@ -114,42 +114,45 @@ export async function runAgentPipeline(
   // ── Collect ────────────────────────────────────────────────────────────────
 
   emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'running' });
-  let fields: FieldSnapshot[];
-  try {
-    const resp = (await chrome.tabs.sendMessage(tabId, { type: 'DETECT_FIELDS' })) as
-      | { ok: true; fields: FieldSnapshot[] }
-      | { ok: false; error: string };
-    if (!resp.ok) throw new Error(resp.error);
-    fields = resp.fields;
-  } catch (err) {
-    const isNotConnected =
-      err instanceof Error && err.message.includes('Could not establish connection');
-    if (isNotConnected) {
-      try {
-        const manifest = chrome.runtime.getManifest();
-        const file = manifest.content_scripts?.[0]?.js?.[0];
-        if (!file) throw new Error('no content script in manifest');
-        await chrome.scripting.executeScript({ target: { tabId }, files: [file] });
-        await new Promise<void>((r) => setTimeout(r, 50));
-        const resp2 = (await chrome.tabs.sendMessage(tabId, { type: 'DETECT_FIELDS' })) as
-          | { ok: true; fields: FieldSnapshot[] }
-          | { ok: false; error: string };
-        if (!resp2.ok) throw new Error(resp2.error);
-        fields = resp2.fields;
-      } catch {
-        emit({
-          type: 'AGENTIC_ERROR',
-          stage: 'collect',
-          error: 'Could not access this page. Try navigating to a regular web page.',
-        });
+  let fields: FieldSnapshot[] = [];
+
+  if (workflow.taskType !== 'message-reply') {
+    try {
+      const resp = (await chrome.tabs.sendMessage(tabId, { type: 'DETECT_FIELDS' })) as
+        | { ok: true; fields: FieldSnapshot[] }
+        | { ok: false; error: string };
+      if (!resp.ok) throw new Error(resp.error);
+      fields = resp.fields;
+    } catch (err) {
+      const isNotConnected =
+        err instanceof Error && err.message.includes('Could not establish connection');
+      if (isNotConnected) {
+        try {
+          const manifest = chrome.runtime.getManifest();
+          const file = manifest.content_scripts?.[0]?.js?.[0];
+          if (!file) throw new Error('no content script in manifest');
+          await chrome.scripting.executeScript({ target: { tabId }, files: [file] });
+          await new Promise<void>((r) => setTimeout(r, 50));
+          const resp2 = (await chrome.tabs.sendMessage(tabId, { type: 'DETECT_FIELDS' })) as
+            | { ok: true; fields: FieldSnapshot[] }
+            | { ok: false; error: string };
+          if (!resp2.ok) throw new Error(resp2.error);
+          fields = resp2.fields;
+        } catch {
+          emit({
+            type: 'AGENTIC_ERROR',
+            stage: 'collect',
+            error: 'Could not access this page. Try navigating to a regular web page.',
+          });
+          emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
+          return;
+        }
+      } else {
+        const error = err instanceof Error ? err.message : String(err);
+        emit({ type: 'AGENTIC_ERROR', stage: 'collect', error });
         emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
         return;
       }
-    } else {
-      const error = err instanceof Error ? err.message : String(err);
-      emit({ type: 'AGENTIC_ERROR', stage: 'collect', error });
-      emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'error' });
-      return;
     }
   }
   emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'done' });
@@ -380,6 +383,7 @@ export async function runAgentPipeline(
   // ── Fills gate (with interactive review) ───────────────────────────────────
 
   let fills = buildFieldFills(finalOutput, isReview, fields);
+  let replyText = workflow.taskType === 'message-reply' ? draft.reply || '' : '';
 
   if (!workflow.autoApply) {
     let fillsFeedbackCount = 0;
@@ -387,7 +391,12 @@ export async function runAgentPipeline(
       if (signal.aborted) return;
       const gate = createGate<GateResolution>();
       registry.fills = gate;
-      emit({ type: 'AGENTIC_FILLS_REVIEW', kind: 'form', fills });
+
+      if (workflow.taskType === 'message-reply') {
+        emit({ type: 'AGENTIC_FILLS_REVIEW', kind: 'reply', replyText });
+      } else {
+        emit({ type: 'AGENTIC_FILLS_REVIEW', kind: 'form', fills });
+      }
 
       let resolution: GateResolution;
       try {
@@ -417,9 +426,13 @@ export async function runAgentPipeline(
           feedback: resolution.feedback,
           conversation,
         });
-        finalOutput = revisedDraft;
-        isReview = false;
-        fills = buildFieldFills(revisedDraft, false, fields);
+        if (workflow.taskType === 'message-reply') {
+          replyText = revisedDraft.reply || '';
+        } else {
+          finalOutput = revisedDraft;
+          isReview = false;
+          fills = buildFieldFills(revisedDraft, false, fields);
+        }
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
         emit({ type: 'AGENTIC_ERROR', stage: 'draft', error });
@@ -433,21 +446,46 @@ export async function runAgentPipeline(
 
   // ── Apply & Summary ────────────────────────────────────────────────────────
 
-  let applied = 0;
-  try {
-    const applyResp = (await chrome.tabs.sendMessage(tabId, {
-      type: 'APPLY_FIELDS',
-      fieldMap: fills,
-    })) as { ok: true; applied: number } | { ok: false; error: string };
-    applied = applyResp.ok ? applyResp.applied : 0;
-  } catch {
-    // Non-critical — emit summary with 0 applied
+  if (workflow.taskType === 'message-reply') {
+    let insertResp: { ok: true } | { ok: false; error: string };
+    try {
+      insertResp = (await chrome.tabs.sendMessage(tabId, {
+        type: 'INSERT_TEXT',
+        text: replyText,
+      })) as { ok: true } | { ok: false; error: string };
+    } catch (err) {
+      const error = err instanceof Error ? err.message : String(err);
+      emit({ type: 'AGENTIC_ERROR', stage: 'draft', error });
+      return;
+    }
+    if (!insertResp.ok) {
+      emit({ type: 'AGENTIC_ERROR', stage: 'draft', error: insertResp.error });
+      return;
+    }
+    const wordCount = replyText.split(/\s+/).filter((w) => w.length > 0).length;
+    emit({
+      type: 'AGENTIC_SUMMARY',
+      applied: 0,
+      skipped: 0,
+      durationMs: Date.now() - runStart,
+      wordCount,
+    });
+  } else {
+    let applied = 0;
+    try {
+      const applyResp = (await chrome.tabs.sendMessage(tabId, {
+        type: 'APPLY_FIELDS',
+        fieldMap: fills,
+      })) as { ok: true; applied: number } | { ok: false; error: string };
+      applied = applyResp.ok ? applyResp.applied : 0;
+    } catch {
+      // Non-critical — emit summary with 0 applied
+    }
+    emit({
+      type: 'AGENTIC_SUMMARY',
+      applied,
+      skipped: fills.length - applied,
+      durationMs: Date.now() - runStart,
+    });
   }
-
-  emit({
-    type: 'AGENTIC_SUMMARY',
-    applied,
-    skipped: fills.length - applied,
-    durationMs: Date.now() - runStart,
-  });
 }

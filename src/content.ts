@@ -8,7 +8,8 @@ const BUTTON_ID = 'fillix-trigger';
 type InboundMsg =
   | { type: 'DETECT_FIELDS' }
   | { type: 'APPLY_FIELDS'; fieldMap: FieldFill[] }
-  | { type: 'EXTRACT_CONVERSATION' };
+  | { type: 'EXTRACT_CONVERSATION' }
+  | { type: 'INSERT_TEXT'; text: string };
 
 chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
@@ -40,6 +41,20 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
       messages: extractConversation(),
       platform: detectPlatform(),
     } satisfies MessageResponse);
+    return true;
+  }
+  if (msg.type === 'INSERT_TEXT') {
+    const active = document.activeElement;
+    const el =
+      active instanceof HTMLElement && active.isContentEditable
+        ? active
+        : document.querySelector<HTMLElement>('[contenteditable="true"]');
+    if (!el) {
+      sendResponse({ ok: false, error: 'no-compose-box' } satisfies MessageResponse);
+      return true;
+    }
+    document.execCommand('insertText', false, msg.text);
+    sendResponse({ ok: true } satisfies MessageResponse);
     return true;
   }
 });

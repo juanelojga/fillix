@@ -52,7 +52,9 @@
           break;
         case 'AGENTIC_FILLS_REVIEW':
           if (msg.kind === 'form') {
-            addMessage({ kind: 'fills-review', fills: msg.fills });
+            addMessage({ kind: 'fills-review', subKind: 'form', fills: msg.fills });
+          } else if (msg.kind === 'reply') {
+            addMessage({ kind: 'fills-review', subKind: 'reply', replyText: msg.replyText });
           }
           setPendingGate('fills');
           void scrollToBottom();
