@@ -1,10 +1,14 @@
 import { detectFields, setFieldValue, snapshotFields } from './lib/forms';
 import type { FillableElement } from './lib/forms';
+import { detectPlatform, extractConversation } from './lib/conversation-extractor';
 import type { FieldFill, FieldSnapshot, Message, MessageResponse } from './types';
 
 const BUTTON_ID = 'fillix-trigger';
 
-type InboundMsg = { type: 'DETECT_FIELDS' } | { type: 'APPLY_FIELDS'; fieldMap: FieldFill[] };
+type InboundMsg =
+  | { type: 'DETECT_FIELDS' }
+  | { type: 'APPLY_FIELDS'; fieldMap: FieldFill[] }
+  | { type: 'EXTRACT_CONVERSATION' };
 
 chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
@@ -28,6 +32,14 @@ chrome.runtime.onMessage.addListener((raw: unknown, sender, sendResponse) => {
       applied++;
     }
     sendResponse({ ok: true, applied } satisfies MessageResponse);
+    return true;
+  }
+  if (msg.type === 'EXTRACT_CONVERSATION') {
+    sendResponse({
+      ok: true,
+      messages: extractConversation(),
+      platform: detectPlatform(),
+    } satisfies MessageResponse);
     return true;
   }
 });

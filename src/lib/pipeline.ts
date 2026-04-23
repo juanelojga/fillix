@@ -146,7 +146,7 @@ export async function runDraft(
   fields: FieldSnapshot[],
   plan: PlanOutput,
   signal?: AbortSignal,
-  opts?: { feedback?: string },
+  opts?: { feedback?: string; conversation?: ConversationMessage[] },
 ): Promise<DraftOutput> {
   const systemPrompt = [workflow.systemPrompt, DRAFT_FEW_SHOT].join('\n\n');
 
@@ -159,6 +159,13 @@ export async function runDraft(
       'Use the exact field_id strings as keys — do not use the word "field_id" as a key. Example: {"matcherQuestionsAnswers[abc]": "some text"}.',
       'Never fill password, file, or hidden fields. Only use data from the plan.',
     ];
+
+    if (opts?.conversation?.length) {
+      const thread = opts.conversation
+        .map((m) => `${m.sender === 'me' ? 'Me' : 'Them'}: ${m.text}`)
+        .join('\n');
+      parts.push(`Conversation context:\n${thread}`);
+    }
 
     if (opts?.feedback) {
       parts.push(`User feedback on previous draft: ${opts.feedback}`);

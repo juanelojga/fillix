@@ -166,5 +166,6 @@ export type MessageResponse =
   | { ok: true; workflows: WorkflowDefinition[] }
   | { ok: true; fields: FieldSnapshot[] }
   | { ok: true; applied: number }
+  | { ok: true; messages: ConversationMessage[]; platform: string | null }
   | { ok: true }
   | { ok: false; error: string };

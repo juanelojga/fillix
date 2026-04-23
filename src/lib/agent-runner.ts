@@ -4,6 +4,7 @@ import { getObsidianConfig, getOllamaConfig, getProfile, getWorkflows } from './
 import { buildRunHeader, buildStageEntry } from './agent-log';
 import { buildFieldFills } from './field-normalizer';
 import type {
+  ConversationMessage,
   DraftOutput,
   FieldFill,
   FieldSnapshot,
@@ -205,13 +206,33 @@ export async function runAgentPipeline(
 
   if (signal.aborted) return;
 
+  // ── Conversation extraction (message-reply only) ───────────────────────────
+
+  let conversation: ConversationMessage[] = [];
+  if (workflow.taskType === 'message-reply') {
+    try {
+      const convResp = (await chrome.tabs.sendMessage(tabId, {
+        type: 'EXTRACT_CONVERSATION',
+      })) as
+        | { ok: true; messages: ConversationMessage[]; platform: string | null }
+        | { ok: false; error: string };
+      if (convResp.ok) conversation = convResp.messages;
+    } catch {
+      // Non-critical — empty conversation is a valid fallback
+    }
+  }
+
+  if (signal.aborted) return;
+
   // ── Plan (with interactive gate) ───────────────────────────────────────────
 
   emit({ type: 'AGENTIC_STAGE', stage: 'plan', status: 'running' });
   const planStart = Date.now();
   let currentPlan: Awaited<ReturnType<typeof runPlan>>;
   try {
-    currentPlan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal);
+    currentPlan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal, {
+      conversation,
+    });
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     emit({ type: 'AGENTIC_ERROR', stage: 'plan', error });
@@ -273,6 +294,7 @@ export async function runAgentPipeline(
       try {
         currentPlan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal, {
           feedback: resolution.feedback,
+          conversation,
         });
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
@@ -291,7 +313,7 @@ export async function runAgentPipeline(
   const draftStart = Date.now();
   let draft: DraftOutput;
   try {
-    draft = await runDraft(ollamaConfig, workflow, fields, currentPlan, signal);
+    draft = await runDraft(ollamaConfig, workflow, fields, currentPlan, signal, { conversation });
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     emit({ type: 'AGENTIC_ERROR', stage: 'draft', error });
@@ -393,6 +415,7 @@ export async function runAgentPipeline(
       try {
         const revisedDraft = await runDraft(ollamaConfig, workflow, fields, currentPlan, signal, {
           feedback: resolution.feedback,
+          conversation,
         });
         finalOutput = revisedDraft;
         isReview = false;

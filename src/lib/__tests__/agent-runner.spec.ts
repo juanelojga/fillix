@@ -326,6 +326,134 @@ describe('runAgentPipeline — autoApply: true', () => {
   });
 });
 
+// ── runAgentPipeline — message-reply conversation extraction ──────────────────
+
+const CONVERSATION_MESSAGES = [
+  { sender: 'them' as const, text: 'Are you available next week?' },
+  { sender: 'me' as const, text: 'Yes, how about Tuesday?' },
+];
+
+const WORKFLOW_MESSAGE_REPLY = { ...WORKFLOW_FORM, taskType: 'message-reply' as const };
+
+function setupMessageReplyStubs() {
+  mockGetWorkflows.mockResolvedValue([WORKFLOW_MESSAGE_REPLY]);
+  mockRunUnderstand.mockResolvedValue(UNDERSTAND);
+  mockRunPlan.mockResolvedValue(PLAN);
+  mockRunDraft.mockResolvedValue({ email: 'test@example.com' });
+  mockBuildFieldFills.mockReturnValue(FILLS);
+  mockTabsGet.mockResolvedValue({ url: 'https://web.whatsapp.com/' });
+  mockSendMessage
+    .mockResolvedValueOnce({ ok: true, fields: FIELDS }) // DETECT_FIELDS
+    .mockResolvedValueOnce({ ok: true, messages: CONVERSATION_MESSAGES, platform: 'whatsapp' }) // EXTRACT_CONVERSATION
+    .mockResolvedValueOnce({ ok: true, applied: 1 }); // APPLY_FIELDS
+}
+
+describe('runAgentPipeline — message-reply conversation extraction', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupMessageReplyStubs();
+  });
+
+  it('sends EXTRACT_CONVERSATION to the tab for message-reply workflows', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    const msgTypes = mockSendMessage.mock.calls.map((c) => (c[1] as { type: string }).type);
+    expect(msgTypes).toContain('EXTRACT_CONVERSATION');
+  });
+
+  it('passes extracted conversation to runPlan via opts', async () => {
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    expect(mockRunPlan.mock.calls[0]?.[6]).toMatchObject({
+      conversation: CONVERSATION_MESSAGES,
+    });
+  });
+
+  it('does not send EXTRACT_CONVERSATION for non-message-reply workflows', async () => {
+    vi.clearAllMocks();
+    setupDefaultStubs(WORKFLOW_FORM);
+
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_FORM.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    const msgTypes = mockSendMessage.mock.calls.map((c) => (c[1] as { type: string }).type);
+    expect(msgTypes).not.toContain('EXTRACT_CONVERSATION');
+  });
+
+  it('continues with empty conversation when extraction fails', async () => {
+    mockSendMessage.mockReset();
+    mockSendMessage
+      .mockResolvedValueOnce({ ok: true, fields: FIELDS }) // DETECT_FIELDS
+      .mockRejectedValueOnce(new Error('tab not connected')) // EXTRACT_CONVERSATION fails
+      .mockResolvedValueOnce({ ok: true, applied: 1 }); // APPLY_FIELDS
+
+    const port = makeMockPort();
+    const registry: GateRegistry = { plan: null, fills: null };
+
+    const pipelinePromise = runAgentPipeline(
+      port,
+      WORKFLOW_MESSAGE_REPLY.id,
+      42,
+      new AbortController().signal,
+      registry,
+    );
+
+    await vi.waitFor(() => expect(registry.plan).not.toBeNull());
+    requireGate(registry.plan, 'plan').resolve({ approved: true });
+    await vi.waitFor(() => expect(registry.fills).not.toBeNull());
+    requireGate(registry.fills, 'fills').resolve({ approved: true });
+    await pipelinePromise;
+
+    expect(port.postMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'AGENTIC_SUMMARY' }),
+    );
+  });
+});
+
 // ── Source integrity check ────────────────────────────────────────────────────
 
 describe('agent-runner.ts — source integrity', () => {
