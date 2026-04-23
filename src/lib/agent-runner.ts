@@ -383,6 +383,11 @@ export async function runAgentPipeline(
   // ── Fills gate (with interactive review) ───────────────────────────────────
 
   let fills = buildFieldFills(finalOutput, isReview, fields);
+  // If the review stage produced no matchable fills (malformed LLM output), fall back to draft.
+  if (isReview && fills.length === 0) {
+    fills = buildFieldFills(draft, false, fields);
+    isReview = false;
+  }
   let replyText = workflow.taskType === 'message-reply' ? draft.reply || '' : '';
 
   if (!workflow.autoApply) {

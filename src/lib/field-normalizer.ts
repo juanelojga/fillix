@@ -6,13 +6,16 @@ const META_KEYS = new Set([
   'revised_value',
   'change_reason',
   'analysis',
+  'issues',
   'issues_found',
+  'recommendations',
   'action',
   'task',
   'input',
   'notes',
   'context',
   'constraints',
+  'review',
 ]);
 
 export function normalizeDraft(raw: DraftOutput): DraftOutput {
@@ -35,6 +38,18 @@ export function normalizeReview(raw: ReviewOutput): ReviewOutput {
       },
     };
   }
+
+  // Model sometimes wraps field reviews in a "review" key:
+  // { analysis: "...", review: { fieldId: { revised_value: "..." } } }
+  const reviewNested = obj['review'];
+  if (typeof reviewNested === 'object' && reviewNested !== null && !Array.isArray(reviewNested)) {
+    const inner = reviewNested as Record<string, unknown>;
+    const hasRevisions = Object.values(inner).some(
+      (v) => typeof v === 'object' && v !== null && 'revised_value' in (v as object),
+    );
+    if (hasRevisions) return normalizeReview(inner as ReviewOutput);
+  }
+
   const result: ReviewOutput = {};
   for (const [key, val] of Object.entries(obj)) {
     if (META_KEYS.has(key) || val === null || val === undefined) continue;
