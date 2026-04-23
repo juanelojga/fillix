@@ -7,10 +7,12 @@
     agentMessages,
     pendingGate,
     loadWorkflows,
+    refreshWorkflows,
     startRun,
     addMessage,
     setPendingGate,
     cancelRun,
+    clearThread,
   } from '../stores/workflow';
   import { Button } from '$components/ui/button';
   import {
@@ -72,10 +74,8 @@
           void scrollToBottom();
           break;
         case 'AGENTIC_ERROR':
-          addMessage({ kind: 'error', stage: msg.stage, error: msg.error });
-          setPendingGate(null);
+          clearThread();
           isAgentRunning.set(false);
-          void scrollToBottom();
           break;
         default: {
           const _never: never = msg;
@@ -85,9 +85,13 @@
     });
   });
 
-  function handleRun() {
+  async function handleRun() {
     if (!selectedWorkflowId || $isAgentRunning) return;
-    startRun(selectedWorkflowId, activeTabId, workflowPort);
+    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabId = tabs[0]?.id ?? 0;
+    if (!tabId) return;
+    activeTabId = tabId;
+    startRun(selectedWorkflowId, tabId, workflowPort);
   }
 
   function handleApprove() {
@@ -142,7 +146,7 @@
         <TooltipTrigger
           aria-label="Refresh workflows"
           class="flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-sm hover:bg-accent hover:text-accent-foreground disabled:opacity-50"
-          onclick={loadWorkflows}
+          onclick={() => { clearThread(); void refreshWorkflows(); }}
           disabled={$isAgentRunning}
         >
           ↻

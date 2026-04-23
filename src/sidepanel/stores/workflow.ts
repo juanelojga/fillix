@@ -33,6 +33,15 @@ export async function loadWorkflows(): Promise<void> {
   }
 }
 
+export async function refreshWorkflows(): Promise<void> {
+  try {
+    await chrome.runtime.sendMessage({ type: 'WORKFLOWS_REFRESH' });
+  } catch {
+    // service worker unavailable
+  }
+  await loadWorkflows();
+}
+
 export function startRun(workflowId: string, tabId: number, port: chrome.runtime.Port): void {
   clearThread();
   isAgentRunning.set(true);

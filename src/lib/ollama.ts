@@ -105,7 +105,26 @@ export async function generateStructured<T>(
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
   const data = (await res.json()) as { response: string; thinking?: string };
-  return parseJsonResponse<T>(data.response || data.thinking || '');
+  const raw = (data.response || '').trim();
+  if (raw) return parseJsonResponse<T>(raw);
+
+  // Thinking models (qwen3) sometimes put the structured JSON directly in the
+  // thinking field and leave response empty. Accept that — but reject the
+  // {"thinking":"...reasoning..."} pattern where the model confused the format.
+  const thinkingRaw = (data.thinking || '').trim();
+  if (thinkingRaw) {
+    try {
+      const parsed = JSON.parse(thinkingRaw) as Record<string, unknown>;
+      const keys = Object.keys(parsed);
+      if (!(keys.length === 1 && keys[0] === 'thinking')) {
+        return parsed as T;
+      }
+    } catch {
+      // not clean JSON — fall through to error
+    }
+  }
+
+  throw new Error('Model returned empty response');
 }
 
 function parseJsonResponse<T>(raw: string): T {

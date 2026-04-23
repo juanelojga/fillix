@@ -187,7 +187,7 @@ export async function runAgentPipeline(
     return;
   }
   const understandMs = Date.now() - understandStart;
-  const understandSummary = `Task: ${understand.task_type}, ${understand.detected_fields.length} fields, confidence ${understand.confidence.toFixed(2)}`;
+  const understandSummary = `Task: ${understand.task_type}, ${understand.detected_fields?.length ?? 0} fields, confidence ${understand.confidence?.toFixed(2) ?? '0.00'}`;
   emit({
     type: 'AGENTIC_STAGE',
     stage: 'understand',
@@ -243,7 +243,7 @@ export async function runAgentPipeline(
     return;
   }
   const planMs = Date.now() - planStart;
-  const planSummary = `${currentPlan.fields_to_fill.length} fields to fill, ${currentPlan.missing_fields.length} missing`;
+  const planSummary = `${currentPlan.fields_to_fill?.length ?? 0} fields to fill, ${currentPlan.missing_fields?.length ?? 0} missing`;
   emit({
     type: 'AGENTIC_STAGE',
     stage: 'plan',
