@@ -46,27 +46,41 @@ chrome.runtime.onConnect.addListener((port) => {
     handleChatPort(port);
   } else if (port.name === 'workflow') {
     let controller: AbortController | null = null;
+    const registry: Parameters<typeof runAgentPipeline>[4] = { plan: null, fills: null };
 
     port.onMessage.addListener(async (msg: AgentPortIn) => {
       try {
-        if (msg.type === 'AGENTIC_RUN') {
-          controller?.abort();
-          controller = new AbortController();
-          await runAgentPipeline(port, msg.workflowId, msg.tabId, controller.signal);
-        } else if (msg.type === 'AGENTIC_APPLY') {
-          const obsidianConfig = await getObsidianConfig();
-          const resp = (await chrome.tabs.sendMessage(msg.tabId, {
-            type: 'APPLY_FIELDS',
-            fieldMap: msg.fieldMap,
-          })) as { ok: true; applied: number } | { ok: false; error: string };
-          const applied = resp.ok ? resp.applied : 0;
-          const logPath = `fillix-logs/${new Date().toISOString().slice(0, 10)}.md`;
-          appendToFile(obsidianConfig, logPath, `\n\n**Applied:** ${applied} field(s)`).catch(
-            () => {},
-          );
-          port.postMessage({ type: 'AGENTIC_COMPLETE', applied, logPath } satisfies AgentPortOut);
-        } else if (msg.type === 'AGENTIC_CANCEL') {
-          controller?.abort();
+        switch (msg.type) {
+          case 'AGENTIC_RUN':
+            registry.plan?.reject(new Error('new run started'));
+            registry.fills?.reject(new Error('new run started'));
+            registry.plan = null;
+            registry.fills = null;
+            controller?.abort();
+            controller = new AbortController();
+            await runAgentPipeline(port, msg.workflowId, msg.tabId, controller.signal, registry);
+            break;
+          case 'AGENTIC_PLAN_FEEDBACK':
+            registry.plan?.resolve(
+              msg.approved ? { approved: true } : { approved: false, feedback: msg.feedback },
+            );
+            break;
+          case 'AGENTIC_FILLS_FEEDBACK':
+            registry.fills?.resolve(
+              msg.approved ? { approved: true } : { approved: false, feedback: msg.feedback },
+            );
+            break;
+          case 'AGENTIC_CANCEL':
+            registry.plan?.reject(new Error('cancelled'));
+            registry.fills?.reject(new Error('cancelled'));
+            registry.plan = null;
+            registry.fills = null;
+            controller?.abort();
+            break;
+          default: {
+            const _: never = msg;
+            throw new Error(`Unhandled port message: ${JSON.stringify(_)}`);
+          }
         }
       } catch (err) {
         const error = err instanceof Error ? err.message : String(err);
@@ -74,7 +88,13 @@ chrome.runtime.onConnect.addListener((port) => {
       }
     });
 
-    port.onDisconnect.addListener(() => controller?.abort());
+    port.onDisconnect.addListener(() => {
+      controller?.abort();
+      registry.plan?.reject(new Error('port disconnected'));
+      registry.fills?.reject(new Error('port disconnected'));
+      registry.plan = null;
+      registry.fills = null;
+    });
   }
 });
 

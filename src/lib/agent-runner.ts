@@ -3,11 +3,65 @@ import { runDraft, runPlan, runReview, runUnderstand } from './pipeline';
 import { getObsidianConfig, getOllamaConfig, getProfile, getWorkflows } from './storage';
 import { buildRunHeader, buildStageEntry } from './agent-log';
 import { buildFieldFills } from './field-normalizer';
-import type { DraftOutput, FieldFill, FieldSnapshot, PipelineStage, ReviewOutput } from '../types';
+import type {
+  DraftOutput,
+  FieldFill,
+  FieldSnapshot,
+  PipelineStage,
+  PlanOutput,
+  ReviewOutput,
+} from '../types';
+
+// ── Gate factory ──────────────────────────────────────────────────────────────
+
+export type GateResolution = { approved: true } | { approved: false; feedback: string };
+
+export type Gate<T> = {
+  wait: () => Promise<T>;
+  resolve: (v: T) => void;
+  reject: (e: Error) => void;
+};
+
+export type GateRegistry = {
+  plan: Gate<GateResolution> | null;
+  fills: Gate<GateResolution> | null;
+};
+
+export function createGate<T>(): Gate<T> {
+  let _resolve!: (v: T) => void;
+  let _reject!: (e: Error) => void;
+  let settled = false;
+
+  const promise = new Promise<T>((res, rej) => {
+    _resolve = res;
+    _reject = rej;
+  });
+
+  return {
+    wait: () => promise,
+    resolve: (v) => {
+      if (!settled) {
+        settled = true;
+        _resolve(v);
+      }
+    },
+    reject: (e) => {
+      if (!settled) {
+        settled = true;
+        _reject(e);
+      }
+    },
+  };
+}
+
+// ── Port message types ────────────────────────────────────────────────────────
 
 export type AgentPortIn =
   | { type: 'AGENTIC_RUN'; workflowId: string; tabId: number }
-  | { type: 'AGENTIC_APPLY'; tabId: number; fieldMap: FieldFill[] }
+  | { type: 'AGENTIC_PLAN_FEEDBACK'; approved: true }
+  | { type: 'AGENTIC_PLAN_FEEDBACK'; approved: false; feedback: string }
+  | { type: 'AGENTIC_FILLS_FEEDBACK'; approved: true }
+  | { type: 'AGENTIC_FILLS_FEEDBACK'; approved: false; feedback: string }
   | { type: 'AGENTIC_CANCEL' };
 
 export type AgentPortOut =
@@ -18,16 +72,30 @@ export type AgentPortOut =
       summary?: string;
       durationMs?: number;
     }
-  | { type: 'AGENTIC_CONFIRM'; proposed: FieldFill[]; logEntryId: string }
-  | { type: 'AGENTIC_COMPLETE'; applied: number; logPath: string }
+  | { type: 'AGENTIC_PLAN_REVIEW'; plan: PlanOutput }
+  | { type: 'AGENTIC_FILLS_REVIEW'; kind: 'form'; fills: FieldFill[] }
+  | { type: 'AGENTIC_FILLS_REVIEW'; kind: 'reply'; replyText: string }
+  | {
+      type: 'AGENTIC_SUMMARY';
+      applied: number;
+      skipped: number;
+      durationMs: number;
+      wordCount?: number;
+    }
   | { type: 'AGENTIC_ERROR'; stage: PipelineStage; error: string };
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+
+const MAX_GATE_ITERATIONS = 5;
 
 export async function runAgentPipeline(
   port: chrome.runtime.Port,
   workflowId: string,
   tabId: number,
   signal: AbortSignal,
+  registry: GateRegistry,
 ): Promise<void> {
+  const runStart = Date.now();
   const emit = (msg: AgentPortOut) => port.postMessage(msg);
 
   const ollamaConfig = await getOllamaConfig();
@@ -41,6 +109,8 @@ export async function runAgentPipeline(
   }
 
   if (signal.aborted) return;
+
+  // ── Collect ────────────────────────────────────────────────────────────────
 
   emit({ type: 'AGENTIC_STAGE', stage: 'collect', status: 'running' });
   let fields: FieldSnapshot[];
@@ -99,6 +169,8 @@ export async function runAgentPipeline(
 
   if (signal.aborted) return;
 
+  // ── Understand ─────────────────────────────────────────────────────────────
+
   emit({ type: 'AGENTIC_STAGE', stage: 'understand', status: 'running' });
   const understandStart = Date.now();
   let understand: Awaited<ReturnType<typeof runUnderstand>>;
@@ -133,11 +205,13 @@ export async function runAgentPipeline(
 
   if (signal.aborted) return;
 
+  // ── Plan (with interactive gate) ───────────────────────────────────────────
+
   emit({ type: 'AGENTIC_STAGE', stage: 'plan', status: 'running' });
   const planStart = Date.now();
-  let plan: Awaited<ReturnType<typeof runPlan>>;
+  let currentPlan: Awaited<ReturnType<typeof runPlan>>;
   try {
-    plan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal);
+    currentPlan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     emit({ type: 'AGENTIC_ERROR', stage: 'plan', error });
@@ -145,7 +219,7 @@ export async function runAgentPipeline(
     return;
   }
   const planMs = Date.now() - planStart;
-  const planSummary = `${plan.fields_to_fill.length} fields to fill, ${plan.missing_fields.length} missing`;
+  const planSummary = `${currentPlan.fields_to_fill.length} fields to fill, ${currentPlan.missing_fields.length} missing`;
   emit({
     type: 'AGENTIC_STAGE',
     stage: 'plan',
@@ -156,16 +230,68 @@ export async function runAgentPipeline(
   appendToFile(
     obsidianConfig,
     logPath,
-    buildStageEntry('plan', planMs, planSummary, JSON.stringify(plan), workflow.logFullOutput),
+    buildStageEntry(
+      'plan',
+      planMs,
+      planSummary,
+      JSON.stringify(currentPlan),
+      workflow.logFullOutput,
+    ),
   ).catch(() => {});
 
+  if (!workflow.autoApply) {
+    let planFeedbackCount = 0;
+    while (true) {
+      if (signal.aborted) return;
+      const gate = createGate<GateResolution>();
+      registry.plan = gate;
+      emit({ type: 'AGENTIC_PLAN_REVIEW', plan: currentPlan });
+
+      let resolution: GateResolution;
+      try {
+        resolution = await gate.wait();
+      } catch {
+        return;
+      } finally {
+        registry.plan = null;
+      }
+
+      if (resolution.approved) break;
+
+      planFeedbackCount++;
+      if (planFeedbackCount >= MAX_GATE_ITERATIONS) {
+        emit({
+          type: 'AGENTIC_ERROR',
+          stage: 'plan',
+          error: 'Max feedback iterations reached',
+        });
+        return;
+      }
+
+      if (signal.aborted) return;
+      emit({ type: 'AGENTIC_STAGE', stage: 'plan', status: 'running' });
+      try {
+        currentPlan = await runPlan(ollamaConfig, workflow, fields, understand, profile, signal, {
+          feedback: resolution.feedback,
+        });
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        emit({ type: 'AGENTIC_ERROR', stage: 'plan', error });
+        return;
+      }
+      emit({ type: 'AGENTIC_STAGE', stage: 'plan', status: 'done' });
+    }
+  }
+
   if (signal.aborted) return;
+
+  // ── Draft ──────────────────────────────────────────────────────────────────
 
   emit({ type: 'AGENTIC_STAGE', stage: 'draft', status: 'running' });
   const draftStart = Date.now();
   let draft: DraftOutput;
   try {
-    draft = await runDraft(ollamaConfig, workflow, fields, plan, signal);
+    draft = await runDraft(ollamaConfig, workflow, fields, currentPlan, signal);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     emit({ type: 'AGENTIC_ERROR', stage: 'draft', error });
@@ -189,13 +315,15 @@ export async function runAgentPipeline(
 
   if (signal.aborted) return;
 
+  // ── Review (optional) ──────────────────────────────────────────────────────
+
   let finalOutput: DraftOutput | ReviewOutput = draft;
   let isReview = false;
   if (workflow.review) {
     emit({ type: 'AGENTIC_STAGE', stage: 'review', status: 'running' });
     const reviewStart = Date.now();
     try {
-      finalOutput = await runReview(ollamaConfig, workflow, draft, plan, signal);
+      finalOutput = await runReview(ollamaConfig, workflow, draft, currentPlan, signal);
       isReview = true;
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err);
@@ -227,7 +355,76 @@ export async function runAgentPipeline(
 
   if (signal.aborted) return;
 
-  const proposed = buildFieldFills(finalOutput, isReview, fields);
-  const logEntryId = new Date().toISOString();
-  emit({ type: 'AGENTIC_CONFIRM', proposed, logEntryId });
+  // ── Fills gate (with interactive review) ───────────────────────────────────
+
+  let fills = buildFieldFills(finalOutput, isReview, fields);
+
+  if (!workflow.autoApply) {
+    let fillsFeedbackCount = 0;
+    while (true) {
+      if (signal.aborted) return;
+      const gate = createGate<GateResolution>();
+      registry.fills = gate;
+      emit({ type: 'AGENTIC_FILLS_REVIEW', kind: 'form', fills });
+
+      let resolution: GateResolution;
+      try {
+        resolution = await gate.wait();
+      } catch {
+        return;
+      } finally {
+        registry.fills = null;
+      }
+
+      if (resolution.approved) break;
+
+      fillsFeedbackCount++;
+      if (fillsFeedbackCount >= MAX_GATE_ITERATIONS) {
+        emit({
+          type: 'AGENTIC_ERROR',
+          stage: 'draft',
+          error: 'Max feedback iterations reached',
+        });
+        return;
+      }
+
+      if (signal.aborted) return;
+      emit({ type: 'AGENTIC_STAGE', stage: 'draft', status: 'running' });
+      try {
+        const revisedDraft = await runDraft(ollamaConfig, workflow, fields, currentPlan, signal, {
+          feedback: resolution.feedback,
+        });
+        finalOutput = revisedDraft;
+        isReview = false;
+        fills = buildFieldFills(revisedDraft, false, fields);
+      } catch (err) {
+        const error = err instanceof Error ? err.message : String(err);
+        emit({ type: 'AGENTIC_ERROR', stage: 'draft', error });
+        return;
+      }
+      emit({ type: 'AGENTIC_STAGE', stage: 'draft', status: 'done' });
+    }
+  }
+
+  if (signal.aborted) return;
+
+  // ── Apply & Summary ────────────────────────────────────────────────────────
+
+  let applied = 0;
+  try {
+    const applyResp = (await chrome.tabs.sendMessage(tabId, {
+      type: 'APPLY_FIELDS',
+      fieldMap: fills,
+    })) as { ok: true; applied: number } | { ok: false; error: string };
+    applied = applyResp.ok ? applyResp.applied : 0;
+  } catch {
+    // Non-critical — emit summary with 0 applied
+  }
+
+  emit({
+    type: 'AGENTIC_SUMMARY',
+    applied,
+    skipped: fills.length - applied,
+    durationMs: Date.now() - runStart,
+  });
 }

@@ -9,7 +9,6 @@
     loadWorkflows,
     startRun,
     handleStageUpdate,
-    handleConfirm,
     applyFields,
     cancelRun,
   } from '../stores/workflow';
@@ -46,10 +45,11 @@
         case 'AGENTIC_STAGE':
           handleStageUpdate(msg);
           break;
-        case 'AGENTIC_CONFIRM':
-          handleConfirm(msg);
+        case 'AGENTIC_PLAN_REVIEW':
+        case 'AGENTIC_FILLS_REVIEW':
+          // handled in Sprint 5 (thread UI)
           break;
-        case 'AGENTIC_COMPLETE':
+        case 'AGENTIC_SUMMARY':
           isAgentRunning.set(false);
           completionMessage = `Applied ${msg.applied} field(s).`;
           break;

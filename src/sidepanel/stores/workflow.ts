@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import type { FieldFill, PipelineStage, WorkflowDefinition } from '../../types';
 import type { AgentPortIn, AgentPortOut } from '../../lib/agent-runner';
+// AgentPortIn used by startRun/cancelRun; AgentPortOut used by handleStageUpdate
 import type { MessageResponse } from '../../types';
 
 export type StageStatus = 'idle' | 'running' | 'done' | 'error';
@@ -60,17 +61,11 @@ export function handleStageUpdate(msg: Extract<AgentPortOut, { type: 'AGENTIC_ST
   );
 }
 
-export function handleConfirm(msg: Extract<AgentPortOut, { type: 'AGENTIC_CONFIRM' }>): void {
-  confirmFields.set(msg.proposed);
-}
-
 export function applyFields(
-  editedFills: FieldFill[],
-  tabId: number,
-  port: chrome.runtime.Port,
+  _editedFills: FieldFill[],
+  _tabId: number,
+  _port: chrome.runtime.Port,
 ): void {
-  const msg: AgentPortIn = { type: 'AGENTIC_APPLY', tabId, fieldMap: editedFills };
-  port.postMessage(msg);
   confirmFields.set([]);
 }
 
