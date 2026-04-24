@@ -84,8 +84,8 @@ describe('SettingsTab.svelte (Task 4.2)', () => {
       expect(src).toContain('Button');
     });
 
-    it('uses Separator component', () => {
-      expect(src).toContain('Separator');
+    it('uses ObsidianPanel component', () => {
+      expect(src).toContain('ObsidianPanel');
     });
   });
 

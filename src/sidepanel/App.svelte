@@ -3,19 +3,19 @@
   import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/ui/tabs';
   import ChatTab from './tabs/ChatTab.svelte';
   import SettingsTab from './tabs/SettingsTab.svelte';
-  import AgentTab from './tabs/AgentTab.svelte';
+  import WorkflowTab from './tabs/WorkflowTab.svelte';
 
   let currentTab = $state('chat');
 
   const chatPort = chrome.runtime.connect({ name: 'chat' });
-  const agentPort = chrome.runtime.connect({ name: 'agent' });
+  const workflowPort = chrome.runtime.connect({ name: 'workflow' });
   setContext('chatPort', chatPort);
-  setContext('agentPort', agentPort);
+  setContext('workflowPort', workflowPort);
 
   onMount(() => {
     return () => {
       chatPort.disconnect();
-      agentPort.disconnect();
+      workflowPort.disconnect();
     };
   });
 </script>
@@ -24,9 +24,9 @@
   <TabsList>
     <TabsTrigger value="chat">Chat</TabsTrigger>
     <TabsTrigger value="settings">Settings</TabsTrigger>
-    <TabsTrigger value="agent">Agent</TabsTrigger>
+    <TabsTrigger value="workflow">Workflow</TabsTrigger>
   </TabsList>
   <TabsContent value="chat" class="flex-1 overflow-hidden"><ChatTab /></TabsContent>
   <TabsContent value="settings"><SettingsTab /></TabsContent>
-  <TabsContent value="agent"><AgentTab /></TabsContent>
+  <TabsContent value="workflow" class="overflow-hidden"><WorkflowTab /></TabsContent>
 </Tabs>

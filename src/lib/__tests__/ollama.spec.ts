@@ -260,4 +260,111 @@ describe('generateStructured', () => {
 
     await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(/500/);
   });
+
+  it('throws when response is empty and thinking is a reasoning scratchpad {"thoughts":[...]}', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            response: '',
+            thinking: JSON.stringify({ thoughts: ['step 1', 'step 2'] }),
+          }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      'Model returned empty response',
+    );
+  });
+
+  it('throws when response is empty and thinking is a {"reasoning":"..."} scratchpad', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            response: '',
+            thinking: JSON.stringify({ reasoning: 'I need to think about this...' }),
+          }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      'Model returned empty response',
+    );
+  });
+
+  it('throws when response is empty and thinking is a {"thinking":"..."} scratchpad', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            response: '',
+            thinking: JSON.stringify({ thinking: 'internal monologue' }),
+          }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      'Model returned empty response',
+    );
+  });
+
+  it('throws when response is empty and thinking is a {"thought":"..."} scratchpad (qwen3 pattern)', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            response: '',
+            thinking: JSON.stringify({ thought: 'This is a Toptal job matcher...' }),
+          }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      'Model returned empty response',
+    );
+  });
+
+  it('sends think: false in the request body', async () => {
+    const mockFetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ response: '{"ok":true}' }),
+    });
+    vi.stubGlobal('fetch', mockFetch);
+
+    await generateStructured(CONFIG, 'sys', 'user');
+
+    const [, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as Record<string, unknown>;
+    expect(body.think).toBe(false);
+  });
+
+  it('returns structured output from thinking field when it contains valid domain JSON', async () => {
+    const payload = {
+      fields_to_fill: [{ field_id: 'name', strategy: 'use profile.name' }],
+      missing_fields: [],
+    };
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () =>
+          Promise.resolve({
+            response: '',
+            thinking: JSON.stringify(payload),
+          }),
+      }),
+    );
+
+    const result = await generateStructured<typeof payload>(CONFIG, 'sys', 'user');
+    expect(result).toEqual(payload);
+  });
 });

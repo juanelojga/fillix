@@ -36,15 +36,22 @@ function makeMockPort(name: string): MockPort {
 let connectListeners: ((port: MockPort) => void)[] = [];
 
 const mockChatStream = vi.fn();
-const mockGetOllamaConfig = vi.fn().mockResolvedValue({
+const mockGetProviderConfig = vi.fn().mockResolvedValue({
+  provider: 'ollama',
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 });
 
 vi.mock('../lib/ollama', () => ({ chatStream: mockChatStream, listModels: vi.fn() }));
 vi.mock('../lib/storage', () => ({
-  getOllamaConfig: mockGetOllamaConfig,
-  getChatConfig: vi.fn(),
+  getOllamaConfig: vi
+    .fn()
+    .mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' }),
+  getProviderConfig: mockGetProviderConfig,
+  getChatConfig: vi.fn().mockResolvedValue({ systemPrompt: '' }),
+  getSearchConfig: vi.fn().mockResolvedValue({}),
+  getObsidianConfig: vi.fn().mockResolvedValue({ host: 'localhost', port: 27123, apiKey: '' }),
+  getFavoriteModels: vi.fn().mockResolvedValue({}),
 }));
 
 vi.stubGlobal('chrome', {
@@ -109,7 +116,7 @@ describe('background onConnect handler', () => {
     const [cfg, msgs, sys] = mockChatStream.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(cfg).toMatchObject({ baseUrl: 'http://localhost:11434' });
     expect(msgs).toEqual([{ role: 'user', content: 'hi' }]);
-    expect(sys).toBe('Be brief.');
+    expect(sys).toContain('Be brief.');
   });
 
   it('forwards token PortMessages to the port', async () => {
@@ -355,18 +362,19 @@ describe('MessageResponse with applied variant', () => {
   });
 });
 
-// --- Sprint 4: Agent port protocol specs (Tasks 4.3, 4.4) ---
-// Verify the 'agent' port is handled and the AgentPortIn/Out message shapes are correct.
+// --- Workflow port protocol specs ---
+// Verify the 'workflow' port is handled and the gate message shapes are correct.
 // These are type-level + behavioral contracts; full pipeline integration is exercised manually.
 
-// AgentPortIn shapes
-type AgentPortIn =
+// WorkflowPortIn shapes
+type WorkflowPortIn =
   | { type: 'AGENTIC_RUN'; workflowId: string; tabId: number }
-  | { type: 'AGENTIC_APPLY'; tabId: number; fieldMap: FieldFill[] }
+  | { type: 'AGENTIC_PLAN_FEEDBACK'; approved: boolean; feedback?: string }
+  | { type: 'AGENTIC_FILLS_FEEDBACK'; approved: boolean; feedback?: string }
   | { type: 'AGENTIC_CANCEL' };
 
-// AgentPortOut shapes
-type AgentPortOut =
+// WorkflowPortOut shapes
+type WorkflowPortOut =
   | {
       type: 'AGENTIC_STAGE';
       stage: PipelineStage;
@@ -374,40 +382,61 @@ type AgentPortOut =
       summary?: string;
       durationMs?: number;
     }
-  | { type: 'AGENTIC_CONFIRM'; proposed: FieldFill[]; logEntryId: string }
-  | { type: 'AGENTIC_COMPLETE'; applied: number; logPath: string }
+  | { type: 'AGENTIC_PLAN_REVIEW'; plan: unknown }
+  | {
+      type: 'AGENTIC_FILLS_REVIEW';
+      kind: 'form' | 'reply';
+      fills?: FieldFill[];
+      replyText?: string;
+    }
+  | {
+      type: 'AGENTIC_SUMMARY';
+      applied: number;
+      skipped: number;
+      durationMs: number;
+      wordCount?: number;
+    }
   | { type: 'AGENTIC_ERROR'; stage: PipelineStage; error: string };
 
-describe('AgentPortIn message shapes', () => {
+describe('WorkflowPortIn message shapes', () => {
   it('AGENTIC_RUN requires workflowId and tabId', () => {
-    const msg: AgentPortIn = { type: 'AGENTIC_RUN', workflowId: 'workflows/job.md', tabId: 5 };
+    const msg: WorkflowPortIn = { type: 'AGENTIC_RUN', workflowId: 'workflows/job.md', tabId: 5 };
     expect(msg.type).toBe('AGENTIC_RUN');
-    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_RUN' }>).workflowId).toBe(
+    expect((msg as Extract<WorkflowPortIn, { type: 'AGENTIC_RUN' }>).workflowId).toBe(
       'workflows/job.md',
     );
-    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_RUN' }>).tabId).toBe(5);
+    expect((msg as Extract<WorkflowPortIn, { type: 'AGENTIC_RUN' }>).tabId).toBe(5);
   });
 
-  it('AGENTIC_APPLY requires tabId and fieldMap array', () => {
-    const fieldMap: FieldFill[] = [
-      { fieldId: 'name', label: 'Name', currentValue: '', proposedValue: 'Juan' },
-    ];
-    const msg: AgentPortIn = { type: 'AGENTIC_APPLY', tabId: 5, fieldMap };
-    expect(msg.type).toBe('AGENTIC_APPLY');
-    expect((msg as Extract<AgentPortIn, { type: 'AGENTIC_APPLY' }>).fieldMap).toHaveLength(1);
+  it('AGENTIC_PLAN_FEEDBACK carries approved flag and optional feedback', () => {
+    const msg: WorkflowPortIn = { type: 'AGENTIC_PLAN_FEEDBACK', approved: true };
+    expect(msg.type).toBe('AGENTIC_PLAN_FEEDBACK');
+    expect((msg as Extract<WorkflowPortIn, { type: 'AGENTIC_PLAN_FEEDBACK' }>).approved).toBe(true);
+  });
+
+  it('AGENTIC_FILLS_FEEDBACK carries approved flag and optional feedback', () => {
+    const msg: WorkflowPortIn = {
+      type: 'AGENTIC_FILLS_FEEDBACK',
+      approved: false,
+      feedback: 'Too formal',
+    };
+    expect(msg.type).toBe('AGENTIC_FILLS_FEEDBACK');
+    const typed = msg as Extract<WorkflowPortIn, { type: 'AGENTIC_FILLS_FEEDBACK' }>;
+    expect(typed.approved).toBe(false);
+    expect(typed.feedback).toBe('Too formal');
   });
 
   it('AGENTIC_CANCEL requires only type', () => {
-    const msg: AgentPortIn = { type: 'AGENTIC_CANCEL' };
+    const msg: WorkflowPortIn = { type: 'AGENTIC_CANCEL' };
     expect(msg.type).toBe('AGENTIC_CANCEL');
   });
 });
 
-describe('AgentPortOut message shapes', () => {
+describe('WorkflowPortOut message shapes', () => {
   it('AGENTIC_STAGE carries stage, status; summary and durationMs are optional', () => {
-    const msg: AgentPortOut = { type: 'AGENTIC_STAGE', stage: 'understand', status: 'running' };
+    const msg: WorkflowPortOut = { type: 'AGENTIC_STAGE', stage: 'understand', status: 'running' };
     expect(msg.type).toBe('AGENTIC_STAGE');
-    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_STAGE' }>;
+    const typed = msg as Extract<WorkflowPortOut, { type: 'AGENTIC_STAGE' }>;
     expect(typed.stage).toBe('understand');
     expect(typed.status).toBe('running');
     expect(typed.summary).toBeUndefined();
@@ -415,63 +444,70 @@ describe('AgentPortOut message shapes', () => {
   });
 
   it('AGENTIC_STAGE with done status can include summary and durationMs', () => {
-    const msg: AgentPortOut = {
+    const msg: WorkflowPortOut = {
       type: 'AGENTIC_STAGE',
       stage: 'plan',
       status: 'done',
       summary: '3 fields to fill',
       durationMs: 1200,
     };
-    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_STAGE' }>;
+    const typed = msg as Extract<WorkflowPortOut, { type: 'AGENTIC_STAGE' }>;
     expect(typed.summary).toBe('3 fields to fill');
     expect(typed.durationMs).toBe(1200);
   });
 
-  it('AGENTIC_CONFIRM carries proposed FieldFill array and logEntryId', () => {
-    const proposed: FieldFill[] = [
-      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'a@b.com' },
-    ];
-    const msg: AgentPortOut = { type: 'AGENTIC_CONFIRM', proposed, logEntryId: 'run-001' };
-    expect(msg.type).toBe('AGENTIC_CONFIRM');
-    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_CONFIRM' }>;
-    expect(typed.proposed).toHaveLength(1);
-    expect(typed.logEntryId).toBe('run-001');
+  it('AGENTIC_PLAN_REVIEW carries a plan payload', () => {
+    const msg: WorkflowPortOut = {
+      type: 'AGENTIC_PLAN_REVIEW',
+      plan: { taskType: 'form', fields: [] },
+    };
+    expect(msg.type).toBe('AGENTIC_PLAN_REVIEW');
   });
 
-  it('AGENTIC_COMPLETE carries applied count and logPath', () => {
-    const msg: AgentPortOut = {
-      type: 'AGENTIC_COMPLETE',
+  it('AGENTIC_FILLS_REVIEW kind=form carries fills array', () => {
+    const fills: FieldFill[] = [
+      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'a@b.com' },
+    ];
+    const msg: WorkflowPortOut = { type: 'AGENTIC_FILLS_REVIEW', kind: 'form', fills };
+    expect(msg.type).toBe('AGENTIC_FILLS_REVIEW');
+    const typed = msg as Extract<WorkflowPortOut, { type: 'AGENTIC_FILLS_REVIEW' }>;
+    expect(typed.fills).toHaveLength(1);
+  });
+
+  it('AGENTIC_SUMMARY carries applied, skipped, and durationMs', () => {
+    const msg: WorkflowPortOut = {
+      type: 'AGENTIC_SUMMARY',
       applied: 4,
-      logPath: 'fillix-logs/2026-04-20.md',
+      skipped: 1,
+      durationMs: 1500,
     };
-    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_COMPLETE' }>;
+    const typed = msg as Extract<WorkflowPortOut, { type: 'AGENTIC_SUMMARY' }>;
     expect(typed.applied).toBe(4);
-    expect(typed.logPath).toContain('fillix-logs/');
+    expect(typed.durationMs).toBe(1500);
   });
 
   it('AGENTIC_ERROR carries stage and error string', () => {
-    const msg: AgentPortOut = { type: 'AGENTIC_ERROR', stage: 'draft', error: 'model timeout' };
-    const typed = msg as Extract<AgentPortOut, { type: 'AGENTIC_ERROR' }>;
+    const msg: WorkflowPortOut = { type: 'AGENTIC_ERROR', stage: 'draft', error: 'model timeout' };
+    const typed = msg as Extract<WorkflowPortOut, { type: 'AGENTIC_ERROR' }>;
     expect(typed.stage).toBe('draft');
     expect(typed.error).toBe('model timeout');
   });
 });
 
 describe('background agent port — behavioral contracts', () => {
-  it('registers an onMessage listener for the "agent" port', async () => {
-    // Background must call port.onMessage.addListener for ports named 'agent'
-    const agentPort = makeMockPort('agent');
-    fireConnect(agentPort);
-    expect(agentPort.onMessage.addListener).toHaveBeenCalledOnce();
+  it('registers an onMessage listener for the "workflow" port', async () => {
+    const workflowPort = makeMockPort('workflow');
+    fireConnect(workflowPort);
+    expect(workflowPort.onMessage.addListener).toHaveBeenCalledOnce();
   });
 
-  it('registers an onDisconnect listener for the "agent" port (abort on close)', async () => {
-    const agentPort = makeMockPort('agent');
-    fireConnect(agentPort);
-    expect(agentPort.onDisconnect.addListener).toHaveBeenCalledOnce();
+  it('registers an onDisconnect listener for the "workflow" port (abort on close)', async () => {
+    const workflowPort = makeMockPort('workflow');
+    fireConnect(workflowPort);
+    expect(workflowPort.onDisconnect.addListener).toHaveBeenCalledOnce();
   });
 
-  it('does not register listeners for ports other than "chat" or "agent"', () => {
+  it('does not register listeners for ports other than "chat" or "workflow"', () => {
     const unknownPort = makeMockPort('unknown');
     fireConnect(unknownPort);
     expect(unknownPort.onMessage.addListener).not.toHaveBeenCalled();

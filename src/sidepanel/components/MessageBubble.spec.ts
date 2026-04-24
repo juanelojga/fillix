@@ -3,10 +3,10 @@ import { describe, it, expect } from 'vitest';
 import MessageBubble from './MessageBubble.svelte';
 
 describe('MessageBubble', () => {
-  it('renders user bubble aligned right with ml-auto', () => {
+  it('renders user bubble aligned right with justify-end', () => {
     const { container } = render(MessageBubble, { props: { role: 'user', content: 'Hello' } });
     const bubble = container.firstElementChild as HTMLElement;
-    expect(bubble.className).toMatch(/ml-auto/);
+    expect(bubble.className).toMatch(/justify-end/);
   });
 
   it('renders assistant bubble without ml-auto', () => {
@@ -31,7 +31,7 @@ describe('MessageBubble', () => {
 
   it('applies destructive class for error role', () => {
     const { container } = render(MessageBubble, { props: { role: 'error', content: 'oops' } });
-    const bubble = container.firstElementChild as HTMLElement;
-    expect(bubble.className).toMatch(/bg-destructive/);
+    const prose = container.querySelector('.prose') as HTMLElement;
+    expect(prose.className).toMatch(/text-destructive/);
   });
 });

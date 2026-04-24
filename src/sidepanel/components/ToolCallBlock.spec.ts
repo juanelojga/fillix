@@ -3,11 +3,11 @@ import { describe, it, expect } from 'vitest';
 import ToolCallBlock from './ToolCallBlock.svelte';
 
 describe('ToolCallBlock', () => {
-  it('renders tool name in summary', () => {
+  it('renders tool label in header', () => {
     render(ToolCallBlock, {
       props: { toolName: 'web_search', args: { query: 'vitest' }, result: null },
     });
-    expect(screen.getByText(/web_search/)).toBeInTheDocument();
+    expect(screen.getByText(/Search/i)).toBeInTheDocument();
   });
 
   it('shows primary arg in summary', () => {
@@ -25,27 +25,27 @@ describe('ToolCallBlock', () => {
     expect(container.querySelector('.border-t')).toBeNull();
   });
 
-  it('renders result when result is a string', () => {
-    render(ToolCallBlock, {
-      props: {
-        toolName: 'wikipedia',
-        args: { topic: 'AI' },
-        result: 'AI stands for Artificial Intelligence.',
-      },
-    });
-    expect(screen.getByText(/AI stands for/)).toBeInTheDocument();
-  });
-
-  it('lists all args as key-value pairs', () => {
+  it('renders result after toggling expand', async () => {
     render(ToolCallBlock, {
       props: {
         toolName: 'fetch_url',
-        args: { url: 'https://example.com', method: 'GET' },
+        args: { url: 'https://example.com' },
+        result: 'page content here',
+      },
+    });
+    const btn = screen.getByRole('button');
+    await btn.click();
+    expect(screen.getByText(/page content here/)).toBeInTheDocument();
+  });
+
+  it('shows primary arg value in header', () => {
+    render(ToolCallBlock, {
+      props: {
+        toolName: 'fetch_url',
+        args: { url: 'https://example.com' },
         result: null,
       },
     });
-    // arg keys appear in the list; url also appears in the summary, so use getAllBy
-    expect(screen.getAllByText(/url/).length).toBeGreaterThan(0);
-    expect(screen.getByText(/method/)).toBeInTheDocument();
+    expect(screen.getByText(/example\.com/)).toBeInTheDocument();
   });
 });

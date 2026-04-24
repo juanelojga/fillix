@@ -2,7 +2,13 @@
 // Run with: pnpm exec vitest run
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Message, MessageResponse, FieldFill, FieldSnapshot } from '../types';
+import type {
+  Message,
+  MessageResponse,
+  FieldFill,
+  FieldSnapshot,
+  ConversationMessage,
+} from '../types';
 
 // ---- Chrome API stubs (must be in place before content.ts is imported) ----
 
@@ -28,6 +34,18 @@ vi.stubGlobal('chrome', {
 // setFieldValue uses the real implementation so DOM mutations are verifiable.
 
 const mockSnapshotFields = vi.fn<[], FieldSnapshot[]>().mockReturnValue([]);
+
+// ---- Mock conversation-extractor.ts ----
+
+const mockExtractConversation = vi.hoisted(() =>
+  vi.fn<[], ConversationMessage[]>().mockReturnValue([]),
+);
+const mockDetectPlatform = vi.hoisted(() => vi.fn<[], string | null>().mockReturnValue(null));
+
+vi.mock('../lib/conversation-extractor', () => ({
+  extractConversation: mockExtractConversation,
+  detectPlatform: mockDetectPlatform,
+}));
 
 vi.mock('../lib/forms', async (importOriginal) => {
   const real = await importOriginal<Record<string, unknown>>();
@@ -161,5 +179,73 @@ describe('content.ts APPLY_FIELDS handler', () => {
     fireMessage({ type: 'APPLY_FIELDS', fieldMap });
     const input = document.querySelector<HTMLInputElement>('[name="phone"]');
     expect(input?.value).toBe('555-1234');
+  });
+});
+
+// ---- EXTRACT_CONVERSATION ----
+
+describe('content.ts EXTRACT_CONVERSATION handler', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    mockExtractConversation.mockReturnValue([]);
+    mockDetectPlatform.mockReturnValue(null);
+    await loadContent();
+  });
+
+  it('responds with ok: true, messages, and platform', () => {
+    const messages: ConversationMessage[] = [
+      { sender: 'them', text: 'Are you available?' },
+      { sender: 'me', text: 'Yes!' },
+    ];
+    mockExtractConversation.mockReturnValue(messages);
+    mockDetectPlatform.mockReturnValue('whatsapp');
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'EXTRACT_CONVERSATION' }, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, messages, platform: 'whatsapp' });
+  });
+
+  it('returns empty messages and null platform on an unknown page', () => {
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'EXTRACT_CONVERSATION' }, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true, messages: [], platform: null });
+  });
+});
+
+// ---- INSERT_TEXT (Task 6.3) ----
+
+describe('content.ts INSERT_TEXT handler', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    document.body.innerHTML = '';
+    // jsdom does not implement execCommand; add a stub so vi.spyOn can instrument it
+    if (!('execCommand' in document)) {
+      Object.defineProperty(document, 'execCommand', {
+        value: vi.fn(),
+        writable: true,
+        configurable: true,
+      });
+    }
+    await loadContent();
+  });
+
+  it('inserts text into a focused contenteditable element and returns { ok: true }', () => {
+    document.body.innerHTML = '<div id="compose" contenteditable="true"></div>';
+    const compose = document.getElementById('compose') as HTMLElement;
+    compose.focus();
+
+    const execCommandSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'INSERT_TEXT', text: 'Hello world' }, sendResponse);
+
+    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, 'Hello world');
+    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
+  });
+
+  it('returns { ok: false, error: "no-compose-box" } when no compose box is found', () => {
+    document.body.innerHTML = '<p>No inputs here</p>';
+    const sendResponse = vi.fn();
+    fireMessage({ type: 'INSERT_TEXT', text: 'Hello' }, sendResponse);
+    expect(sendResponse).toHaveBeenCalledWith({ ok: false, error: 'no-compose-box' });
   });
 });

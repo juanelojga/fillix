@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { get } from 'svelte/store';
 import { messages, streamingState, activeMessage } from '../stores/chat';
 import { providerConfig, searchConfig, modelList, favoriteModels } from '../stores/settings';
-import { workflowList, pipelineStages, confirmFields, isAgentRunning } from '../stores/agent';
+import { workflowList, agentMessages, pendingGate, isAgentRunning } from '../stores/workflow';
 
 describe('svelte stores (Task 2.5)', () => {
   describe('chat store', () => {
@@ -48,17 +48,17 @@ describe('svelte stores (Task 2.5)', () => {
     });
   });
 
-  describe('agent store', () => {
+  describe('workflow store', () => {
     it('workflowList initialises as empty array', () => {
       expect(get(workflowList)).toEqual([]);
     });
 
-    it('pipelineStages initialises as empty array', () => {
-      expect(get(pipelineStages)).toEqual([]);
+    it('agentMessages initialises as empty array', () => {
+      expect(get(agentMessages)).toEqual([]);
     });
 
-    it('confirmFields initialises as empty array', () => {
-      expect(get(confirmFields)).toEqual([]);
+    it('pendingGate initialises as null', () => {
+      expect(get(pendingGate)).toBeNull();
     });
 
     it('isAgentRunning initialises as false', () => {

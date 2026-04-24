@@ -100,12 +100,41 @@ export async function generateStructured<T>(
       prompt: userPrompt,
       stream: false,
       format: 'json',
+      think: false,
     }),
     signal,
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
   const data = (await res.json()) as { response: string; thinking?: string };
-  return parseJsonResponse<T>(data.response || data.thinking || '');
+  const raw = (data.response || '').trim();
+  if (raw) return parseJsonResponse<T>(raw);
+
+  // Thinking models (qwen3) sometimes put the structured JSON directly in the
+  // thinking field and leave response empty. Accept that — but reject any object
+  // whose every top-level key is a known reasoning-scratchpad key.
+  const thinkingRaw = (data.thinking || '').trim();
+  if (thinkingRaw) {
+    const REASONING_KEYS = new Set([
+      'thinking',
+      'thought',
+      'thoughts',
+      'reasoning',
+      'scratchpad',
+      'think',
+    ]);
+    try {
+      const parsed = JSON.parse(thinkingRaw) as Record<string, unknown>;
+      const keys = Object.keys(parsed);
+      const isReasoningScratchpad = keys.length > 0 && keys.every((k) => REASONING_KEYS.has(k));
+      if (!isReasoningScratchpad) {
+        return parsed as T;
+      }
+    } catch {
+      // not clean JSON — fall through to error
+    }
+  }
+
+  throw new Error('Model returned empty response');
 }
 
 function parseJsonResponse<T>(raw: string): T {
@@ -138,6 +167,7 @@ export async function inferFieldValue(config: OllamaConfig, field: FieldContext)
       prompt: buildPrompt(field),
       stream: false,
       format: 'json',
+      think: false,
     }),
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);

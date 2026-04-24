@@ -61,12 +61,12 @@ describe('chat UI components (Sprint 3)', () => {
       expect(src).toContain('result');
     });
 
-    it('uses <details> for collapsible display', () => {
-      expect(src).toContain('<details');
+    it('uses a button for collapsible toggle', () => {
+      expect(src).toContain('<button');
     });
 
-    it('conditionally renders result section (null check)', () => {
-      expect(src).toMatch(/result\s*!==?\s*null|result\s*!=\s*null|\{#if.*result/);
+    it('conditionally renders result section based on pending/null state', () => {
+      expect(src).toMatch(/isPending|result\s*===?\s*null|\{#if.*result/);
     });
   });
 
