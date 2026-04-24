@@ -28,5 +28,5 @@
   </TabsList>
   <TabsContent value="chat" class="flex-1 overflow-hidden"><ChatTab /></TabsContent>
   <TabsContent value="settings"><SettingsTab /></TabsContent>
-  <TabsContent value="workflow"><WorkflowTab /></TabsContent>
+  <TabsContent value="workflow" class="overflow-hidden"><WorkflowTab /></TabsContent>
 </Tabs>
