@@ -88,6 +88,8 @@
           break;
         }
         case 'beautified': {
+          const current = get(activeMessage);
+          if (!current) break;
           messages.update((ms) => [...ms, { role: 'assistant', content: msg.content }]);
           activeMessage.set(null);
           streamingState.set('idle');
@@ -95,9 +97,10 @@
         }
         case 'beautify-error': {
           const current = get(activeMessage);
+          if (!current) break;
           messages.update((ms) => [
             ...ms,
-            { role: 'assistant', content: current?.content ?? '', beautifyError: msg.reason },
+            { role: 'assistant', content: current.content, beautifyError: msg.reason },
           ]);
           activeMessage.set(null);
           streamingState.set('idle');
@@ -138,6 +141,11 @@
 
   function stop() {
     chatPort.postMessage({ type: 'CHAT_STOP' });
+    const current = get(activeMessage);
+    if (current) {
+      messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
+      activeMessage.set(null);
+    }
     streamingState.set('idle');
   }
 
@@ -243,7 +251,7 @@
       ></textarea>
 
       <div class="absolute bottom-2.5 right-2.5">
-        {#if $streamingState === 'streaming'}
+        {#if $streamingState === 'streaming' || $streamingState === 'beautifying'}
           <button
             class="flex items-center justify-center w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-80 active:scale-95 transition-all duration-100"
             onclick={stop}

@@ -51,9 +51,12 @@ function sanitizeError(error: string, apiKey: string): string {
 export function handleChatPort(port: chrome.runtime.Port): void {
   let controller: AbortController | null = null;
 
+  let beautifyController: AbortController | null = null;
+
   port.onMessage.addListener(async (msg: Message) => {
     if (msg.type === 'CHAT_START') {
       controller?.abort();
+      beautifyController?.abort();
       controller = new AbortController();
       const signal = controller.signal;
 
@@ -131,10 +134,12 @@ export function handleChatPort(port: chrome.runtime.Port): void {
       port.postMessage({ type: 'done' } satisfies PortMessage);
     } else if (msg.type === 'CHAT_STOP') {
       controller?.abort();
+      beautifyController?.abort();
       port.postMessage({ type: 'done' } satisfies PortMessage);
     } else if (msg.type === 'BEAUTIFY') {
-      const beautifyController = new AbortController();
-      const onPortDisconnect = () => beautifyController.abort();
+      const bc = new AbortController();
+      beautifyController = bc;
+      const onPortDisconnect = () => bc.abort();
       port.onDisconnect.addListener(onPortDisconnect);
 
       try {
@@ -146,7 +151,7 @@ export function handleChatPort(port: chrome.runtime.Port): void {
           const url = `http://${host}:${obsPort}/vault/${encodeURIComponent(beautifierPromptPath)}`;
           const resp = await fetch(url, {
             headers: { Authorization: `Bearer ${apiKey}` },
-            signal: AbortSignal.any([beautifyController.signal, AbortSignal.timeout(5000)]),
+            signal: AbortSignal.any([bc.signal, AbortSignal.timeout(5000)]),
           });
           if (!resp.ok) {
             const reason = `Obsidian note unreachable (${resp.status})`;
@@ -160,7 +165,7 @@ export function handleChatPort(port: chrome.runtime.Port): void {
         let accumulated = '';
         await new Promise<void>((resolve, reject) => {
           provider.chatStream([{ role: 'user', content: msg.content }], systemPrompt, {
-            signal: beautifyController.signal,
+            signal: bc.signal,
             onToken: (token) => {
               accumulated += token;
             },
