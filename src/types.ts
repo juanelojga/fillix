@@ -26,7 +26,11 @@ export interface FieldContext {
   autocomplete?: string;
 }
 
-export type ChatMessage = { role: 'user' | 'assistant'; content: string };
+export type ChatMessage = {
+  role: 'user' | 'assistant';
+  content: string;
+  beautifyError?: string;
+};
 
 export type PortMessage =
   | { type: 'token'; value: string }
@@ -34,7 +38,9 @@ export type PortMessage =
   | { type: 'done' }
   | { type: 'error'; error: string }
   | { type: 'tool-call'; toolName: string; args: Record<string, string> }
-  | { type: 'tool-result'; toolName: string; result: string };
+  | { type: 'tool-result'; toolName: string; result: string }
+  | { type: 'beautified'; content: string }
+  | { type: 'beautify-error'; reason: string };
 
 export interface ObsidianConfig {
   host: string;
@@ -83,7 +89,8 @@ export type Message =
   | { type: 'EXTRACT_CONVERSATION' }
   | { type: 'CONVERSATION_DATA'; messages: ConversationMessage[]; platform: string | null }
   // Text insertion (bg → content script)
-  | { type: 'INSERT_TEXT'; text: string };
+  | { type: 'INSERT_TEXT'; text: string }
+  | { type: 'BEAUTIFY'; content: string; providerConfig: ProviderConfig };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {

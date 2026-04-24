@@ -1,12 +1,13 @@
 import { writable } from 'svelte/store';
 import type { ChatMessage } from '../../types';
 
-export type StreamingState = 'idle' | 'streaming';
+export type StreamingState = 'idle' | 'streaming' | 'beautifying';
 
 export interface ActiveMessage {
   content: string;
   thinking: string;
   toolCalls: { toolName: string; args: Record<string, string>; result: string | null }[];
+  isBeautifying?: boolean;
 }
 
 export const messages = writable<ChatMessage[]>([]);

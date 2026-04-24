@@ -1,7 +1,15 @@
 import { resolveProvider } from './providers/index';
 import { getProviderConfig, getSearchConfig } from './storage';
 import { dispatchTool } from './tools/registry';
+import { redact } from './agent-log';
 import type { Message, PortMessage } from '../types';
+
+const DEFAULT_BEAUTIFIER_PROMPT =
+  `You are a formatting assistant. Rewrite the text below to be clean, concise, ` +
+  `and well-structured. Fix heading hierarchy, unify list styles, break up ` +
+  `wall-of-text paragraphs, and remove filler phrases. Preserve all factual ` +
+  `content and code blocks exactly. Return only the rewritten text — no ` +
+  `explanations, no preamble.`;
 
 export const TOOL_SYSTEM_PROMPT = `
 ## Tools Available
@@ -124,6 +132,31 @@ export function handleChatPort(port: chrome.runtime.Port): void {
     } else if (msg.type === 'CHAT_STOP') {
       controller?.abort();
       port.postMessage({ type: 'done' } satisfies PortMessage);
+    } else if (msg.type === 'BEAUTIFY') {
+      const beautifyController = new AbortController();
+      const onPortDisconnect = () => beautifyController.abort();
+      port.onDisconnect.addListener(onPortDisconnect);
+
+      try {
+        const provider = resolveProvider(msg.providerConfig);
+        let accumulated = '';
+        await new Promise<void>((resolve, reject) => {
+          provider.chatStream([{ role: 'user', content: msg.content }], DEFAULT_BEAUTIFIER_PROMPT, {
+            signal: beautifyController.signal,
+            onToken: (token) => {
+              accumulated += token;
+            },
+            onDone: resolve,
+            onError: (error) => reject(new Error(error)),
+          });
+        });
+        port.postMessage({ type: 'beautified', content: accumulated } satisfies PortMessage);
+      } catch (err) {
+        const reason = redact(err instanceof Error ? err.message : String(err));
+        port.postMessage({ type: 'beautify-error', reason } satisfies PortMessage);
+      } finally {
+        port.onDisconnect.removeListener(onPortDisconnect);
+      }
     }
   });
 

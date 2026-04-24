@@ -74,10 +74,32 @@
           break;
         case 'done': {
           const current = get(activeMessage);
-          activeMessage.set(null);
-          if (current) {
+          if (!current) break;
+          const cfg = get(providerConfig);
+          if (!cfg) {
             messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
+            activeMessage.set(null);
+            streamingState.set('idle');
+            break;
           }
+          activeMessage.update((m) => (m ? { ...m, isBeautifying: true } : m));
+          streamingState.set('beautifying');
+          chatPort.postMessage({ type: 'BEAUTIFY', content: current.content, providerConfig: cfg });
+          break;
+        }
+        case 'beautified': {
+          messages.update((ms) => [...ms, { role: 'assistant', content: msg.content }]);
+          activeMessage.set(null);
+          streamingState.set('idle');
+          break;
+        }
+        case 'beautify-error': {
+          const current = get(activeMessage);
+          messages.update((ms) => [
+            ...ms,
+            { role: 'assistant', content: current?.content ?? '', beautifyError: msg.reason },
+          ]);
+          activeMessage.set(null);
           streamingState.set('idle');
           break;
         }
@@ -99,7 +121,7 @@
 
   function send() {
     const text = inputText.trim();
-    if (!text || $streamingState === 'streaming') return;
+    if (!text || $streamingState !== 'idle') return;
     messages.update((ms) => [...ms, { role: 'user', content: text }]);
     activeMessage.set({ content: '', thinking: '', toolCalls: [] });
     streamingState.set('streaming');
@@ -179,11 +201,16 @@
     {:else}
       <div class="flex flex-col py-3 gap-0.5">
         {#each $messages as msg}
-          <MessageBubble role={msg.role} content={msg.content} />
+          <MessageBubble role={msg.role} content={msg.content} beautifyError={msg.beautifyError} />
         {/each}
 
         {#if $activeMessage !== null}
-          <MessageBubble role="assistant" content={$activeMessage.content} isStreaming={true}>
+          <MessageBubble
+            role="assistant"
+            content={$activeMessage.content}
+            isStreaming={$streamingState === 'streaming'}
+            isBeautifying={$streamingState === 'beautifying'}
+          >
             {#if $activeMessage.thinking}
               <ThinkingBlock
                 content={$activeMessage.thinking}
