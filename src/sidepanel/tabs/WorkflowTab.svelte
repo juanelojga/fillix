@@ -22,6 +22,7 @@
     TooltipProvider,
   } from '$components/ui/tooltip';
   import WorkflowMessage from '../components/WorkflowMessage.svelte';
+  import ModelPicker from '../components/ModelPicker.svelte';
 
   const workflowPort = getContext<chrome.runtime.Port>('workflowPort');
 
@@ -128,6 +129,11 @@
 
 <TooltipProvider>
   <div class="flex flex-col h-full gap-3 p-3">
+    <!-- Model picker -->
+    <div class="flex items-center px-1 pb-1">
+      <ModelPicker />
+    </div>
+
     <!-- Workflow selector + Run + Refresh -->
     <div class="flex gap-2 items-center shrink-0">
       <select
