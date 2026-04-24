@@ -101,4 +101,30 @@ describe('settings store (Task 4.1)', () => {
       expect(src).toContain('modelList');
     });
   });
+
+  describe('providerConfigs store (Task 1.3)', () => {
+    it('exports providerConfigs writable store', () => {
+      expect(src).toContain('providerConfigs');
+    });
+
+    it('imports getProviderConfigs from storage', () => {
+      expect(src).toContain('getProviderConfigs');
+    });
+
+    it('imports setProviderConfigs from storage', () => {
+      expect(src).toContain('setProviderConfigs');
+    });
+
+    it('seeds providerConfigs in loadSettings', () => {
+      expect(src).toMatch(
+        /loadSettings[\s\S]*getProviderConfigs|getProviderConfigs[\s\S]*loadSettings/,
+      );
+    });
+
+    it('persists providerConfigs in saveSettings', () => {
+      expect(src).toMatch(
+        /saveSettings[\s\S]*setProviderConfigs|setProviderConfigs[\s\S]*saveSettings/,
+      );
+    });
+  });
 });

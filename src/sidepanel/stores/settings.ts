@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { MessageResponse, ProviderConfig, ProviderType, SearchConfig } from '../../types';
-import type { FavoriteModels } from '../../lib/storage';
+import type { FavoriteModels, ProviderConfigs } from '../../lib/storage';
 import {
   getProviderConfig,
   setProviderConfig,
@@ -8,31 +8,48 @@ import {
   setSearchConfig,
   getFavoriteModels,
   setFavoriteModels,
+  getProviderConfigs,
+  setProviderConfigs,
 } from '../../lib/storage';
 
 export const providerConfig = writable<ProviderConfig | null>(null);
 export const searchConfig = writable<SearchConfig | null>(null);
 export const modelList = writable<string[]>([]);
 export const favoriteModels = writable<FavoriteModels>({});
+export const providerConfigs = writable<ProviderConfigs>({});
 
 export async function loadSettings(): Promise<void> {
-  const [provider, search, favorites] = await Promise.all([
+  const [provider, search, favorites, configs] = await Promise.all([
     getProviderConfig(),
     getSearchConfig(),
     getFavoriteModels(),
+    getProviderConfigs(),
   ]);
   providerConfig.set(provider);
   searchConfig.set(search);
   favoriteModels.set(favorites);
+  const seededConfigs: ProviderConfigs =
+    Object.keys(configs).length === 0 ? { [provider.provider]: provider } : configs;
+  providerConfigs.set(seededConfigs);
 }
 
 export async function saveSettings(
   newProviderConfig: ProviderConfig,
   newSearchConfig: SearchConfig,
 ): Promise<void> {
-  await Promise.all([setProviderConfig(newProviderConfig), setSearchConfig(newSearchConfig)]);
+  const currentConfigs = get(providerConfigs);
+  const updatedConfigs: ProviderConfigs = {
+    ...currentConfigs,
+    [newProviderConfig.provider]: newProviderConfig,
+  };
+  await Promise.all([
+    setProviderConfig(newProviderConfig),
+    setSearchConfig(newSearchConfig),
+    setProviderConfigs(updatedConfigs),
+  ]);
   providerConfig.set(newProviderConfig);
   searchConfig.set(newSearchConfig);
+  providerConfigs.set(updatedConfigs);
 }
 
 export async function refreshModels(config: ProviderConfig): Promise<void> {

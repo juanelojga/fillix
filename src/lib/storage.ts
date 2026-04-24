@@ -115,3 +115,14 @@ export async function getSearchConfig(): Promise<SearchConfig> {
 export async function setSearchConfig(config: SearchConfig): Promise<void> {
   await chrome.storage.local.set({ search: config });
 }
+
+export type ProviderConfigs = Partial<Record<ProviderType, ProviderConfig>>;
+
+export async function getProviderConfigs(): Promise<ProviderConfigs> {
+  const { providerConfigs } = await chrome.storage.local.get('providerConfigs');
+  return (providerConfigs as ProviderConfigs | undefined) ?? {};
+}
+
+export async function setProviderConfigs(configs: ProviderConfigs): Promise<void> {
+  await chrome.storage.local.set({ providerConfigs: configs });
+}
