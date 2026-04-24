@@ -7,10 +7,12 @@
     role: 'user' | 'assistant' | 'error';
     content: string;
     isStreaming?: boolean;
+    isBeautifying?: boolean;
+    beautifyError?: string;
     children?: Snippet;
   }
 
-  let { role, content, isStreaming = false, children }: Props = $props();
+  let { role, content, isStreaming = false, isBeautifying = false, beautifyError, children }: Props = $props();
 </script>
 
 {#if role === 'user'}
@@ -44,12 +46,17 @@
             <span class="w-1.5 h-1.5 rounded-full bg-muted-foreground/40 animate-bounce" style="animation-delay: 300ms"></span>
           </span>
         {/if}
+      {:else if isBeautifying}
+        <span class="text-sm text-muted-foreground/60 italic">Polishing…</span>
       {:else}
         <!-- eslint-disable-next-line svelte/no-at-html-tags -->
         <div
           class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed"
           class:text-destructive={role === 'error'}
         >{@html renderMarkdown(content)}</div>
+        {#if beautifyError}
+          <p class="text-xs text-destructive/60 mt-1">{beautifyError}</p>
+        {/if}
       {/if}
       {@render children?.()}
     </div>

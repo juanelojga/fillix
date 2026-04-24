@@ -142,6 +142,7 @@ async function handle(msg: Message): Promise<MessageResponse> {
     }
     case 'CHAT_START':
     case 'CHAT_STOP':
+    case 'BEAUTIFY':
       return { ok: false, error: 'Use port channel for chat' };
     case 'OBSIDIAN_TEST_CONNECTION': {
       const obsidian = await getObsidianConfig();

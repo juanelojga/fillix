@@ -34,4 +34,25 @@ describe('MessageBubble', () => {
     const prose = container.querySelector('.prose') as HTMLElement;
     expect(prose.className).toMatch(/text-destructive/);
   });
+
+  // --- Task 1.4: beautify state props (fail until Gate 4 implements them) ---
+
+  it('shows "Polishing…" text when isBeautifying prop is true', () => {
+    render(MessageBubble, {
+      props: { role: 'assistant', content: 'raw', isBeautifying: true },
+    });
+    expect(screen.getByText('Polishing…')).toBeInTheDocument();
+  });
+
+  it('shows beautifyError label text when beautifyError prop is set', () => {
+    render(MessageBubble, {
+      props: { role: 'assistant', content: 'text', beautifyError: 'Could not beautify' },
+    });
+    expect(screen.getByText('Could not beautify')).toBeInTheDocument();
+  });
+
+  it('does not show beautifyError label when beautifyError is undefined', () => {
+    render(MessageBubble, { props: { role: 'assistant', content: 'text' } });
+    expect(screen.queryByText('Could not beautify')).toBeNull();
+  });
 });

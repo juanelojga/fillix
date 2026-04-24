@@ -57,6 +57,12 @@ describe('ObsidianPanel.svelte (Task 4.3)', () => {
     });
   });
 
+  describe('beautifier prompt path field (Task 2.3)', () => {
+    it('has a beautifierPromptPath input field', () => {
+      expect(src).toMatch(/beautifierPromptPath|beautifier.?prompt.?path/i);
+    });
+  });
+
   describe('shadcn components', () => {
     it('uses Input component', () => {
       expect(src).toContain('Input');
