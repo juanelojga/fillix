@@ -47,6 +47,7 @@ export interface ObsidianConfig {
   port: number;
   apiKey: string;
   systemPromptPath?: string;
+  beautifierPromptPath?: string;
 }
 
 export type Message =

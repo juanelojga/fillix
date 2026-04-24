@@ -1,7 +1,9 @@
 // Tests for Task 1.1: new PortMessage variants and ChatMessage.beautifyError
 // These will FAIL typecheck until Gate 4 adds the new variants to src/types.ts.
+// Sprint 2 additions: ObsidianConfig.beautifierPromptPath (Task 2.1)
+// Will FAIL typecheck until Gate 4 adds the field to ObsidianConfig.
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import type { ChatMessage, PortMessage, ProviderConfig } from '../types';
+import type { ChatMessage, ObsidianConfig, PortMessage, ProviderConfig } from '../types';
 import type { StreamingState, ActiveMessage } from '../sidepanel/stores/chat';
 
 const baseProvider: ProviderConfig = {
@@ -67,5 +69,22 @@ describe('ActiveMessage — isBeautifying flag', () => {
       isBeautifying: true,
     };
     expectTypeOf(msg.isBeautifying).toEqualTypeOf<boolean | undefined>();
+  });
+});
+
+describe('ObsidianConfig — beautifierPromptPath field (Task 2.1)', () => {
+  it('accepts optional beautifierPromptPath string', () => {
+    const cfg: ObsidianConfig = {
+      host: 'localhost',
+      port: 27123,
+      apiKey: 'key',
+      beautifierPromptPath: 'prompts/beautifier.md',
+    };
+    expectTypeOf(cfg.beautifierPromptPath).toEqualTypeOf<string | undefined>();
+  });
+
+  it('remains valid without beautifierPromptPath', () => {
+    const cfg: ObsidianConfig = { host: 'localhost', port: 27123, apiKey: 'key' };
+    expect(cfg.beautifierPromptPath).toBeUndefined();
   });
 });

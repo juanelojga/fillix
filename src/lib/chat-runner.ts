@@ -1,5 +1,5 @@
 import { resolveProvider } from './providers/index';
-import { getProviderConfig, getSearchConfig } from './storage';
+import { getProviderConfig, getObsidianConfig, getSearchConfig } from './storage';
 import { dispatchTool } from './tools/registry';
 import { redact } from './agent-log';
 import type { Message, PortMessage } from '../types';
@@ -138,10 +138,28 @@ export function handleChatPort(port: chrome.runtime.Port): void {
       port.onDisconnect.addListener(onPortDisconnect);
 
       try {
+        const obsidianConfig = await getObsidianConfig();
+        let systemPrompt = DEFAULT_BEAUTIFIER_PROMPT;
+
+        if (obsidianConfig.beautifierPromptPath) {
+          const { host, port: obsPort, apiKey, beautifierPromptPath } = obsidianConfig;
+          const url = `http://${host}:${obsPort}/vault/${encodeURIComponent(beautifierPromptPath)}`;
+          const resp = await fetch(url, {
+            headers: { Authorization: `Bearer ${apiKey}` },
+            signal: AbortSignal.any([beautifyController.signal, AbortSignal.timeout(5000)]),
+          });
+          if (!resp.ok) {
+            const reason = `Obsidian note unreachable (${resp.status})`;
+            port.postMessage({ type: 'beautify-error', reason } satisfies PortMessage);
+            return;
+          }
+          systemPrompt = await resp.text();
+        }
+
         const provider = resolveProvider(msg.providerConfig);
         let accumulated = '';
         await new Promise<void>((resolve, reject) => {
-          provider.chatStream([{ role: 'user', content: msg.content }], DEFAULT_BEAUTIFIER_PROMPT, {
+          provider.chatStream([{ role: 'user', content: msg.content }], systemPrompt, {
             signal: beautifyController.signal,
             onToken: (token) => {
               accumulated += token;
