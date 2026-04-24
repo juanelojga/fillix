@@ -6,10 +6,13 @@
     providerConfigs,
     searchConfig,
     modelList,
+    favoriteModels,
     loadSettings,
     saveSettings,
     refreshModels,
     filterModels,
+    sortWithFavorites,
+    toggleFavorite,
   } from '../stores/settings';
   import type { ProviderConfig, ProviderType, SearchConfig } from '../../types';
   import { Input } from '$components/ui/input';
@@ -30,7 +33,9 @@
   let modelQuery = $state('');
   let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  let filteredModels = $derived(filterModels(modelQuery, $modelList));
+  let filteredModels = $derived(
+    sortWithFavorites(filterModels(modelQuery, $modelList), $favoriteModels[provider] ?? []),
+  );
 
   const PROVIDER_DEFAULTS: Record<ProviderType, ProviderConfig> = {
     ollama:     { provider: 'ollama',     baseUrl: 'http://localhost:11434', model: 'llama3.2' },
@@ -164,14 +169,28 @@
       </div>
       <Input id="model-query" bind:value={modelQuery} placeholder="Filter models…" />
       {#if filteredModels.length > 0}
-        <select
-          class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          bind:value={model}
-        >
+        <ul role="listbox" aria-label="Available models" class="max-h-40 overflow-y-auto rounded-md border border-input bg-background divide-y divide-border">
           {#each filteredModels as m (m)}
-            <option value={m}>{m}</option>
+            {@const isPinned = ($favoriteModels[provider] ?? []).includes(m)}
+            <li
+              class="flex items-center justify-between px-3 py-1.5 text-sm cursor-pointer hover:bg-muted {m === model ? 'bg-muted font-medium' : ''}"
+              onclick={() => { model = m; }}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); model = m; } }}
+              role="option"
+              aria-selected={m === model}
+            >
+              <span class="flex-1 truncate">{m}</span>
+              <button
+                type="button"
+                aria-label="{isPinned ? 'Unpin' : 'Pin'} {m}"
+                class="ml-2 text-muted-foreground hover:text-foreground transition-colors"
+                onclick={(e) => { e.stopPropagation(); void toggleFavorite(m, provider); }}
+              >
+                {isPinned ? '📌' : '📍'}
+              </button>
+            </li>
           {/each}
-        </select>
+        </ul>
       {:else}
         <Input id="model" bind:value={model} placeholder="llama3.2" />
       {/if}

@@ -84,3 +84,9 @@ export function filterModels(query: string, allModels: string[]): string[] {
   const lower = query.toLowerCase();
   return allModels.filter((m) => m.toLowerCase().includes(lower));
 }
+
+export function sortWithFavorites(models: string[], favorites: string[]): string[] {
+  const pinned = models.filter((m) => favorites.includes(m));
+  const rest = models.filter((m) => !favorites.includes(m));
+  return [...pinned, ...rest];
+}
