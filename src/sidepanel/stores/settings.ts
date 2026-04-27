@@ -1,6 +1,6 @@
 import { writable, get } from 'svelte/store';
 import type { MessageResponse, ProviderConfig, ProviderType, SearchConfig } from '../../types';
-import type { FavoriteModels } from '../../lib/storage';
+import type { FavoriteModels, ProviderConfigs } from '../../lib/storage';
 import {
   getProviderConfig,
   setProviderConfig,
@@ -8,31 +8,48 @@ import {
   setSearchConfig,
   getFavoriteModels,
   setFavoriteModels,
+  getProviderConfigs,
+  setProviderConfigs,
 } from '../../lib/storage';
 
 export const providerConfig = writable<ProviderConfig | null>(null);
 export const searchConfig = writable<SearchConfig | null>(null);
 export const modelList = writable<string[]>([]);
 export const favoriteModels = writable<FavoriteModels>({});
+export const providerConfigs = writable<ProviderConfigs>({});
 
 export async function loadSettings(): Promise<void> {
-  const [provider, search, favorites] = await Promise.all([
+  const [provider, search, favorites, configs] = await Promise.all([
     getProviderConfig(),
     getSearchConfig(),
     getFavoriteModels(),
+    getProviderConfigs(),
   ]);
   providerConfig.set(provider);
   searchConfig.set(search);
   favoriteModels.set(favorites);
+  const seededConfigs: ProviderConfigs =
+    Object.keys(configs).length === 0 ? { [provider.provider]: provider } : configs;
+  providerConfigs.set(seededConfigs);
 }
 
 export async function saveSettings(
   newProviderConfig: ProviderConfig,
   newSearchConfig: SearchConfig,
 ): Promise<void> {
-  await Promise.all([setProviderConfig(newProviderConfig), setSearchConfig(newSearchConfig)]);
+  const currentConfigs = get(providerConfigs);
+  const updatedConfigs: ProviderConfigs = {
+    ...currentConfigs,
+    [newProviderConfig.provider]: newProviderConfig,
+  };
+  await Promise.all([
+    setProviderConfig(newProviderConfig),
+    setSearchConfig(newSearchConfig),
+    setProviderConfigs(updatedConfigs),
+  ]);
   providerConfig.set(newProviderConfig);
   searchConfig.set(newSearchConfig);
+  providerConfigs.set(updatedConfigs);
 }
 
 export async function refreshModels(config: ProviderConfig): Promise<void> {
@@ -42,7 +59,17 @@ export async function refreshModels(config: ProviderConfig): Promise<void> {
       config,
     })) as MessageResponse | undefined;
     if (response?.ok && 'models' in response) {
-      modelList.set(response.models);
+      const models = response.models;
+      modelList.set(models);
+
+      if (models.length > 0) {
+        const current = get(favoriteModels);
+        const pruned = pruneStaleModels(current, models, config.provider);
+        if (pruned !== current) {
+          await setFavoriteModels(pruned);
+          favoriteModels.set(pruned);
+        }
+      }
     }
   } catch {
     // service worker unavailable — model list stays as-is
@@ -66,4 +93,22 @@ export function filterModels(query: string, allModels: string[]): string[] {
   if (!query.trim()) return allModels;
   const lower = query.toLowerCase();
   return allModels.filter((m) => m.toLowerCase().includes(lower));
+}
+
+export function sortWithFavorites(models: string[], favorites: string[]): string[] {
+  const pinned = models.filter((m) => favorites.includes(m));
+  const rest = models.filter((m) => !favorites.includes(m));
+  return [...pinned, ...rest];
+}
+
+export function pruneStaleModels(
+  favorites: FavoriteModels,
+  availableModels: string[],
+  provider: ProviderType,
+): FavoriteModels {
+  if (availableModels.length === 0) return favorites;
+  const current = favorites[provider] ?? [];
+  const pruned = current.filter((m) => availableModels.includes(m));
+  if (pruned.length === current.length) return favorites;
+  return { ...favorites, [provider]: pruned };
 }

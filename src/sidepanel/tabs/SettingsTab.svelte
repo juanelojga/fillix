@@ -3,12 +3,16 @@
   import { get } from 'svelte/store';
   import {
     providerConfig,
+    providerConfigs,
     searchConfig,
     modelList,
+    favoriteModels,
     loadSettings,
     saveSettings,
     refreshModels,
     filterModels,
+    sortWithFavorites,
+    toggleFavorite,
   } from '../stores/settings';
   import type { ProviderConfig, ProviderType, SearchConfig } from '../../types';
   import { Input } from '$components/ui/input';
@@ -29,7 +33,26 @@
   let modelQuery = $state('');
   let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
-  let filteredModels = $derived(filterModels(modelQuery, $modelList));
+  let filteredModels = $derived(
+    sortWithFavorites(filterModels(modelQuery, $modelList), $favoriteModels[provider] ?? []),
+  );
+
+  const PROVIDER_DEFAULTS: Record<ProviderType, ProviderConfig> = {
+    ollama:     { provider: 'ollama',     baseUrl: 'http://localhost:11434', model: 'llama3.2' },
+    openai:     { provider: 'openai',     baseUrl: 'https://api.openai.com', model: 'gpt-4o-mini' },
+    openrouter: { provider: 'openrouter', baseUrl: 'https://openrouter.ai',  model: '' },
+    custom:     { provider: 'custom',     baseUrl: '',                       model: '' },
+  };
+
+  let configuredProviders = $derived(
+    Object.values($providerConfigs ?? {}).filter(
+      (cfg): cfg is ProviderConfig =>
+        !!cfg &&
+        !!(cfg.apiKey ||
+          cfg.baseUrl !== PROVIDER_DEFAULTS[cfg.provider].baseUrl ||
+          cfg.model !== PROVIDER_DEFAULTS[cfg.provider].model),
+    ),
+  );
 
   onMount(async () => {
     await loadSettings();
@@ -49,16 +72,18 @@
   });
 
   function handleProviderChange(newProvider: ProviderType) {
+    // Stash current unsaved form state so switching back can restore it
+    const snapshot: ProviderConfig = { provider, baseUrl, model, ...(apiKey ? { apiKey } : {}) };
+    providerConfigs.update((map) => ({ ...map, [provider]: snapshot }));
+
     provider = newProvider;
-    const defaults: Record<ProviderType, { baseUrl: string; model: string }> = {
-      ollama: { baseUrl: 'http://localhost:11434', model: 'llama3.2' },
-      openai: { baseUrl: 'https://api.openai.com', model: 'gpt-4o-mini' },
-      openrouter: { baseUrl: 'https://openrouter.ai', model: '' },
-      custom: { baseUrl: '', model: '' },
-    };
-    baseUrl = defaults[newProvider].baseUrl;
-    model = defaults[newProvider].model;
-    apiKey = '';
+
+    const saved = get(providerConfigs)[newProvider] ?? PROVIDER_DEFAULTS[newProvider];
+    baseUrl = saved.baseUrl;
+    model   = saved.model;
+    apiKey  = saved.apiKey ?? '';
+
+    void refreshModels({ provider: newProvider, baseUrl: saved.baseUrl, model: saved.model, ...(saved.apiKey ? { apiKey: saved.apiKey } : {}) });
   }
 
   function handleRefreshModels() {
@@ -144,19 +169,55 @@
       </div>
       <Input id="model-query" bind:value={modelQuery} placeholder="Filter models…" />
       {#if filteredModels.length > 0}
-        <select
-          class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          bind:value={model}
-        >
+        <ul role="listbox" aria-label="Available models" class="max-h-40 overflow-y-auto rounded-md border border-input bg-background divide-y divide-border">
           {#each filteredModels as m (m)}
-            <option value={m}>{m}</option>
+            {@const isPinned = ($favoriteModels[provider] ?? []).includes(m)}
+            <li
+              class="flex items-center justify-between px-3 py-1.5 text-sm cursor-pointer hover:bg-muted {m === model ? 'bg-muted font-medium' : ''}"
+              onclick={() => { model = m; }}
+              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); model = m; } }}
+              role="option"
+              aria-selected={m === model}
+            >
+              <span class="flex-1 truncate">{m}</span>
+              <button
+                type="button"
+                aria-label="{isPinned ? 'Unpin' : 'Pin'} {m}"
+                class="ml-2 text-muted-foreground hover:text-foreground transition-colors"
+                onclick={(e) => { e.stopPropagation(); void toggleFavorite(m, provider); }}
+              >
+                {isPinned ? '📌' : '📍'}
+              </button>
+            </li>
           {/each}
-        </select>
+        </ul>
       {:else}
         <Input id="model" bind:value={model} placeholder="llama3.2" />
       {/if}
     </div>
   </section>
+
+  <!-- Configured providers summary -->
+  {#if configuredProviders.length > 0}
+    <section class="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-violet-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">Configured providers</h2>
+      </div>
+      {#each configuredProviders as row (row.provider)}
+        <button
+          class="flex items-center justify-between w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100 transition-colors {row.provider === provider ? 'ring-1 ring-indigo-400' : ''}"
+          onclick={() => handleProviderChange(row.provider)}
+        >
+          <span class="font-medium text-slate-700 capitalize">{row.provider}</span>
+          <span class="text-muted-foreground truncate max-w-30">{row.baseUrl}</span>
+          {#if row.apiKey}
+            <span class="text-muted-foreground font-mono">sk-••••{row.apiKey.slice(-4)}</span>
+          {/if}
+        </button>
+      {/each}
+    </section>
+  {/if}
 
   <!-- Search section -->
   <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">

@@ -7,6 +7,7 @@
   import MessageBubble from '../components/MessageBubble.svelte';
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
   import ThinkingBlock from '../components/ThinkingBlock.svelte';
+  import ModelPicker from '../components/ModelPicker.svelte';
 
   const chatPort = getContext<chrome.runtime.Port>('chatPort');
 
@@ -174,8 +175,9 @@
 </script>
 
 <div class="flex flex-col h-full bg-background">
-  <!-- Header: New conversation button -->
-  <div class="flex items-center justify-end px-3 py-2 border-b border-border/50">
+  <!-- Header: model picker + new conversation button -->
+  <div class="flex items-center justify-between px-3 py-2 border-b border-border/50">
+    <ModelPicker />
     <button
       class="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-all duration-150 active:scale-95"
       onclick={newConversation}
