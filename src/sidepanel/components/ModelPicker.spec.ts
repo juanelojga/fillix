@@ -1,7 +1,8 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ModelPicker from './ModelPicker.svelte';
-import { providerConfig, favoriteModels } from '../stores/settings';
+import { providerConfig, favoriteModels, modelList } from '../stores/settings';
+
 import type { ProviderConfig } from '../../types';
 
 const ollamaConfig: ProviderConfig = {
@@ -20,6 +21,7 @@ beforeEach(() => {
 afterEach(() => {
   providerConfig.set(null);
   favoriteModels.set({});
+  modelList.set([]);
 });
 
 describe('ModelPicker (Task 4.1)', () => {

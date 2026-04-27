@@ -59,7 +59,17 @@ export async function refreshModels(config: ProviderConfig): Promise<void> {
       config,
     })) as MessageResponse | undefined;
     if (response?.ok && 'models' in response) {
-      modelList.set(response.models);
+      const models = response.models;
+      modelList.set(models);
+
+      if (models.length > 0) {
+        const current = get(favoriteModels);
+        const pruned = pruneStaleModels(current, models, config.provider);
+        if (pruned !== current) {
+          await setFavoriteModels(pruned);
+          favoriteModels.set(pruned);
+        }
+      }
     }
   } catch {
     // service worker unavailable — model list stays as-is
@@ -89,4 +99,16 @@ export function sortWithFavorites(models: string[], favorites: string[]): string
   const pinned = models.filter((m) => favorites.includes(m));
   const rest = models.filter((m) => !favorites.includes(m));
   return [...pinned, ...rest];
+}
+
+export function pruneStaleModels(
+  favorites: FavoriteModels,
+  availableModels: string[],
+  provider: ProviderType,
+): FavoriteModels {
+  if (availableModels.length === 0) return favorites;
+  const current = favorites[provider] ?? [];
+  const pruned = current.filter((m) => availableModels.includes(m));
+  if (pruned.length === current.length) return favorites;
+  return { ...favorites, [provider]: pruned };
 }

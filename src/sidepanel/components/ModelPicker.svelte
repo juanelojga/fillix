@@ -1,13 +1,18 @@
 <script lang="ts">
   import { get } from 'svelte/store';
-  import { providerConfig, favoriteModels } from '../stores/settings';
+  import { providerConfig, favoriteModels, modelList } from '../stores/settings';
   import { setProviderConfig } from '../../lib/storage';
 
   let open = $state(false);
 
   let activeProvider = $derived($providerConfig?.provider ?? 'ollama');
   let activeModel = $derived($providerConfig?.model ?? '');
-  let favorites = $derived($favoriteModels[activeProvider] ?? []);
+  let knownModels = $derived($modelList);
+  let favorites = $derived(
+    knownModels.length > 0
+      ? ($favoriteModels[activeProvider] ?? []).filter((m) => knownModels.includes(m))
+      : ($favoriteModels[activeProvider] ?? []),
+  );
 
   let options = $derived(
     favorites.includes(activeModel)
