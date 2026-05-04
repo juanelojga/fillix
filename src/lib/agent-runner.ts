@@ -1,6 +1,6 @@
 import { appendToFile } from './obsidian';
 import { runDraft, runPlan, runReview, runUnderstand } from './pipeline';
-import { getObsidianConfig, getOllamaConfig, getProfile, getWorkflows } from './storage';
+import { getObsidianConfig, getProviderConfig, getProfile, getWorkflows } from './storage';
 import { buildRunHeader, buildStageEntry } from './agent-log';
 import { buildFieldFills } from './field-normalizer';
 import type {
@@ -99,7 +99,7 @@ export async function runAgentPipeline(
   const runStart = Date.now();
   const emit = (msg: AgentPortOut) => port.postMessage(msg);
 
-  const ollamaConfig = await getOllamaConfig();
+  const ollamaConfig = await getProviderConfig();
   const obsidianConfig = await getObsidianConfig();
 
   const workflows = await getWorkflows();
