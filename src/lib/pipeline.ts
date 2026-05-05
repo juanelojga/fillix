@@ -3,7 +3,7 @@ import type {
   ConversationMessage,
   DraftOutput,
   FieldSnapshot,
-  OllamaConfig,
+  ProviderConfig,
   PlanOutput,
   ReviewOutput,
   UnderstandOutput,
@@ -75,7 +75,7 @@ IMPORTANT: output <thinking> first, then valid JSON only.
 `.trim();
 
 export async function runUnderstand(
-  config: OllamaConfig,
+  config: ProviderConfig,
   workflow: WorkflowDefinition,
   fields: FieldSnapshot[],
   pageUrl: string,
@@ -92,7 +92,7 @@ export async function runUnderstand(
 }
 
 export async function runPlan(
-  config: OllamaConfig,
+  config: ProviderConfig,
   workflow: WorkflowDefinition,
   fields: FieldSnapshot[],
   understand: UnderstandOutput,
@@ -141,7 +141,7 @@ export async function runPlan(
 }
 
 export async function runDraft(
-  config: OllamaConfig,
+  config: ProviderConfig,
   workflow: WorkflowDefinition,
   fields: FieldSnapshot[],
   plan: PlanOutput,
@@ -184,7 +184,7 @@ export async function runDraft(
 }
 
 export async function runReview(
-  config: OllamaConfig,
+  config: ProviderConfig,
   workflow: WorkflowDefinition,
   draft: DraftOutput,
   plan: PlanOutput,

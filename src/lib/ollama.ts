@@ -86,7 +86,7 @@ export async function listModels(config: OllamaConfig): Promise<string[]> {
 }
 
 export async function generateStructured<T>(
-  config: OllamaConfig,
+  config: { baseUrl: string; model: string },
   systemPrompt: string,
   userPrompt: string,
   signal?: AbortSignal,
