@@ -5,12 +5,15 @@
   import SettingsTab from './tabs/SettingsTab.svelte';
   import WorkflowTab from './tabs/WorkflowTab.svelte';
   import NewsTab from './tabs/NewsTab.svelte';
+  import { createReconnectingPort } from './reconnecting-port';
   import { loadSettings } from './stores/settings';
   import { hydrateNewsCache } from './stores/news';
 
   let currentTab = $state('chat');
 
-  const chatPort = chrome.runtime.connect({ name: 'chat' });
+  // Chat reconnects on demand: the worker is suspended long before most users
+  // type their first message, and a stale port makes send/stop throw.
+  const chatPort = createReconnectingPort('chat');
   const workflowPort = chrome.runtime.connect({ name: 'workflow' });
   setContext('chatPort', chatPort);
   setContext('workflowPort', workflowPort);

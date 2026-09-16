@@ -257,6 +257,45 @@ describe('chat port handler — error handling', () => {
     expect(errorMessages).toHaveLength(1);
     expect(errorMessages[0]).toMatchObject({ type: 'error', error: 'connection refused' });
   });
+
+  // Without this the side panel keeps streaming forever: no tokens, no error,
+  // and a stop button that has nothing left to cancel.
+  it('posts type:error when reading the stored config throws', async () => {
+    vi.mocked(storage.getOllamaConfig).mockRejectedValue(new Error('storage unavailable'));
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+
+    expect(port.sent).toContainEqual({ type: 'error', error: 'storage unavailable' });
+  });
+
+  it('posts type:error when a tool dispatch rejects', async () => {
+    vi.mocked(chatStream).mockImplementation(
+      makeChatStream([{ toolCallLine: '{"tool":"wikipedia","args":{"title":"x"}}' }]),
+    );
+    vi.mocked(dispatchTool).mockRejectedValue(new Error('fetch failed'));
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+
+    expect(port.sent).toContainEqual({ type: 'error', error: 'fetch failed' });
+  });
+
+  it('does not throw when the side panel closed and posting rejects', async () => {
+    vi.mocked(chatStream).mockImplementation(makeChatStream([{ tokens: ['hi'] }]));
+
+    const port = makePort();
+    port.postMessage.mockImplementation(() => {
+      throw new Error('Attempting to use a disconnected port object');
+    });
+    const { triggerChatStart } = await simulateChatPort(port);
+
+    await expect(
+      triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' }),
+    ).resolves.toBeUndefined();
+  });
 });
 
 describe('chat port handler — CHAT_STOP', () => {
