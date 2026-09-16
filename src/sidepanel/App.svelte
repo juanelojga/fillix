@@ -1,11 +1,10 @@
 <script lang="ts">
   import { onMount, setContext } from 'svelte';
-  import { get } from 'svelte/store';
   import { Tabs, TabsList, TabsTrigger, TabsContent } from '$components/ui/tabs';
   import ChatTab from './tabs/ChatTab.svelte';
   import SettingsTab from './tabs/SettingsTab.svelte';
   import WorkflowTab from './tabs/WorkflowTab.svelte';
-  import { loadSettings, refreshModels, providerConfig } from './stores/settings';
+  import { loadSettings } from './stores/settings';
 
   let currentTab = $state('chat');
 
@@ -15,11 +14,7 @@
   setContext('workflowPort', workflowPort);
 
   onMount(() => {
-    void (async () => {
-      await loadSettings();
-      const cfg = get(providerConfig);
-      if (cfg) await refreshModels(cfg);
-    })();
+    void loadSettings();
     return () => {
       chatPort.disconnect();
       workflowPort.disconnect();

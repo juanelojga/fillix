@@ -3,28 +3,28 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { handleChatPort } from '../chat-runner';
 import type * as StorageModule from '../storage';
+import type * as OllamaModule from '../ollama';
 
 vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof StorageModule>();
   return {
     ...actual,
-    getProviderConfig: vi.fn(),
     getSearchConfig: vi.fn(),
     getOllamaConfig: vi.fn(),
     getObsidianConfig: vi.fn(),
   };
 });
 
-vi.mock('../providers/index', () => ({
-  resolveProvider: vi.fn(),
-}));
+vi.mock('../ollama', async (importOriginal) => {
+  const actual = await importOriginal<typeof OllamaModule>();
+  return { ...actual, chatStream: vi.fn() };
+});
 
 import * as storage from '../storage';
-import { resolveProvider } from '../providers/index';
-import type { ProviderConfig } from '../../types';
+import { chatStream } from '../ollama';
+import type { OllamaConfig } from '../../types';
 
-const baseProvider: ProviderConfig = {
-  provider: 'ollama',
+const baseConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 };
@@ -59,6 +59,7 @@ function setup(port: ReturnType<typeof makePort>) {
 function makeStream(tokens?: string[]) {
   return vi.fn(
     async (
+      _config: unknown,
       _msgs: unknown,
       _sys: unknown,
       opts: { onToken: (t: string) => void; onDone: () => void; onError?: (e: string) => void },
@@ -72,10 +73,7 @@ function makeStream(tokens?: string[]) {
 describe('BEAUTIFY handler — Obsidian beautifierPromptPath', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: makeStream(),
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(makeStream());
   });
 
   afterEach(() => {
@@ -93,11 +91,11 @@ describe('BEAUTIFY handler — Obsidian beautifierPromptPath', () => {
 
     const port = makePort();
     const { trigger } = setup(port);
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
     expect(fetchSpy).not.toHaveBeenCalled();
-    const chatStreamFn = vi.mocked(resolveProvider).mock.results[0].value.chatStream;
-    const [, systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, string, unknown];
+    const chatStreamFn = vi.mocked(chatStream);
+    const [, , systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(systemPrompt.trim().length).toBeGreaterThan(0);
   });
 
@@ -118,10 +116,10 @@ describe('BEAUTIFY handler — Obsidian beautifierPromptPath', () => {
 
     const port = makePort();
     const { trigger } = setup(port);
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
-    const chatStreamFn = vi.mocked(resolveProvider).mock.results[0].value.chatStream;
-    const [, systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, string, unknown];
+    const chatStreamFn = vi.mocked(chatStream);
+    const [, , systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(systemPrompt).toBe('Custom beautifier instructions');
   });
 
@@ -143,7 +141,7 @@ describe('BEAUTIFY handler — Obsidian beautifierPromptPath', () => {
 
     const port = makePort();
     const { trigger } = setup(port);
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
     const errMsg = port.sent.find(
       (m: unknown) => (m as { type: string }).type === 'beautify-error',
@@ -163,7 +161,7 @@ describe('BEAUTIFY handler — Obsidian beautifierPromptPath', () => {
 
     const port = makePort();
     const { trigger } = setup(port);
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
     const errMsg = port.sent.find(
       (m: unknown) => (m as { type: string }).type === 'beautify-error',

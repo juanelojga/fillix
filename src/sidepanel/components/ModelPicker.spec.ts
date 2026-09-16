@@ -1,37 +1,35 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/svelte';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ModelPicker from './ModelPicker.svelte';
-import { providerConfig, favoriteModels, modelList } from '../stores/settings';
+import { ollamaConfig, modelList } from '../stores/settings';
 
-import type { ProviderConfig } from '../../types';
+import type { OllamaConfig } from '../../types';
 
-const ollamaConfig: ProviderConfig = {
-  provider: 'ollama',
+const baseConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 };
 
 beforeEach(() => {
-  providerConfig.set(ollamaConfig);
-  favoriteModels.set({});
+  ollamaConfig.set(baseConfig);
+  modelList.set([]);
   // @ts-expect-error — replacing stub
   chrome.storage.local.set = vi.fn().mockResolvedValue(undefined);
 });
 
 afterEach(() => {
-  providerConfig.set(null);
-  favoriteModels.set({});
+  ollamaConfig.set(null);
   modelList.set([]);
 });
 
-describe('ModelPicker (Task 4.1)', () => {
+describe('ModelPicker', () => {
   it('renders the active model name in the picker trigger button', () => {
     render(ModelPicker);
     expect(screen.getByText('llama3.2')).toBeInTheDocument();
   });
 
   it('shows "No model" when the active model is an empty string', () => {
-    providerConfig.set({ ...ollamaConfig, model: '' });
+    ollamaConfig.set({ ...baseConfig, model: '' });
     render(ModelPicker);
     expect(screen.getByText('No model')).toBeInTheDocument();
   });
@@ -47,39 +45,40 @@ describe('ModelPicker (Task 4.1)', () => {
     expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 
-  it('shows "Pin models in Settings" hint text when favorites list is empty', async () => {
+  it('shows the "Add models in Settings" hint when the list is empty', async () => {
+    ollamaConfig.set({ ...baseConfig, model: '' });
     render(ModelPicker);
-    await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
-    expect(screen.getByText(/pin models in settings/i)).toBeInTheDocument();
+    await fireEvent.click(screen.getByRole('button', { name: /no model/i }));
+    expect(screen.getByText(/add models in settings/i)).toBeInTheDocument();
   });
 
-  it('shows each favorite model as an option in the dropdown', async () => {
-    favoriteModels.set({ ollama: ['phi4', 'mistral'] });
+  it('shows each model from the manual list as an option', async () => {
+    modelList.set(['phi4', 'mistral']);
     render(ModelPicker);
     await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
     expect(screen.getByRole('option', { name: /phi4/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /mistral/i })).toBeInTheDocument();
   });
 
-  it('selecting a favorite model calls chrome.storage.local.set with the new model', async () => {
-    favoriteModels.set({ ollama: ['phi4'] });
+  it('selecting a model writes the new model to the ollama storage key', async () => {
+    modelList.set(['phi4']);
     render(ModelPicker);
     await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
     await fireEvent.click(screen.getByRole('option', { name: /phi4/i }));
     await waitFor(() => {
       expect(chrome.storage.local.set).toHaveBeenCalledWith(
-        expect.objectContaining({ provider: expect.objectContaining({ model: 'phi4' }) }),
+        expect.objectContaining({ ollama: expect.objectContaining({ model: 'phi4' }) }),
       );
     });
   });
 
   it('selecting the already-active model does not call chrome.storage.local.set', async () => {
-    favoriteModels.set({ ollama: ['llama3.2', 'phi4'] });
+    modelList.set(['llama3.2', 'phi4']);
     render(ModelPicker);
     await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
     await fireEvent.click(screen.getByRole('option', { name: /^llama3\.2$/i }));
     expect(chrome.storage.local.set).not.toHaveBeenCalledWith(
-      expect.objectContaining({ provider: expect.any(Object) }),
+      expect.objectContaining({ ollama: expect.any(Object) }),
     );
   });
 
@@ -92,13 +91,20 @@ describe('ModelPicker (Task 4.1)', () => {
   });
 
   it('selecting a model closes the dropdown', async () => {
-    favoriteModels.set({ ollama: ['phi4'] });
+    modelList.set(['phi4']);
     render(ModelPicker);
     await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
     await fireEvent.click(screen.getByRole('option', { name: /phi4/i }));
     await waitFor(() => {
       expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
     });
+  });
+
+  it('always lists the active model even when it is not in the manual list', async () => {
+    modelList.set(['phi4']);
+    render(ModelPicker);
+    await fireEvent.click(screen.getByRole('button', { name: /llama3\.2/i }));
+    expect(screen.getByRole('option', { name: /^llama3\.2$/i })).toBeInTheDocument();
   });
 
   it('trigger button has aria-haspopup="listbox"', () => {

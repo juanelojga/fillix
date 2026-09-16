@@ -1,4 +1,4 @@
-import { inferFieldValue, listModels } from './lib/ollama';
+import { inferFieldValue, testModel } from './lib/ollama';
 import {
   appendToFile,
   getFile,
@@ -7,15 +7,14 @@ import {
   testConnection,
   writeFile,
 } from './lib/obsidian';
-import { resolveProvider } from './lib/providers/index';
 import {
   getObsidianConfig,
   getOllamaConfig,
-  getProviderConfig,
   getWorkflows,
   getWorkflowsFolder,
   setWorkflows,
 } from './lib/storage';
+import { migrateLegacyProviderKeys } from './lib/legacy-migration';
 import { parseWorkflow } from './lib/workflow';
 import { runAgentPipeline } from './lib/agent-runner';
 import type { AgentPortIn, AgentPortOut } from './lib/agent-runner';
@@ -34,11 +33,18 @@ async function autoRefreshWorkflows(): Promise<void> {
   }
 }
 
+async function initialize(): Promise<void> {
+  await migrateLegacyProviderKeys().catch((err: unknown) => {
+    console.warn('[fillix] Legacy provider migration failed:', err);
+  });
+  await autoRefreshWorkflows();
+}
+
 chrome.runtime.onInstalled.addListener(() => {
-  void autoRefreshWorkflows();
+  void initialize();
 });
 chrome.runtime.onStartup.addListener(() => {
-  void autoRefreshWorkflows();
+  void initialize();
 });
 
 chrome.runtime.onConnect.addListener((port) => {
@@ -113,12 +119,9 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
     .catch(async (err: unknown) => {
       const raw = err instanceof Error ? err.message : String(err);
       const { apiKey: obsidianKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
-      const { apiKey: providerKey = '' } = await getProviderConfig().catch(() => ({
-        apiKey: undefined,
-      }));
       sendResponse({
         ok: false,
-        error: sanitizeError(raw, obsidianKey, providerKey),
+        error: sanitizeError(raw, obsidianKey),
       } satisfies MessageResponse);
     });
   return true;
@@ -131,14 +134,9 @@ async function handle(msg: Message): Promise<MessageResponse> {
       const value = await inferFieldValue(config, msg.field);
       return { ok: true, value };
     }
-    case 'OLLAMA_LIST_MODELS': {
-      const models = await listModels(config);
-      return { ok: true, models };
-    }
-    case 'LIST_MODELS': {
-      const providerConfig = msg.config ?? (await getProviderConfig());
-      const models = await resolveProvider(providerConfig).listModels();
-      return { ok: true, models };
+    case 'TEST_MODEL': {
+      const latencyMs = await testModel({ ...config, model: msg.model });
+      return { ok: true, latencyMs };
     }
     case 'CHAT_START':
     case 'CHAT_STOP':

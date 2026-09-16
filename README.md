@@ -1,6 +1,6 @@
 # Fillix
 
-A Manifest V3 Chrome extension that puts an LLM chat in your browser's side panel. Runs fully local via [Ollama](https://ollama.com) by default, or connects to OpenAI, OpenRouter, or any OpenAI-compatible endpoint — your choice. No telemetry either way.
+A Manifest V3 Chrome extension that puts an LLM chat in your browser's side panel. Runs fully local via [Ollama](https://ollama.com) — nothing is sent to a remote inference provider, and there is no telemetry.
 
 ---
 
@@ -10,7 +10,7 @@ Click the Fillix toolbar icon to open a side panel with a streaming chat interfa
 
 The model can call internet tools mid-conversation — web search (Brave), Wikipedia lookups, Google News headlines, and arbitrary URL fetching. Each tool call shows an inline indicator you can expand to see the raw result before the model continues.
 
-Configuration lives in a settings view inside the panel: choose your LLM provider (Ollama, OpenAI, OpenRouter, or a custom endpoint), enter API keys, pick a model, and optionally add a Brave Search API key to enable web search. Changes take effect on the next message without reloading the extension.
+Configuration lives in a settings view inside the panel: set the Ollama base URL, maintain your own list of model names, pick the active one, and optionally add a Brave Search API key to enable web search. Changes take effect on the next message without reloading the extension.
 
 ---
 
@@ -47,10 +47,9 @@ If the model already has enough context to answer — or if you explicitly say n
 ## Requirements
 
 - Chrome (MV3 side panel support — Chrome 114+)
-- **Local inference**: [Ollama](https://ollama.com) running locally with at least one model pulled + `OLLAMA_ORIGINS` configured (see below)
-- **Remote inference**: an API key for OpenAI or OpenRouter — no local Ollama needed
+- [Ollama](https://ollama.com) running locally with at least one model pulled + `OLLAMA_ORIGINS` configured (see below)
 
-### If using Ollama: setting `OLLAMA_ORIGINS`
+### Setting `OLLAMA_ORIGINS`
 
 The extension makes requests from a `chrome-extension://` origin. Ollama rejects these by default.
 
@@ -104,16 +103,16 @@ pnpm dev
 
 ```
  content.ts (every page)    ──┐                        ┌── Ollama (localhost:11434)
-                              ├──▶ background.ts ─────▶│   OpenAI / OpenRouter / custom
+                              ├──▶ background.ts ─────▶│
  sidepanel/main.ts (toolbar) ─┘      (service worker)  └── internet tools (search, wiki…)
    (port 'chat' | 'agent')
 ```
 
 - **`src/background.ts`** — service worker, the only context that makes outbound HTTP requests. Routes both LLM calls and tool fetches through here so the origin is always `chrome-extension://<id>`. Handles streaming via named ports (`'chat'` for ReAct chat, `'agent'` for form-fill pipeline).
-- **`src/lib/providers/`** — pluggable LLM provider layer: Ollama, OpenAI-compatible (OpenAI, OpenRouter, custom).
+- **`src/lib/ollama.ts`** — the only LLM client: streaming chat, structured generation, and a `testModel()` probe used by the Settings **Test** button.
 - **`src/lib/tools/`** — internet tool implementations: `web_search`, `wikipedia`, `news_feed`, `fetch_url`.
 - **`src/lib/chat-runner.ts`** — ReAct loop: streams tokens, detects tool calls, dispatches tools, loops up to 8 times.
-- **`src/lib/storage.ts`** — typed wrapper over `chrome.storage.local` for provider config, search config, and profile.
+- **`src/lib/storage.ts`** — typed wrapper over `chrome.storage.local` for the Ollama config, the manual model list, search config, and profile.
 - **`src/types.ts`** — cross-context message contract. Update `Message`, `MessageResponse`, and `PortMessage` here when adding new message kinds.
 
 Build tooling: Vite + [`@crxjs/vite-plugin`](https://crxjs.dev) — handles manifest wiring and HMR for all contexts.
@@ -122,8 +121,6 @@ Build tooling: Vite + [`@crxjs/vite-plugin`](https://crxjs.dev) — handles mani
 
 ## Privacy
 
-Fillix is local-by-default. With the default Ollama provider, all inference runs on your machine over loopback and no data leaves your browser.
-
-When you configure a remote provider (OpenAI, OpenRouter, custom), your messages are sent to that provider's API — the same tradeoff as using their service directly.
+Fillix is local-only. All inference runs on your machine over loopback to Ollama — your conversations never reach a third-party LLM provider, because there isn't one.
 
 Internet tools (`web_search`, `wikipedia`, `news_feed`, `fetch_url`) make outbound requests only when the LLM explicitly calls them during a conversation. The `<all_urls>` manifest permission required by `fetch_url` is never exercised automatically on page load or in the background.

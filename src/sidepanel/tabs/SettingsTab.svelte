@@ -2,108 +2,91 @@
   import { onMount } from 'svelte';
   import { get } from 'svelte/store';
   import {
-    providerConfig,
-    providerConfigs,
+    ollamaConfig,
     searchConfig,
     modelList,
-    favoriteModels,
     loadSettings,
     saveSettings,
-    refreshModels,
-    filterModels,
-    sortWithFavorites,
-    toggleFavorite,
+    addModel,
+    removeModel,
+    setActiveModel,
+    testModel,
   } from '../stores/settings';
-  import type { ProviderConfig, ProviderType, SearchConfig } from '../../types';
+  import type { OllamaConfig, SearchConfig } from '../../types';
   import { Input } from '$components/ui/input';
   import { Button } from '$components/ui/button';
+  import { Badge } from '$components/ui/badge';
   import {
     Tooltip,
     TooltipContent,
     TooltipTrigger,
     TooltipProvider,
   } from '$components/ui/tooltip';
+  import { diagnoseTestFailure } from '../../lib/model-test-diagnostics';
   import ObsidianPanel from '../components/ObsidianPanel.svelte';
 
-  let provider = $state<ProviderType>('ollama');
+  type TestState = { status: 'testing' } | { status: 'ok'; latencyMs: number } | { status: 'error'; error: string };
+
+  function formatLatency(ms: number): string {
+    return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`;
+  }
+
   let baseUrl = $state('http://localhost:11434');
-  let model = $state('llama3.2');
-  let apiKey = $state('');
+  let model = $state('');
   let braveApiKey = $state('');
-  let modelQuery = $state('');
+  let newModel = $state('');
   let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
-
-  let filteredModels = $derived(
-    sortWithFavorites(filterModels(modelQuery, $modelList), $favoriteModels[provider] ?? []),
-  );
-
-  const PROVIDER_DEFAULTS: Record<ProviderType, ProviderConfig> = {
-    ollama:     { provider: 'ollama',     baseUrl: 'http://localhost:11434', model: 'llama3.2' },
-    openai:     { provider: 'openai',     baseUrl: 'https://api.openai.com', model: 'gpt-4o-mini' },
-    openrouter: { provider: 'openrouter', baseUrl: 'https://openrouter.ai',  model: '' },
-    custom:     { provider: 'custom',     baseUrl: '',                       model: '' },
-  };
-
-  let configuredProviders = $derived(
-    Object.values($providerConfigs ?? {}).filter(
-      (cfg): cfg is ProviderConfig =>
-        !!cfg &&
-        !!(cfg.apiKey ||
-          cfg.baseUrl !== PROVIDER_DEFAULTS[cfg.provider].baseUrl ||
-          cfg.model !== PROVIDER_DEFAULTS[cfg.provider].model),
-    ),
-  );
+  let testStates = $state<Record<string, TestState>>({});
 
   onMount(async () => {
     await loadSettings();
-    const cfg = get(providerConfig);
+    const cfg = get(ollamaConfig);
     if (cfg) {
-      provider = cfg.provider;
       baseUrl = cfg.baseUrl;
       model = cfg.model;
-      apiKey = cfg.apiKey ?? '';
     }
-    const search = get(searchConfig);
-    if (search) {
-      braveApiKey = search.braveApiKey ?? '';
-    }
-    const currentConfig = get(providerConfig);
-    if (currentConfig) await refreshModels(currentConfig);
+    braveApiKey = get(searchConfig)?.braveApiKey ?? '';
   });
 
-  function handleProviderChange(newProvider: ProviderType) {
-    // Stash current unsaved form state so switching back can restore it
-    const snapshot: ProviderConfig = { provider, baseUrl, model, ...(apiKey ? { apiKey } : {}) };
-    providerConfigs.update((map) => ({ ...map, [provider]: snapshot }));
+  // Keep the radio in sync when the model changes from elsewhere (e.g. chat header).
+  $effect(() => {
+    const active = $ollamaConfig?.model;
+    if (active !== undefined) model = active;
+  });
 
-    provider = newProvider;
+  // Test runs in the service worker, which reads the *saved* config — not whatever is
+  // currently typed into the Base URL field. Surface that, or an unsaved edit silently
+  // probes the old URL.
+  let testedBaseUrl = $derived($ollamaConfig?.baseUrl ?? baseUrl);
+  let baseUrlDirty = $derived($ollamaConfig != null && baseUrl !== $ollamaConfig.baseUrl);
 
-    const saved = get(providerConfigs)[newProvider] ?? PROVIDER_DEFAULTS[newProvider];
-    baseUrl = saved.baseUrl;
-    model   = saved.model;
-    apiKey  = saved.apiKey ?? '';
-
-    void refreshModels({ provider: newProvider, baseUrl: saved.baseUrl, model: saved.model, ...(saved.apiKey ? { apiKey: saved.apiKey } : {}) });
+  async function handleAdd() {
+    await addModel(newModel);
+    newModel = '';
   }
 
-  function handleRefreshModels() {
-    const cfg = get(providerConfig);
-    if (cfg) refreshModels(cfg);
+  async function handleRemove(name: string) {
+    await removeModel(name);
+    const { [name]: _removed, ...rest } = testStates;
+    testStates = rest;
+  }
+
+  async function handleTest(name: string) {
+    testStates = { ...testStates, [name]: { status: 'testing' } };
+    const result = await testModel(name);
+    testStates = {
+      ...testStates,
+      [name]: result.ok
+        ? { status: 'ok', latencyMs: result.latencyMs }
+        : { status: 'error', error: result.error },
+    };
   }
 
   async function handleSave() {
     saveStatus = 'saving';
-    const providerCfg: ProviderConfig = {
-      provider,
-      baseUrl,
-      model,
-      ...(apiKey ? { apiKey } : {}),
-    };
-    const searchCfg: SearchConfig = {
-      ...(braveApiKey ? { braveApiKey } : {}),
-    };
-    await saveSettings(providerCfg, searchCfg);
-    await refreshModels(providerCfg);
+    const ollamaCfg: OllamaConfig = { baseUrl, model };
+    const searchCfg: SearchConfig = { ...(braveApiKey ? { braveApiKey } : {}) };
+    await saveSettings(ollamaCfg, searchCfg);
     saveStatus = 'saved';
     setTimeout(() => {
       saveStatus = 'idle';
@@ -113,139 +96,159 @@
 
 <TooltipProvider>
   <div class="flex flex-col gap-3 p-4 overflow-y-auto h-full">
-  <!-- Provider section -->
-  <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-    <div class="flex items-center gap-2">
-      <div class="w-1 h-4 rounded-full bg-indigo-500 shrink-0"></div>
-      <h2 class="text-sm font-semibold text-slate-800">Provider</h2>
-    </div>
-
-    <div class="flex flex-col gap-1">
-      <label class="text-xs text-muted-foreground" for="provider-select">Provider type</label>
-      <select
-        id="provider-select"
-        class="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        value={provider}
-        onchange={(e) => handleProviderChange((e.currentTarget as HTMLSelectElement).value as ProviderType)}
-      >
-        <option value="ollama">Ollama (local)</option>
-        <option value="openai">OpenAI</option>
-        <option value="openrouter">OpenRouter</option>
-        <option value="custom">Custom</option>
-      </select>
-    </div>
-
-    {#if provider !== 'ollama'}
-      <div class="flex flex-col gap-1">
-        <label class="text-xs text-muted-foreground" for="base-url">Base URL</label>
-        <Input id="base-url" bind:value={baseUrl} placeholder="https://api.openai.com" />
+    <!-- Ollama section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-indigo-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">Ollama</h2>
       </div>
 
       <div class="flex flex-col gap-1">
-        <label class="text-xs text-muted-foreground" for="api-key">API key</label>
+        <label class="text-xs text-muted-foreground" for="base-url">Base URL</label>
+        <Input id="base-url" bind:value={baseUrl} placeholder="http://localhost:11434" />
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-muted-foreground" for="new-model">Models</label>
+        <div class="flex gap-2">
+          <Input
+            id="new-model"
+            bind:value={newModel}
+            placeholder="llama3.2"
+            onkeydown={(e: KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleAdd();
+              }
+            }}
+          />
+          <Button variant="secondary" onclick={handleAdd} disabled={!newModel.trim()}>+ Add</Button>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Type the model name exactly as <code>ollama list</code> shows it. Names aren't checked until you
+          Test — <strong>Test</strong> sends one short prompt to Ollama and reports whether the model answered.
+        </p>
+
+        {#if baseUrlDirty}
+          <p class="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-md px-2 py-1.5 break-words">
+            Base URL has unsaved changes. Test uses the saved value <code>{testedBaseUrl}</code> — save first
+            to test <code>{baseUrl}</code>.
+          </p>
+        {/if}
+
+        {#if $modelList.length > 0}
+          <ul
+            role="listbox"
+            aria-label="Models"
+            class="mt-1 rounded-md border border-input bg-background divide-y divide-border"
+          >
+            {#each $modelList as m (m)}
+              {@const state = testStates[m]}
+              <li class="flex flex-col gap-1 px-3 py-2">
+                <div class="flex items-center gap-2">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={m === model}
+                    class="flex flex-1 items-center gap-2 text-left text-sm truncate {m === model ? 'font-medium' : ''}"
+                    onclick={() => setActiveModel(m)}
+                  >
+                    <span aria-hidden="true" class="shrink-0 {m === model ? 'text-indigo-600' : 'text-muted-foreground'}">
+                      {m === model ? '●' : '○'}
+                    </span>
+                    <span class="truncate">{m}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Test {m}"
+                    class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    onclick={() => handleTest(m)}
+                    disabled={state?.status === 'testing'}
+                  >
+                    {state?.status === 'testing' ? 'Testing…' : 'Test'}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label="Remove {m}"
+                    class="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                    onclick={() => handleRemove(m)}
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div aria-live="polite">
+                  {#if state?.status === 'ok'}
+                    <div class="flex flex-col gap-1">
+                      <Tooltip>
+                        <TooltipTrigger class="w-fit cursor-default">
+                          <Badge class="bg-emerald-50 text-emerald-700 border-emerald-200">
+                            Working · {formatLatency(state.latencyMs)}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          Sent one "ping" prompt to {testedBaseUrl}/api/chat and measured the round trip.
+                        </TooltipContent>
+                      </Tooltip>
+                      <p class="text-xs text-muted-foreground break-words">
+                        Ollama replied to a test prompt at <code>{testedBaseUrl}</code>.
+                      </p>
+                    </div>
+                  {:else if state?.status === 'error'}
+                    {@const diagnosis = diagnoseTestFailure(state.error, testedBaseUrl, m)}
+                    <div class="flex flex-col gap-1">
+                      <Badge variant="destructive" class="w-fit">{diagnosis.summary}</Badge>
+                      {#if diagnosis.hint}
+                        <p class="text-xs text-muted-foreground break-words">{diagnosis.hint}</p>
+                      {/if}
+                      <p class="text-xs text-destructive break-words font-mono">{diagnosis.detail}</p>
+                      <p class="text-xs text-muted-foreground break-words">
+                        POST {testedBaseUrl}/api/chat · model "{m}"
+                      </p>
+                    </div>
+                  {/if}
+                </div>
+              </li>
+            {/each}
+          </ul>
+        {:else}
+          <p class="mt-1 text-xs text-muted-foreground">No models yet — add one above.</p>
+        {/if}
+      </div>
+    </section>
+
+    <!-- Search section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-sky-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">Search</h2>
+      </div>
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-muted-foreground" for="brave-api-key">Brave Search API key</label>
         <Input
-          id="api-key"
+          id="brave-api-key"
           type="password"
-          bind:value={apiKey}
-          placeholder="sk-..."
+          bind:value={braveApiKey}
+          placeholder="BSA..."
           autocomplete="off"
         />
+        <p class="text-xs text-muted-foreground">
+          Required for the web_search tool. Leave blank to disable.
+        </p>
       </div>
-    {/if}
-
-    <div class="flex flex-col gap-1">
-      <div class="flex items-center gap-2">
-        <label class="text-xs text-muted-foreground" for="model-query">Model</label>
-        <Tooltip>
-          <TooltipTrigger
-            aria-label="Refresh models"
-            class="flex h-5 w-5 items-center justify-center rounded text-muted-foreground hover:text-foreground"
-            onclick={handleRefreshModels}
-          >
-            ↻
-          </TooltipTrigger>
-          <TooltipContent>Refresh models</TooltipContent>
-        </Tooltip>
-      </div>
-      <Input id="model-query" bind:value={modelQuery} placeholder="Filter models…" />
-      {#if filteredModels.length > 0}
-        <ul role="listbox" aria-label="Available models" class="max-h-40 overflow-y-auto rounded-md border border-input bg-background divide-y divide-border">
-          {#each filteredModels as m (m)}
-            {@const isPinned = ($favoriteModels[provider] ?? []).includes(m)}
-            <li
-              class="flex items-center justify-between px-3 py-1.5 text-sm cursor-pointer hover:bg-muted {m === model ? 'bg-muted font-medium' : ''}"
-              onclick={() => { model = m; }}
-              onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); model = m; } }}
-              role="option"
-              aria-selected={m === model}
-            >
-              <span class="flex-1 truncate">{m}</span>
-              <button
-                type="button"
-                aria-label="{isPinned ? 'Unpin' : 'Pin'} {m}"
-                class="ml-2 text-muted-foreground hover:text-foreground transition-colors"
-                onclick={(e) => { e.stopPropagation(); void toggleFavorite(m, provider); }}
-              >
-                {isPinned ? '📌' : '📍'}
-              </button>
-            </li>
-          {/each}
-        </ul>
-      {:else}
-        <Input id="model" bind:value={model} placeholder="llama3.2" />
-      {/if}
-    </div>
-  </section>
-
-  <!-- Configured providers summary -->
-  {#if configuredProviders.length > 0}
-    <section class="flex flex-col gap-2 bg-slate-50 border border-slate-200 rounded-xl p-4">
-      <div class="flex items-center gap-2">
-        <div class="w-1 h-4 rounded-full bg-violet-500 shrink-0"></div>
-        <h2 class="text-sm font-semibold text-slate-800">Configured providers</h2>
-      </div>
-      {#each configuredProviders as row (row.provider)}
-        <button
-          class="flex items-center justify-between w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-slate-100 transition-colors {row.provider === provider ? 'ring-1 ring-indigo-400' : ''}"
-          onclick={() => handleProviderChange(row.provider)}
-        >
-          <span class="font-medium text-slate-700 capitalize">{row.provider}</span>
-          <span class="text-muted-foreground truncate max-w-30">{row.baseUrl}</span>
-          {#if row.apiKey}
-            <span class="text-muted-foreground font-mono">sk-••••{row.apiKey.slice(-4)}</span>
-          {/if}
-        </button>
-      {/each}
     </section>
-  {/if}
 
-  <!-- Search section -->
-  <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-    <div class="flex items-center gap-2">
-      <div class="w-1 h-4 rounded-full bg-sky-500 shrink-0"></div>
-      <h2 class="text-sm font-semibold text-slate-800">Search</h2>
-    </div>
-    <div class="flex flex-col gap-1">
-      <label class="text-xs text-muted-foreground" for="brave-api-key">Brave Search API key</label>
-      <Input
-        id="brave-api-key"
-        type="password"
-        bind:value={braveApiKey}
-        placeholder="BSA..."
-        autocomplete="off"
-      />
-      <p class="text-xs text-muted-foreground">
-        Required for the web_search tool. Leave blank to disable.
-      </p>
-    </div>
-  </section>
+    <!-- Obsidian section -->
+    <ObsidianPanel />
 
-  <!-- Obsidian section -->
-  <ObsidianPanel />
-
-  <!-- Save -->
-  <Button variant="default" onclick={handleSave} disabled={saveStatus === 'saving'} class="self-end px-6" size="lg">
-    {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : 'Save Settings'}
-  </Button>
+    <!-- Save -->
+    <Button
+      variant="default"
+      onclick={handleSave}
+      disabled={saveStatus === 'saving'}
+      class="self-end px-6"
+      size="lg"
+    >
+      {saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? '✓ Saved' : 'Save Settings'}
+    </Button>
   </div>
 </TooltipProvider>

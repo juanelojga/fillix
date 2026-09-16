@@ -9,13 +9,14 @@ import {
   getWorkflowsFolder,
   setWorkflowsFolder,
   getOllamaConfig,
-  getProviderConfig,
-  setProviderConfig,
+  setOllamaConfig,
+  getModelList,
+  setModelList,
   getSearchConfig,
   setSearchConfig,
 } from '../storage';
 import type { ChatConfig } from '../storage';
-import type { ProviderConfig, SearchConfig, WorkflowDefinition } from '../../types';
+import type { OllamaConfig, SearchConfig, WorkflowDefinition } from '../../types';
 
 const mockGet = vi.fn();
 const mockSet = vi.fn();
@@ -155,75 +156,49 @@ describe('setWorkflows', () => {
   });
 });
 
-// Sprint 1 — ProviderConfig + SearchConfig
-
-describe('getProviderConfig', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('returns DEFAULT_PROVIDER on a fresh profile (no keys in storage)', async () => {
-    mockGet.mockResolvedValue({});
-    const config = await getProviderConfig();
-    expect(config.provider).toBe('ollama');
-    expect(config.baseUrl).toBe('http://localhost:11434');
-    expect(config.model).toBe('llama3.2');
-  });
-
-  it('returns stored ProviderConfig when provider key exists', async () => {
-    const stored: ProviderConfig = {
-      provider: 'openai',
-      baseUrl: 'https://api.openai.com',
-      model: 'gpt-4o',
-      apiKey: 'sk-test',
-    };
-    mockGet.mockResolvedValue({ provider: stored });
-    const config = await getProviderConfig();
-    expect(config).toEqual(stored);
-  });
-
-  it('migrates existing ollama key to ProviderConfig when provider key is absent', async () => {
-    mockGet.mockResolvedValue({ ollama: { baseUrl: 'http://custom:11434', model: 'mistral' } });
-    const config = await getProviderConfig();
-    expect(config.provider).toBe('ollama');
-    expect(config.baseUrl).toBe('http://custom:11434');
-    expect(config.model).toBe('mistral');
-  });
-
-  it('fills in DEFAULT_PROVIDER fields for missing fields in legacy ollama key', async () => {
-    mockGet.mockResolvedValue({ ollama: { model: 'phi3' } });
-    const config = await getProviderConfig();
-    expect(config.provider).toBe('ollama');
-    expect(config.baseUrl).toBe('http://localhost:11434');
-    expect(config.model).toBe('phi3');
-  });
-});
-
-describe('setProviderConfig', () => {
+describe('setOllamaConfig', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     mockSet.mockResolvedValue(undefined);
   });
 
-  it('writes to the provider storage key', async () => {
-    const cfg: ProviderConfig = {
-      provider: 'custom',
-      baseUrl: 'http://lm-studio:1234',
-      model: 'local',
-    };
-    await setProviderConfig(cfg);
-    expect(mockSet).toHaveBeenCalledWith({ provider: cfg });
+  it('writes to the ollama storage key', async () => {
+    const cfg: OllamaConfig = { baseUrl: 'http://custom:11434', model: 'mistral' };
+    await setOllamaConfig(cfg);
+    expect(mockSet).toHaveBeenCalledWith({ ollama: cfg });
+  });
+});
+
+describe('getModelList', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
   });
 
-  it('includes apiKey when present', async () => {
-    const cfg: ProviderConfig = {
-      provider: 'openai',
-      baseUrl: 'https://api.openai.com',
-      model: 'gpt-4o',
-      apiKey: 'sk-abc',
-    };
-    await setProviderConfig(cfg);
-    expect(mockSet).toHaveBeenCalledWith({ provider: cfg });
+  it('returns an empty array on a fresh profile', async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getModelList()).toEqual([]);
+  });
+
+  it('returns the stored list', async () => {
+    mockGet.mockResolvedValue({ models: ['llama3.2', 'qwen3:8b'] });
+    expect(await getModelList()).toEqual(['llama3.2', 'qwen3:8b']);
+  });
+
+  it('ignores a non-array value', async () => {
+    mockGet.mockResolvedValue({ models: { ollama: ['llama3.2'] } });
+    expect(await getModelList()).toEqual([]);
+  });
+});
+
+describe('setModelList', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockSet.mockResolvedValue(undefined);
+  });
+
+  it('writes to the models storage key', async () => {
+    await setModelList(['phi3']);
+    expect(mockSet).toHaveBeenCalledWith({ models: ['phi3'] });
   });
 });
 

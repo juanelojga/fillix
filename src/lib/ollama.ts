@@ -1,6 +1,6 @@
 import type { ChatMessage, FieldContext, OllamaConfig } from '../types';
 
-type StreamOptions = {
+export type StreamOptions = {
   signal: AbortSignal;
   onToken: (token: string) => void;
   onThinking?: (token: string) => void;
@@ -78,11 +78,49 @@ export async function chatStream(
   }
 }
 
-export async function listModels(config: OllamaConfig): Promise<string[]> {
-  const res = await fetch(`${config.baseUrl}/api/tags`);
-  if (!res.ok) throw new Error(`Ollama /api/tags returned ${res.status}`);
-  const data = (await res.json()) as { models: { name: string }[] };
-  return data.models.map((m) => m.name);
+// Cold-loading a large model into VRAM can take a while; keep the ceiling generous
+// so a slow first run reads as "slow" rather than "broken".
+const TEST_TIMEOUT_MS = 30_000;
+
+/**
+ * Runs one tiny generation against `config.model` and returns how long it took.
+ * Throws with Ollama's own error body so a missing model surfaces as
+ * `model "x" not found, try pulling it first` rather than a bare status code.
+ *
+ * `num_predict: 1` is what keeps this tiny. Without it a reasoning model answers
+ * "ping" with hundreds of thinking tokens, which on a cold load pushes the round
+ * trip past TEST_TIMEOUT_MS and reports a working model as a timeout.
+ */
+export async function testModel(config: OllamaConfig, signal?: AbortSignal): Promise<number> {
+  const started = Date.now();
+  const res = await fetch(`${config.baseUrl}/api/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      model: config.model,
+      messages: [{ role: 'user', content: 'ping' }],
+      stream: false,
+      options: { num_predict: 1 },
+    }),
+    signal: signal ?? AbortSignal.timeout(TEST_TIMEOUT_MS),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    const detail = extractOllamaError(body);
+    throw new Error(`Ollama /api/chat returned ${res.status}${detail ? `: ${detail}` : ''}`);
+  }
+  await res.json();
+  return Date.now() - started;
+}
+
+function extractOllamaError(body: string): string {
+  if (!body) return '';
+  try {
+    const parsed = JSON.parse(body) as { error?: string };
+    return parsed.error ?? body;
+  } catch {
+    return body;
+  }
 }
 
 export async function generateStructured<T>(

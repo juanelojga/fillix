@@ -1,5 +1,5 @@
-import { resolveProvider } from './providers/index';
-import { getProviderConfig, getObsidianConfig, getSearchConfig } from './storage';
+import { chatStream } from './ollama';
+import { getOllamaConfig, getObsidianConfig, getSearchConfig } from './storage';
 import { dispatchTool } from './tools/registry';
 import { redact } from './agent-log';
 import type { Message, PortMessage } from '../types';
@@ -43,11 +43,6 @@ export function detectToolCall(
   }
 }
 
-function sanitizeError(error: string, apiKey: string): string {
-  if (!apiKey) return error;
-  return error.split(apiKey).join('[REDACTED]');
-}
-
 export function handleChatPort(port: chrome.runtime.Port): void {
   let controller: AbortController | null = null;
 
@@ -60,10 +55,9 @@ export function handleChatPort(port: chrome.runtime.Port): void {
       controller = new AbortController();
       const signal = controller.signal;
 
-      const providerConfig = await getProviderConfig();
+      const ollamaConfig = await getOllamaConfig();
       const searchConfig = await getSearchConfig();
-      const effectiveModel = msg.model ?? providerConfig.model;
-      const provider = resolveProvider({ ...providerConfig, model: effectiveModel });
+      const config = { ...ollamaConfig, model: msg.model ?? ollamaConfig.model };
 
       const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${msg.systemPrompt}`;
       const messages = [...msg.messages];
@@ -75,7 +69,7 @@ export function handleChatPort(port: chrome.runtime.Port): void {
         let accumulated = '';
         let streamDone = false;
 
-        await provider.chatStream(messages, systemPrompt, {
+        await chatStream(config, messages, systemPrompt, {
           signal,
           onToken: (value) => {
             accumulated += value;
@@ -87,8 +81,7 @@ export function handleChatPort(port: chrome.runtime.Port): void {
             streamDone = true;
           },
           onError: (error) => {
-            const sanitized = sanitizeError(error, providerConfig.apiKey ?? '');
-            port.postMessage({ type: 'error', error: sanitized } satisfies PortMessage);
+            port.postMessage({ type: 'error', error } satisfies PortMessage);
           },
         });
 
@@ -161,10 +154,9 @@ export function handleChatPort(port: chrome.runtime.Port): void {
           systemPrompt = await resp.text();
         }
 
-        const provider = resolveProvider(msg.providerConfig);
         let accumulated = '';
         await new Promise<void>((resolve, reject) => {
-          provider.chatStream([{ role: 'user', content: msg.content }], systemPrompt, {
+          chatStream(msg.config, [{ role: 'user', content: msg.content }], systemPrompt, {
             signal: bc.signal,
             onToken: (token) => {
               accumulated += token;

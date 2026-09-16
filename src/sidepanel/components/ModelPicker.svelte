@@ -1,36 +1,24 @@
 <script lang="ts">
   import { get } from 'svelte/store';
-  import { providerConfig, favoriteModels, modelList } from '../stores/settings';
-  import { setProviderConfig } from '../../lib/storage';
+  import { ollamaConfig, modelList } from '../stores/settings';
+  import { setOllamaConfig } from '../../lib/storage';
 
   let open = $state(false);
 
-  let activeProvider = $derived($providerConfig?.provider ?? 'ollama');
-  let activeModel = $derived($providerConfig?.model ?? '');
-  let knownModels = $derived($modelList);
-  let favorites = $derived(
-    knownModels.length > 0
-      ? ($favoriteModels[activeProvider] ?? []).filter((m) => knownModels.includes(m))
-      : ($favoriteModels[activeProvider] ?? []),
-  );
-
+  let activeModel = $derived($ollamaConfig?.model ?? '');
   let options = $derived(
-    favorites.includes(activeModel)
-      ? favorites
-      : favorites.length > 0
-        ? [...favorites, null, activeModel]
-        : [activeModel],
+    activeModel && !$modelList.includes(activeModel) ? [...$modelList, activeModel] : $modelList,
   );
 
   async function selectModel(model: string) {
-    const cfg = get(providerConfig);
+    const cfg = get(ollamaConfig);
     if (!cfg || model === activeModel) {
       open = false;
       return;
     }
     const updated = { ...cfg, model };
-    await setProviderConfig(updated);
-    providerConfig.set(updated);
+    await setOllamaConfig(updated);
+    ollamaConfig.set(updated);
     open = false;
   }
 </script>
@@ -66,26 +54,23 @@
       tabindex="0"
       onkeydown={(e) => e.key === 'Escape' && (open = false)}
     >
-      {#if favorites.length === 0}
-        <p class="px-3 py-2 text-xs text-muted-foreground">
-          Pin models in Settings to see them here.
-        </p>
+      {#if options.length === 0}
+        <p class="px-3 py-2 text-xs text-muted-foreground">Add models in Settings.</p>
       {/if}
 
       {#each options as opt (opt)}
-        {#if opt === null}
-          <hr class="my-1 border-border" />
-        {:else}
-          <button
-            type="button"
-            role="option"
-            aria-selected={opt === activeModel}
-            class="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors {opt === activeModel ? 'font-medium' : ''}"
-            onclick={() => selectModel(opt)}
-          >
-            {opt}
-          </button>
-        {/if}
+        <button
+          type="button"
+          role="option"
+          aria-selected={opt === activeModel}
+          class="w-full text-left px-3 py-1.5 text-xs hover:bg-muted transition-colors {opt ===
+          activeModel
+            ? 'font-medium'
+            : ''}"
+          onclick={() => selectModel(opt)}
+        >
+          {opt}
+        </button>
       {/each}
     </div>
 

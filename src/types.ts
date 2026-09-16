@@ -3,15 +3,6 @@ export interface OllamaConfig {
   model: string;
 }
 
-export type ProviderType = 'ollama' | 'openai' | 'openrouter' | 'custom';
-
-export interface ProviderConfig {
-  provider: ProviderType;
-  baseUrl: string;
-  model: string;
-  apiKey?: string;
-}
-
 export interface SearchConfig {
   braveApiKey?: string;
   searxngUrl?: string;
@@ -52,14 +43,12 @@ export interface ObsidianConfig {
 
 export type Message =
   | { type: 'OLLAMA_INFER'; field: FieldContext }
-  | { type: 'OLLAMA_LIST_MODELS' }
-  | { type: 'LIST_MODELS'; config?: ProviderConfig }
+  | { type: 'TEST_MODEL'; model: string }
   | {
       type: 'CHAT_START';
       messages: ChatMessage[];
       systemPrompt: string;
       model?: string;
-      provider?: ProviderType;
     }
   | { type: 'CHAT_STOP' }
   | { type: 'OBSIDIAN_LIST_FILES' }
@@ -91,7 +80,7 @@ export type Message =
   | { type: 'CONVERSATION_DATA'; messages: ConversationMessage[]; platform: string | null }
   // Text insertion (bg → content script)
   | { type: 'INSERT_TEXT'; text: string }
-  | { type: 'BEAUTIFY'; content: string; providerConfig: ProviderConfig };
+  | { type: 'BEAUTIFY'; content: string; config: OllamaConfig };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {
@@ -177,7 +166,7 @@ export type AgentThreadMessage =
 
 export type MessageResponse =
   | { ok: true; value: string }
-  | { ok: true; models: string[] }
+  | { ok: true; latencyMs: number }
   | { ok: true; files: string[] }
   | { ok: true; content: string }
   | { ok: true; workflows: WorkflowDefinition[] }
