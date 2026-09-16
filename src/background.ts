@@ -19,6 +19,9 @@ import { parseWorkflow } from './lib/workflow';
 import { runAgentPipeline } from './lib/agent-runner';
 import type { AgentPortIn, AgentPortOut } from './lib/agent-runner';
 import { handleChatPort } from './lib/chat-runner';
+import { refreshNews } from './lib/news/aggregator';
+import { articleFailureMessage, resolveArticleText } from './lib/news/article-text';
+import { SUMMARY_TIMEOUT_MS, summarizeArticle } from './lib/news/summarizer';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -223,6 +226,23 @@ async function handle(msg: Message): Promise<MessageResponse> {
         { type: 'INSERT_TEXT', text: msg.text },
       );
       return resp as MessageResponse;
+    }
+    case 'NEWS_REFRESH': {
+      const { items, degraded } = await refreshNews();
+      return { ok: true, news: items, degraded };
+    }
+    case 'NEWS_ARTICLE': {
+      const resolved = await resolveArticleText(msg.item);
+      if (!resolved.ok) throw new Error(articleFailureMessage(resolved.reason));
+      return { ok: true, article: { text: resolved.text, origin: resolved.origin } };
+    }
+    case 'NEWS_SUMMARIZE': {
+      const summary = await summarizeArticle(
+        config,
+        { title: msg.title, source: msg.source, text: msg.text },
+        AbortSignal.timeout(SUMMARY_TIMEOUT_MS),
+      );
+      return { ok: true, summary };
     }
     default: {
       const _: never = msg;

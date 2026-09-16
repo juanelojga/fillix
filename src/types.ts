@@ -32,6 +32,44 @@ export interface ObsidianConfig {
   systemPromptPath?: string;
 }
 
+// ---------------------------------------------------------------------------
+// News tab
+// ---------------------------------------------------------------------------
+
+export type NewsCategory = 'ai' | 'technology' | 'software-development' | 'curiosities';
+
+/** One collapsed News row. Every field renders as-is — the UI never switches on source. */
+export interface NewsItem {
+  /** Source-prefixed and stable across refreshes: `hn:41234567`, `wiki:mostread:3`. */
+  id: string;
+  category: NewsCategory;
+  title: string;
+  /** Real publisher URL. Never empty — HN self-posts fall back to the HN item page. */
+  url: string;
+  /** Display origin: 'techcrunch.com', 'Wikipedia'. */
+  source: string;
+  /** Pre-rendered row meta: '120 points · 34 comments · 2h ago'. */
+  meta: string;
+  /** ISO 8601 string, not Date — sendMessage serializes through JSON. */
+  publishedAt: string;
+  /** Text the feed already provided (HN story_text, Wikipedia extract). May be ''. */
+  snippet: string;
+}
+
+export interface NewsSummary {
+  summary: string;
+  keyPoints: string[];
+}
+
+export interface NewsSourceFailure {
+  category: NewsCategory;
+  source: string;
+  error: string;
+}
+
+/** Where the text handed to the summarizer came from. */
+export type NewsArticleText = { text: string; origin: 'snippet' | 'article' };
+
 export type Message =
   | { type: 'OLLAMA_INFER'; field: FieldContext }
   | { type: 'TEST_MODEL'; model: string }
@@ -70,7 +108,11 @@ export type Message =
   | { type: 'EXTRACT_CONVERSATION' }
   | { type: 'CONVERSATION_DATA'; messages: ConversationMessage[]; platform: string | null }
   // Text insertion (bg → content script)
-  | { type: 'INSERT_TEXT'; text: string };
+  | { type: 'INSERT_TEXT'; text: string }
+  // News tab (sidepanel → bg, one-shot request/response)
+  | { type: 'NEWS_REFRESH' }
+  | { type: 'NEWS_ARTICLE'; item: NewsItem }
+  | { type: 'NEWS_SUMMARIZE'; title: string; source: string; text: string };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {
@@ -154,6 +196,10 @@ export type AgentThreadMessage =
   | { kind: 'summary'; applied: number; skipped: number; durationMs: number; wordCount?: number }
   | { kind: 'error'; stage: PipelineStage; error: string };
 
+// Success arms are distinguished ONLY by payload key shape (narrowed with `'key' in r`).
+// Never reuse an existing key name with a different value type: it cross-wires silently
+// with no compiler diagnostic. Taken: value, latencyMs, files, content, workflows,
+// fields, applied, messages, platform, news, degraded, article, summary.
 export type MessageResponse =
   | { ok: true; value: string }
   | { ok: true; latencyMs: number }
@@ -163,5 +209,8 @@ export type MessageResponse =
   | { ok: true; fields: FieldSnapshot[] }
   | { ok: true; applied: number }
   | { ok: true; messages: ConversationMessage[]; platform: string | null }
+  | { ok: true; news: NewsItem[]; degraded: NewsSourceFailure[] }
+  | { ok: true; article: NewsArticleText }
+  | { ok: true; summary: NewsSummary }
   | { ok: true }
   | { ok: false; error: string };

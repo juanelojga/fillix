@@ -8,7 +8,9 @@ A Manifest V3 Chrome extension that puts an LLM chat in your browser's side pane
 
 Click the Fillix toolbar icon to open a side panel with a streaming chat interface. Ask questions, get markdown-rendered answers, interrupt mid-stream, or wipe the conversation and start fresh — all without leaving your current tab.
 
-The model can call internet tools mid-conversation — Wikipedia lookups, Google News headlines, and arbitrary URL fetching. Each tool call shows an inline indicator you can expand to see the raw result before the model continues.
+A **News** tab sits beside it: press Refresh for 6 headlines across AI, Technology, Software development and Curiosities, then expand any one to have your local model fetch and summarize it. Refreshing costs no tokens — the model only runs on the story you open, and its summary is cached.
+
+The model can call internet tools mid-conversation — Wikipedia lookups, Hacker News headlines, and arbitrary URL fetching. Each tool call shows an inline indicator you can expand to see the raw result before the model continues.
 
 Configuration lives in a settings view inside the panel: set the Ollama base URL, maintain your own list of model names, and pick the active one. Changes take effect on the next message without reloading the extension.
 

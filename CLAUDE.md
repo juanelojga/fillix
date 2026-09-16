@@ -27,7 +27,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (LLM providers and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on two named ports: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`) and `'agent'` (5-stage form-fill pipeline via `agent-runner.ts`). Each port maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Three tabs: **Agent** (workflow selector + pipeline), **Chat** (streaming conversation with tool indicators), and **Settings** (Ollama base URL, manual model list with per-model Test, Obsidian config, profile).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Four tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflow** (workflow selector + pipeline), and **Settings** (Ollama base URL, manual model list with per-model Test, Obsidian config, profile).
 
 Shared code lives in `src/lib/`:
 
@@ -40,8 +40,27 @@ Shared code lives in `src/lib/`:
 
 - `registry.ts` — `dispatchTool(name, args)` router; maps tool names to implementations.
 - `wikipedia.ts` — Wikipedia REST API page summary (first 500 chars + URL); no key required.
-- `news-feed.ts` — Google News RSS headlines for a query; no key required; returns top-5 items.
+- `news-feed.ts` — top-5 Hacker News headlines for a query, formatted for the ReAct loop; no key required. A thin wrapper over `news/hacker-news.ts`; it used Google News RSS until that needed `DOMParser`, which does not exist in a service worker.
 - `fetch-url.ts` — HTTP fetch → stripped plain text (3 000-char cap, 15 s timeout); validates `http`/`https` URLs.
+
+**News (`src/lib/news/`)**
+
+Backs the News tab. `aggregator.ts` fans four sources out in parallel with
+`Promise.allSettled` (never `all` — one dead source must not empty the tab), then
+`interleave.ts` round-robins and dedupes them down to 6 items. Hacker News covers AI,
+Technology and Software development; the Wikipedia featured feed covers Curiosities. Both
+are JSON, so nothing here needs a DOM.
+
+Refresh costs **zero LLM calls** — collapsed rows render text the feed already provided.
+The model only runs when the user expands a row: `article-text.ts` decides whether the feed
+snippet suffices or the article must be fetched, and `summarizer.ts` calls
+`generateStructured`. `article-text.ts` rejecting unusable text is load-bearing — `fetchUrl`
+signals failure by _returning_ `"Error: ..."` strings, and handing one to the model produces
+a confident summary of an HTTP error.
+
+Google News is deliberately not a source: its RSS `<link>`s are opaque JS redirect pages and
+its `<description>` just repeats the title, so neither the article URL nor a summary is
+recoverable.
 
 **Chat / Agent pipeline**
 
@@ -63,8 +82,8 @@ Shared code lives in `src/lib/`:
 | ---------------------------- | --------------------------------- |
 | `http://localhost:11434/*`   | Ollama inference                  |
 | `http://localhost:27123/*`   | Obsidian local API                |
-| `https://en.wikipedia.org/*` | `wikipedia` tool                  |
-| `https://news.google.com/*`  | `news_feed` tool                  |
+| `https://en.wikipedia.org/*` | `wikipedia` tool + News tab       |
+| `https://hn.algolia.com/*`   | `news_feed` tool + News tab       |
 | `<all_urls>`                 | `fetch_url` tool (arbitrary URLs) |
 
 Pointing the Ollama base URL somewhere other than `http://localhost:11434` requires adding that origin here **and** reloading the extension — a runtime `baseUrl` without a matching permission entry will fail silently.

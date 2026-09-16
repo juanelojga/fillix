@@ -25,7 +25,7 @@ export default defineManifest({
     'http://localhost:11434/*',
     'http://localhost:27123/*',
     'https://en.wikipedia.org/*',
-    'https://news.google.com/*',
+    'https://hn.algolia.com/*',
     'https://web.whatsapp.com/*',
     'https://www.linkedin.com/*',
     '<all_urls>',

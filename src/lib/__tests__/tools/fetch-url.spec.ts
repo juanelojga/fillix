@@ -63,4 +63,20 @@ describe('fetchUrl', () => {
 
     expect(result).toMatch(/^Error:/);
   });
+
+  it('strips script and style bodies, not just their tags', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(
+        '<html><head><style>.a{color:red}</style><script>var x = 1;</script></head>' +
+          '<body><p>Real article text.</p></body></html>',
+        { status: 200 },
+      ),
+    );
+
+    const text = await fetchUrl('https://example.com');
+
+    expect(text).toContain('Real article text.');
+    expect(text).not.toContain('color:red');
+    expect(text).not.toContain('var x');
+  });
 });

@@ -67,8 +67,9 @@ describe('app shell structure (Sprint 2)', () => {
       expect(src).toContain('$components/ui/tabs');
     });
 
-    it('renders chat, settings, and workflow tab triggers', () => {
+    it('renders chat, news, settings, and workflow tab triggers', () => {
       expect(src).toContain('value="chat"');
+      expect(src).toContain('value="news"');
       expect(src).toContain('value="settings"');
       expect(src).toContain('value="workflow"');
     });
@@ -79,7 +80,7 @@ describe('app shell structure (Sprint 2)', () => {
   });
 
   describe('stub tab components (Task 2.4)', () => {
-    const tabs = ['ChatTab', 'SettingsTab', 'WorkflowTab'];
+    const tabs = ['ChatTab', 'NewsTab', 'SettingsTab', 'WorkflowTab'];
     tabs.forEach((tab) => {
       it(`${tab}.svelte exists`, () => {
         expect(existsSync(sidepanel(`tabs/${tab}.svelte`))).toBe(true);

@@ -13,6 +13,11 @@ import type {
   PlanOutput,
   DraftOutput,
   ReviewOutput,
+  MessageResponse,
+  NewsCategory,
+  NewsItem,
+  NewsSourceFailure,
+  NewsSummary,
 } from '../types';
 
 describe('ChatMessage', () => {
@@ -190,5 +195,60 @@ describe('CHAT_START model field', () => {
   it('remains valid without the model field', () => {
     const msg: Message = { type: 'CHAT_START', messages: [], systemPrompt: 'test' };
     expectTypeOf(msg).toMatchTypeOf<Message>();
+  });
+});
+
+describe('News message contract', () => {
+  it('accepts the three News request variants', () => {
+    const item: NewsItem = {
+      id: 'hn:1',
+      category: 'ai',
+      title: 'A story',
+      url: 'https://example.com/1',
+      source: 'example.com',
+      meta: '1 point',
+      publishedAt: '2026-09-16T09:00:00Z',
+      snippet: '',
+    };
+
+    expectTypeOf<Message>().toMatchTypeOf<Message>();
+    const refresh: Message = { type: 'NEWS_REFRESH' };
+    const article: Message = { type: 'NEWS_ARTICLE', item };
+    const summarize: Message = {
+      type: 'NEWS_SUMMARIZE',
+      title: 'A story',
+      source: 'example.com',
+      text: 'body',
+    };
+
+    expectTypeOf(refresh).toMatchTypeOf<Message>();
+    expectTypeOf(article).toMatchTypeOf<Message>();
+    expectTypeOf(summarize).toMatchTypeOf<Message>();
+  });
+
+  it('restricts NewsCategory to the four fixed values', () => {
+    expectTypeOf<NewsCategory>().toEqualTypeOf<
+      'ai' | 'technology' | 'software-development' | 'curiosities'
+    >();
+  });
+
+  // Success arms are told apart only by payload key shape, so each new key must narrow
+  // to exactly one arm. Reusing `content` or `value` here would cross-wire silently.
+  it('narrows each News response by its own key', () => {
+    const news: MessageResponse = { ok: true, news: [], degraded: [] };
+    if (news.ok && 'news' in news) {
+      expectTypeOf(news.news).toEqualTypeOf<NewsItem[]>();
+      expectTypeOf(news.degraded).toEqualTypeOf<NewsSourceFailure[]>();
+    }
+
+    const article: MessageResponse = { ok: true, article: { text: 'x', origin: 'article' } };
+    if (article.ok && 'article' in article) {
+      expectTypeOf(article.article.origin).toEqualTypeOf<'snippet' | 'article'>();
+    }
+
+    const summary: MessageResponse = { ok: true, summary: { summary: 'x', keyPoints: [] } };
+    if (summary.ok && 'summary' in summary) {
+      expectTypeOf(summary.summary).toEqualTypeOf<NewsSummary>();
+    }
   });
 });

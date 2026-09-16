@@ -10,7 +10,7 @@ import manifest from '../../manifest.config';
 const permissions: string[] = (manifest as { host_permissions?: string[] }).host_permissions ?? [];
 
 describe('manifest host_permissions', () => {
-  const required = ['https://en.wikipedia.org/*', 'https://news.google.com/*'];
+  const required = ['https://en.wikipedia.org/*', 'https://hn.algolia.com/*'];
 
   for (const url of required) {
     it(`includes ${url}`, () => {
@@ -30,6 +30,8 @@ describe('manifest host_permissions', () => {
     'https://api.openai.com/*',
     'https://openrouter.ai/*',
     'https://api.search.brave.com/*',
+    // Retired with the News tab: its article links are opaque redirect pages.
+    'https://news.google.com/*',
   ]) {
     it(`no longer grants ${url}`, () => {
       expect(permissions).not.toContain(url);
