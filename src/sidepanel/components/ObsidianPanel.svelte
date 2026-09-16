@@ -15,7 +15,6 @@
   let port = $state(27123);
   let apiKey = $state('');
   let systemPromptPath = $state('');
-  let beautifierPromptPath = $state('');
   let testStatus = $state<'idle' | 'testing' | 'ok' | 'error'>('idle');
   let testError = $state('');
 
@@ -25,7 +24,6 @@
     port = cfg.port;
     apiKey = cfg.apiKey;
     systemPromptPath = cfg.systemPromptPath ?? '';
-    beautifierPromptPath = cfg.beautifierPromptPath ?? '';
   });
 
   async function handleTestConnection() {
@@ -49,7 +47,6 @@
       port,
       apiKey,
       systemPromptPath: systemPromptPath || undefined,
-      beautifierPromptPath: beautifierPromptPath || undefined,
     };
     await setObsidianConfig(cfg);
   }
@@ -103,17 +100,6 @@
             id="obs-prompt-path"
             bind:value={systemPromptPath}
             placeholder="prompts/system.md"
-          />
-        </div>
-
-        <div class="flex flex-col gap-1">
-          <label class="text-xs text-muted-foreground" for="obs-beautifier-prompt-path"
-            >Beautifier prompt path</label
-          >
-          <Input
-            id="obs-beautifier-prompt-path"
-            bind:value={beautifierPromptPath}
-            placeholder="prompts/beautifier.md"
           />
         </div>
 

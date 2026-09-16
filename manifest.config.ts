@@ -24,9 +24,8 @@ export default defineManifest({
   host_permissions: [
     'http://localhost:11434/*',
     'http://localhost:27123/*',
-    'https://api.search.brave.com/*',
     'https://en.wikipedia.org/*',
-    'https://news.google.com/*',
+    'https://hn.algolia.com/*',
     'https://web.whatsapp.com/*',
     'https://www.linkedin.com/*',
     '<all_urls>',

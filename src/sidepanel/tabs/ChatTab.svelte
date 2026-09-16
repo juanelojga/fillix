@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getContext, onMount } from 'svelte';
+  import { getContext, onDestroy, onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { messages, streamingState, activeMessage } from '../stores/chat';
   import { ollamaConfig } from '../stores/settings';
@@ -8,6 +8,7 @@
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
   import ThinkingBlock from '../components/ThinkingBlock.svelte';
   import ModelPicker from '../components/ModelPicker.svelte';
+  import { createTokenBuffer } from '../token-buffer';
 
   const chatPort = getContext<chrome.runtime.Port>('chatPort');
 
@@ -17,8 +18,14 @@
   let viewportRef: HTMLElement | null = $state(null);
   let isUserScrolled = $state(false);
 
-  // Composite trigger so $effect reads both stores as reactive deps
-  let scrollTrigger = $derived($messages.length + ($activeMessage ? 1 : 0));
+  // A $derived compares with ===, so a trigger built from counts alone never changes
+  // while tokens stream and the autoscroll effect never re-runs. Sum lengths instead.
+  let scrollTrigger = $derived(
+    $messages.length +
+      ($activeMessage?.content.length ?? 0) +
+      ($activeMessage?.thinking.length ?? 0) +
+      ($activeMessage?.toolCalls.length ?? 0),
+  );
 
   $effect(() => {
     if (scrollTrigger >= 0 && !isUserScrolled && sentinelEl) {
@@ -38,12 +45,20 @@
     return () => viewport.removeEventListener('scroll', onScroll);
   });
 
+  // Markdown now renders on every content change, so appending per token would
+  // re-parse the whole answer ~1500 times. Coalesce into ~17 updates/second.
+  const tokenBuffer = createTokenBuffer((chunk) => {
+    activeMessage.update((m) => (m ? { ...m, content: m.content + chunk } : m));
+  });
+
+  onDestroy(() => tokenBuffer.dispose());
+
   onMount(() => {
     chatPort.onMessage.addListener((rawMsg: unknown) => {
       const msg = rawMsg as PortMessage;
       switch (msg.type) {
         case 'token':
-          activeMessage.update((m) => (m ? { ...m, content: m.content + msg.value } : m));
+          tokenBuffer.push(msg.value);
           break;
         case 'thinking':
           activeMessage.update((m) => (m ? { ...m, thinking: m.thinking + msg.value } : m));
@@ -74,40 +89,17 @@
           );
           break;
         case 'done': {
+          // Flush first: buffered tokens would otherwise be dropped from the commit.
+          tokenBuffer.flush();
           const current = get(activeMessage);
           if (!current) break;
-          const cfg = get(ollamaConfig);
-          if (!cfg) {
-            messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
-            activeMessage.set(null);
-            streamingState.set('idle');
-            break;
-          }
-          activeMessage.update((m) => (m ? { ...m, isBeautifying: true } : m));
-          streamingState.set('beautifying');
-          chatPort.postMessage({ type: 'BEAUTIFY', content: current.content, config: cfg });
-          break;
-        }
-        case 'beautified': {
-          const current = get(activeMessage);
-          if (!current) break;
-          messages.update((ms) => [...ms, { role: 'assistant', content: msg.content }]);
-          activeMessage.set(null);
-          streamingState.set('idle');
-          break;
-        }
-        case 'beautify-error': {
-          const current = get(activeMessage);
-          if (!current) break;
-          messages.update((ms) => [
-            ...ms,
-            { role: 'assistant', content: current.content, beautifyError: msg.reason },
-          ]);
+          messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
           activeMessage.set(null);
           streamingState.set('idle');
           break;
         }
         case 'error':
+          tokenBuffer.dispose();
           activeMessage.set(null);
           messages.update((ms) => [
             ...ms,
@@ -141,6 +133,7 @@
 
   function stop() {
     chatPort.postMessage({ type: 'CHAT_STOP' });
+    tokenBuffer.flush();
     const current = get(activeMessage);
     if (current) {
       messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
@@ -150,6 +143,7 @@
   }
 
   function newConversation() {
+    tokenBuffer.dispose();
     messages.set([]);
     activeMessage.set(null);
     streamingState.set('idle');
@@ -210,7 +204,7 @@
     {:else}
       <div class="flex flex-col py-3 gap-0.5">
         {#each $messages as msg}
-          <MessageBubble role={msg.role} content={msg.content} beautifyError={msg.beautifyError} />
+          <MessageBubble role={msg.role} content={msg.content} />
         {/each}
 
         {#if $activeMessage !== null}
@@ -218,7 +212,6 @@
             role="assistant"
             content={$activeMessage.content}
             isStreaming={$streamingState === 'streaming'}
-            isBeautifying={$streamingState === 'beautifying'}
           >
             {#if $activeMessage.thinking}
               <ThinkingBlock
@@ -252,7 +245,7 @@
       ></textarea>
 
       <div class="absolute bottom-2.5 right-2.5">
-        {#if $streamingState === 'streaming' || $streamingState === 'beautifying'}
+        {#if $streamingState === 'streaming'}
           <button
             class="flex items-center justify-center w-8 h-8 rounded-xl bg-foreground text-background hover:opacity-80 active:scale-95 transition-all duration-100"
             onclick={stop}

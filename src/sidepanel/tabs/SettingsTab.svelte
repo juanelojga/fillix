@@ -3,7 +3,6 @@
   import { get } from 'svelte/store';
   import {
     ollamaConfig,
-    searchConfig,
     modelList,
     loadSettings,
     saveSettings,
@@ -12,7 +11,7 @@
     setActiveModel,
     testModel,
   } from '../stores/settings';
-  import type { OllamaConfig, SearchConfig } from '../../types';
+  import type { OllamaConfig } from '../../types';
   import { Input } from '$components/ui/input';
   import { Button } from '$components/ui/button';
   import { Badge } from '$components/ui/badge';
@@ -33,7 +32,6 @@
 
   let baseUrl = $state('http://localhost:11434');
   let model = $state('');
-  let braveApiKey = $state('');
   let newModel = $state('');
   let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let testStates = $state<Record<string, TestState>>({});
@@ -45,7 +43,6 @@
       baseUrl = cfg.baseUrl;
       model = cfg.model;
     }
-    braveApiKey = get(searchConfig)?.braveApiKey ?? '';
   });
 
   // Keep the radio in sync when the model changes from elsewhere (e.g. chat header).
@@ -85,8 +82,7 @@
   async function handleSave() {
     saveStatus = 'saving';
     const ollamaCfg: OllamaConfig = { baseUrl, model };
-    const searchCfg: SearchConfig = { ...(braveApiKey ? { braveApiKey } : {}) };
-    await saveSettings(ollamaCfg, searchCfg);
+    await saveSettings(ollamaCfg);
     saveStatus = 'saved';
     setTimeout(() => {
       saveStatus = 'idle';
@@ -213,27 +209,6 @@
         {:else}
           <p class="mt-1 text-xs text-muted-foreground">No models yet — add one above.</p>
         {/if}
-      </div>
-    </section>
-
-    <!-- Search section -->
-    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
-      <div class="flex items-center gap-2">
-        <div class="w-1 h-4 rounded-full bg-sky-500 shrink-0"></div>
-        <h2 class="text-sm font-semibold text-slate-800">Search</h2>
-      </div>
-      <div class="flex flex-col gap-1">
-        <label class="text-xs text-muted-foreground" for="brave-api-key">Brave Search API key</label>
-        <Input
-          id="brave-api-key"
-          type="password"
-          bind:value={braveApiKey}
-          placeholder="BSA..."
-          autocomplete="off"
-        />
-        <p class="text-xs text-muted-foreground">
-          Required for the web_search tool. Leave blank to disable.
-        </p>
       </div>
     </section>
 

@@ -7,6 +7,9 @@ export async function fetchUrl(url: string): Promise<string> {
     if (!res.ok) return `Error: fetch returned ${res.status}`;
     const html = await res.text();
     const text = html
+      // Bodies first: stripping only the tags would inline all the JS and CSS source,
+      // eating the 3000-char budget before the article starts.
+      .replace(/<(script|style)\b[^>]*>[\s\S]*?<\/\1>/gi, ' ')
       .replace(/<[^>]+>/gs, ' ')
       .replace(/\s+/g, ' ')
       .trim();

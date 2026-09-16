@@ -94,5 +94,23 @@ describe('component spec files exist (Sprint 6)', () => {
     it('WorkflowTab.spec.ts exists', () => {
       expect(existsSync(tab('WorkflowTab.spec.ts'))).toBe(true);
     });
+
+    it('NewsTab.spec.ts exists', () => {
+      expect(existsSync(tab('NewsTab.spec.ts'))).toBe(true);
+    });
+  });
+
+  describe('News row components', () => {
+    it('NewsItemRow.spec.ts exists and covers the disclosure contract', () => {
+      expect(existsSync(comp('NewsItemRow.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('NewsItemRow.spec.ts'), 'utf-8');
+      expect(src).toContain('aria-controls');
+    });
+
+    it('NewsSummary.spec.ts exists and covers the failure detail', () => {
+      expect(existsSync(comp('NewsSummary.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('NewsSummary.spec.ts'), 'utf-8');
+      expect(src).toContain('summarizing');
+    });
   });
 });

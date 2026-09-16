@@ -1,40 +1,23 @@
 import { writable, get } from 'svelte/store';
-import type { MessageResponse, OllamaConfig, SearchConfig } from '../../types';
-import {
-  getOllamaConfig,
-  setOllamaConfig,
-  getSearchConfig,
-  setSearchConfig,
-  getModelList,
-  setModelList,
-} from '../../lib/storage';
+import type { MessageResponse, OllamaConfig } from '../../types';
+import { getOllamaConfig, setOllamaConfig, getModelList, setModelList } from '../../lib/storage';
 
 export const ollamaConfig = writable<OllamaConfig | null>(null);
-export const searchConfig = writable<SearchConfig | null>(null);
 /** The hand-maintained model list — never populated from /api/tags. */
 export const modelList = writable<string[]>([]);
 
 export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [ollama, search, models] = await Promise.all([
-    getOllamaConfig(),
-    getSearchConfig(),
-    getModelList(),
-  ]);
+  const [ollama, models] = await Promise.all([getOllamaConfig(), getModelList()]);
   ollamaConfig.set(ollama);
-  searchConfig.set(search);
   // An existing install has a model but no list yet — seed it so the picker isn't empty.
   modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
 
-export async function saveSettings(
-  newOllamaConfig: OllamaConfig,
-  newSearchConfig: SearchConfig,
-): Promise<void> {
-  await Promise.all([setOllamaConfig(newOllamaConfig), setSearchConfig(newSearchConfig)]);
+export async function saveSettings(newOllamaConfig: OllamaConfig): Promise<void> {
+  await setOllamaConfig(newOllamaConfig);
   ollamaConfig.set(newOllamaConfig);
-  searchConfig.set(newSearchConfig);
 }
 
 export async function addModel(name: string): Promise<void> {

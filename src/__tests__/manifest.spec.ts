@@ -4,17 +4,13 @@ import { describe, it, expect } from 'vitest';
 import manifest from '../../manifest.config';
 
 // Verify every external endpoint the tool layer reaches is present in
-// host_permissions so background fetch calls succeed — and that the retired
-// remote-LLM origins are gone now that Fillix is Ollama-only.
+// host_permissions so background fetch calls succeed — and that the origins of
+// retired capabilities (remote LLM providers, Brave web search) are gone.
 
 const permissions: string[] = (manifest as { host_permissions?: string[] }).host_permissions ?? [];
 
 describe('manifest host_permissions', () => {
-  const required = [
-    'https://api.search.brave.com/*',
-    'https://en.wikipedia.org/*',
-    'https://news.google.com/*',
-  ];
+  const required = ['https://en.wikipedia.org/*', 'https://hn.algolia.com/*'];
 
   for (const url of required) {
     it(`includes ${url}`, () => {
@@ -30,7 +26,13 @@ describe('manifest host_permissions', () => {
     expect(permissions).toContain('http://localhost:27123/*');
   });
 
-  for (const url of ['https://api.openai.com/*', 'https://openrouter.ai/*']) {
+  for (const url of [
+    'https://api.openai.com/*',
+    'https://openrouter.ai/*',
+    'https://api.search.brave.com/*',
+    // Retired with the News tab: its article links are opaque redirect pages.
+    'https://news.google.com/*',
+  ]) {
     it(`no longer grants ${url}`, () => {
       expect(permissions).not.toContain(url);
     });

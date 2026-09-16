@@ -1,9 +1,9 @@
 /**
- * One-time cleanup of the multi-provider era (`provider`, `providerConfigs`,
- * `favoriteModels`). Fillix is Ollama-only now, so any OpenAI/OpenRouter/custom
- * config — and every API key it held — is dropped rather than carried forward.
+ * One-time purges of retired `chrome.storage.local` keys, run on install and startup.
  *
- * Idempotent: once the legacy keys are gone this is a no-op.
+ * Each retirement gets its own function and its own gate: they belong to different
+ * epochs and become deletable at different times, so folding them together would
+ * mean one cannot be removed without untangling the other.
  */
 
 type LegacyProvider = { provider?: string; baseUrl?: string; model?: string };
@@ -11,6 +11,13 @@ type LegacyFavorites = Record<string, string[] | undefined>;
 
 const LEGACY_KEYS = ['provider', 'providerConfigs', 'favoriteModels'];
 
+/**
+ * Cleans up the multi-provider era (`provider`, `providerConfigs`, `favoriteModels`).
+ * Fillix is Ollama-only now, so any OpenAI/OpenRouter/custom config — and every API
+ * key it held — is dropped rather than carried forward.
+ *
+ * Idempotent: once the legacy keys are gone this is a no-op.
+ */
 export async function migrateLegacyProviderKeys(): Promise<void> {
   const stored = await chrome.storage.local.get([...LEGACY_KEYS, 'ollama', 'models']);
   const hasLegacy = LEGACY_KEYS.some((key) => stored[key] !== undefined);
@@ -36,4 +43,16 @@ export async function migrateLegacyProviderKeys(): Promise<void> {
   // Read before remove — `next` is derived from the keys we are about to drop.
   if (Object.keys(next).length > 0) await chrome.storage.local.set(next);
   await chrome.storage.local.remove(LEGACY_KEYS);
+}
+
+/**
+ * Drops the retired `search` key, which held the Brave Search API key for the removed
+ * `web_search` tool. Deleting it means the credential does not outlive the feature.
+ *
+ * Gated on a read so a profile that never had one performs no storage writes.
+ */
+export async function removeRetiredSearchKey(): Promise<void> {
+  const { search } = await chrome.storage.local.get(['search']);
+  if (search === undefined) return;
+  await chrome.storage.local.remove(['search']);
 }

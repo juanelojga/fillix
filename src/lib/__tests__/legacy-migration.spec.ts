@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { migrateLegacyProviderKeys } from '../legacy-migration';
+import { migrateLegacyProviderKeys, removeRetiredSearchKey } from '../legacy-migration';
 
 let store: Record<string, unknown> = {};
 const mockGet = vi.fn(async (keys: string[]) =>
@@ -94,5 +94,52 @@ describe('migrateLegacyProviderKeys', () => {
     await migrateLegacyProviderKeys();
     expect(mockSet).not.toHaveBeenCalled();
     expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  // Pins the decoupling: appending 'search' to LEGACY_KEYS would fail this.
+  it('leaves the retired search key to its own purge', async () => {
+    store.search = { braveApiKey: 'bsak-secret' };
+    await migrateLegacyProviderKeys();
+    expect(store.search).toEqual({ braveApiKey: 'bsak-secret' });
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+});
+
+describe('removeRetiredSearchKey', () => {
+  it('drops the Brave key left by the removed web_search tool', async () => {
+    store.search = { braveApiKey: 'bsak-secret' };
+    await removeRetiredSearchKey();
+    expect(store.search).toBeUndefined();
+    expect(JSON.stringify(store)).not.toContain('bsak-secret');
+  });
+
+  it('is a no-op on a profile that never had a search key', async () => {
+    await removeRetiredSearchKey();
+    expect(mockSet).not.toHaveBeenCalled();
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('never writes to storage', async () => {
+    store.search = { braveApiKey: 'bsak-secret' };
+    await removeRetiredSearchKey();
+    expect(mockSet).not.toHaveBeenCalled();
+  });
+
+  it('is idempotent — a second run does nothing', async () => {
+    store.search = { braveApiKey: 'bsak-secret' };
+    await removeRetiredSearchKey();
+    mockRemove.mockClear();
+
+    await removeRetiredSearchKey();
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('leaves unrelated keys untouched', async () => {
+    store.ollama = { baseUrl: 'http://localhost:11434', model: 'phi3' };
+    store.models = ['phi3'];
+    store.search = { braveApiKey: 'bsak-secret' };
+    await removeRetiredSearchKey();
+    expect(store.ollama).toEqual({ baseUrl: 'http://localhost:11434', model: 'phi3' });
+    expect(store.models).toEqual(['phi3']);
   });
 });

@@ -17,7 +17,6 @@
 
   type ToolConfig = { label: string; color: string };
   const TOOLS: Record<string, ToolConfig> = {
-    web_search: { label: 'Search', color: '#60a5fa' },
     wikipedia:  { label: 'Wikipedia', color: '#fbbf24' },
     news_feed:  { label: 'News', color: '#f87171' },
     fetch_url:  { label: 'Fetch', color: '#4ade80' },
@@ -56,7 +55,7 @@
 
   const parsed = $derived.by(() => {
     if (!result || isError) return null;
-    if (toolName === 'web_search' || toolName === 'news_feed') return parseList(result);
+    if (toolName === 'news_feed') return parseList(result);
     if (toolName === 'wikipedia') return parseWiki(result);
     return null;
   });
@@ -84,19 +83,6 @@
     <div class="tool-body" transition:slide={{ duration: 160 }}>
       {#if isError}
         <p class="err">{result}</p>
-
-      {:else if toolName === 'web_search' && Array.isArray(parsed)}
-        <ul class="result-list">
-          {#each parsed as item}
-            <li>
-              <a href={item.url} target="_blank" rel="noopener noreferrer" class="result-item">
-                <span class="item-domain">{item.domain}</span>
-                <span class="item-title">{item.title}</span>
-                <span class="item-snip">{item.snippet}</span>
-              </a>
-            </li>
-          {/each}
-        </ul>
 
       {:else if toolName === 'news_feed' && Array.isArray(parsed)}
         <ul class="news-list">
@@ -223,53 +209,6 @@
     color: #f87171;
   }
 
-  /* web_search */
-  .result-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .result-item {
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 5px 6px;
-    border-radius: 5px;
-    text-decoration: none;
-    color: inherit;
-    transition: background 100ms;
-  }
-  .result-item:hover { background: color-mix(in srgb, var(--c) 12%, transparent); }
-
-  .item-domain {
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--c);
-  }
-
-  .item-title {
-    font-size: 12px;
-    font-weight: 500;
-    line-height: 1.3;
-    color: var(--foreground, #f0f0f0);
-  }
-
-  .item-snip {
-    font-size: 10px;
-    line-height: 1.4;
-    color: var(--muted-foreground, #888);
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
 
   /* news_feed */
   .news-list {

@@ -23,7 +23,6 @@ vi.stubGlobal('chrome', {
 
 import {
   ollamaConfig,
-  searchConfig,
   modelList,
   loadSettings,
   saveSettings,
@@ -37,7 +36,6 @@ beforeEach(() => {
   for (const key of Object.keys(store)) delete store[key];
   mockSendMessage.mockReset();
   ollamaConfig.set(null);
-  searchConfig.set(null);
   modelList.set([]);
 });
 
@@ -45,7 +43,6 @@ describe('loadSettings', () => {
   it('falls back to the Ollama defaults on a fresh profile', async () => {
     await loadSettings();
     expect(get(ollamaConfig)).toEqual({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
-    expect(get(searchConfig)).toEqual({});
   });
 
   it('seeds the model list from the active model when no list is stored', async () => {
@@ -68,14 +65,16 @@ describe('loadSettings', () => {
 });
 
 describe('saveSettings', () => {
-  it('persists the ollama and search configs', async () => {
-    await saveSettings(
-      { baseUrl: 'http://custom:11434', model: 'mistral' },
-      { braveApiKey: 'BSA' },
-    );
+  it('persists the ollama config', async () => {
+    await saveSettings({ baseUrl: 'http://custom:11434', model: 'mistral' });
     expect(store.ollama).toEqual({ baseUrl: 'http://custom:11434', model: 'mistral' });
-    expect(store.search).toEqual({ braveApiKey: 'BSA' });
     expect(get(ollamaConfig)?.model).toBe('mistral');
+  });
+
+  // The retired search key must never be written back by the settings UI.
+  it('does not write the retired search key', async () => {
+    await saveSettings({ baseUrl: 'http://custom:11434', model: 'mistral' });
+    expect(store.search).toBeUndefined();
   });
 });
 

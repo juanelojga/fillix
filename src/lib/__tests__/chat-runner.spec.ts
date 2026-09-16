@@ -11,7 +11,7 @@ describe('detectToolCall', () => {
   });
 
   it('returns null for a line that does not start with {', () => {
-    expect(detectToolCall('  some text {"tool":"web_search","args":{"query":"x"}}')).toBeNull();
+    expect(detectToolCall('  some text {"tool":"news_feed","args":{"topic":"x"}}')).toBeNull();
   });
 
   it('returns null for JSON that lacks a tool key', () => {
@@ -23,8 +23,8 @@ describe('detectToolCall', () => {
   });
 
   it('parses a valid tool-call line and returns toolName and args', () => {
-    const result = detectToolCall('{"tool":"web_search","args":{"query":"AI news"}}');
-    expect(result).toEqual({ toolName: 'web_search', args: { query: 'AI news' } });
+    const result = detectToolCall('{"tool":"news_feed","args":{"topic":"AI news"}}');
+    expect(result).toEqual({ toolName: 'news_feed', args: { topic: 'AI news' } });
   });
 
   it('parses wikipedia tool-call', () => {
@@ -33,7 +33,7 @@ describe('detectToolCall', () => {
   });
 
   it('returns null for malformed JSON', () => {
-    expect(detectToolCall('{"tool":"web_search","args":{bad json}')).toBeNull();
+    expect(detectToolCall('{"tool":"news_feed","args":{bad json}')).toBeNull();
   });
 
   it('returns empty args object when args is omitted', () => {
@@ -48,7 +48,6 @@ vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof StorageModule>();
   return {
     ...actual,
-    getSearchConfig: vi.fn(),
     getOllamaConfig: vi.fn(),
     getObsidianConfig: vi.fn(),
   };
@@ -66,7 +65,7 @@ vi.mock('../tools/registry', () => ({
 import * as storage from '../storage';
 import { chatStream } from '../ollama';
 import { dispatchTool } from '../tools/registry';
-import type { OllamaConfig, SearchConfig } from '../../types';
+import type { OllamaConfig } from '../../types';
 
 const defaultConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
@@ -128,7 +127,6 @@ describe('chat port handler — ReAct loop', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
     vi.mocked(storage.getObsidianConfig).mockResolvedValue({
       host: 'localhost',
       port: 27123,
@@ -173,6 +171,9 @@ describe('chat port handler — ReAct loop', () => {
       (m: unknown) => (m as { type: string }).type === 'tool-result',
     );
     expect(toolResultMsg).toMatchObject({ type: 'tool-result', toolName: 'wikipedia' });
+
+    // toHaveBeenCalledWith is exact on arity — a resurrected searchConfig param fails here.
+    expect(dispatchTool).toHaveBeenCalledWith('wikipedia', { title: 'TypeScript' });
   });
 
   it('terminates after 8 iterations regardless of continued tool calls', async () => {
@@ -205,8 +206,9 @@ describe('chat port handler — ReAct loop', () => {
 
     const [, , systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(systemPromptArg).toContain('user-sys');
-    expect(systemPromptArg).toContain('web_search');
     expect(systemPromptArg).toContain('wikipedia');
+    // The retired tool must not be advertised back to the model.
+    expect(systemPromptArg).not.toContain('web_search');
   });
 });
 
@@ -214,7 +216,6 @@ describe('chat port handler — thinking tokens', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('forwards thinking tokens to port as type:thinking messages', async () => {
@@ -240,7 +241,6 @@ describe('chat port handler — error handling', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('posts type:error to port when chatStream calls onError', async () => {
@@ -263,7 +263,6 @@ describe('chat port handler — CHAT_STOP', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('CHAT_STOP message posts done immediately', async () => {
@@ -282,7 +281,6 @@ describe('chat port handler — model override', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('msg.model overrides the stored model when provided', async () => {

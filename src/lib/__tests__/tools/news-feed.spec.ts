@@ -1,6 +1,7 @@
-// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
-// Run with: pnpm exec vitest run
-// @vitest-environment jsdom
+// Runs in node, deliberately: the tool now parses JSON, so it needs no DOM. The old
+// Google News RSS implementation used DOMParser, which does not exist in an MV3
+// service worker — this spec used to pin jsdom and pass against behaviour the runtime
+// could never produce.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { newsFeed } from '../../tools/news-feed';
 
@@ -11,94 +12,58 @@ beforeEach(() => {
   vi.resetAllMocks();
 });
 
-function makeRssResponse(items: { title: string; pubDate: string; link: string }[]): Response {
-  const itemsXml = items
-    .map(
-      (i) =>
-        `<item><title>${i.title}</title><pubDate>${i.pubDate}</pubDate><link>${i.link}</link></item>`,
-    )
-    .join('\n');
-  const xml = `<?xml version="1.0"?><rss><channel>${itemsXml}</channel></rss>`;
-  return new Response(xml, { status: 200, headers: { 'Content-Type': 'application/rss+xml' } });
+function hits(n: number) {
+  return Array.from({ length: n }, (_, i) => ({
+    objectID: String(i),
+    title: `Story ${i}`,
+    url: `https://example.com/${i}`,
+    points: 10 + i,
+    num_comments: i,
+    created_at: '2026-09-16T09:00:00Z',
+  }));
 }
 
-const sampleItems = [
-  {
-    title: 'AI News 1',
-    pubDate: 'Mon, 21 Apr 2026 10:00:00 GMT',
-    link: 'https://news.example.com/1',
-  },
-  {
-    title: 'AI News 2',
-    pubDate: 'Mon, 21 Apr 2026 09:00:00 GMT',
-    link: 'https://news.example.com/2',
-  },
-  {
-    title: 'AI News 3',
-    pubDate: 'Mon, 21 Apr 2026 08:00:00 GMT',
-    link: 'https://news.example.com/3',
-  },
-  {
-    title: 'AI News 4',
-    pubDate: 'Mon, 21 Apr 2026 07:00:00 GMT',
-    link: 'https://news.example.com/4',
-  },
-  {
-    title: 'AI News 5',
-    pubDate: 'Mon, 21 Apr 2026 06:00:00 GMT',
-    link: 'https://news.example.com/5',
-  },
-  {
-    title: 'AI News 6',
-    pubDate: 'Mon, 21 Apr 2026 05:00:00 GMT',
-    link: 'https://news.example.com/6',
-  },
-];
+function ok(n: number): Response {
+  return new Response(JSON.stringify({ hits: hits(n) }), { status: 200 });
+}
 
 describe('newsFeed', () => {
-  it('returns at most 5 items as a numbered list', async () => {
-    mockFetch.mockResolvedValue(makeRssResponse(sampleItems));
-
-    const result = await newsFeed('AI');
-
-    const lines = result.split('\n').filter(Boolean);
-    expect(lines).toHaveLength(5);
-    expect(lines[0]).toMatch(/^1\./);
-    expect(lines[4]).toMatch(/^5\./);
-  });
-
-  it('each line contains title, pubDate, and link', async () => {
-    mockFetch.mockResolvedValue(makeRssResponse(sampleItems.slice(0, 1)));
-
-    const result = await newsFeed('AI');
-
-    expect(result).toContain('AI News 1');
-    expect(result).toContain('Mon, 21 Apr 2026 10:00:00 GMT');
-    expect(result).toContain('https://news.example.com/1');
-  });
-
-  it('encodes the topic in the RSS query string', async () => {
-    mockFetch.mockResolvedValue(makeRssResponse([]));
-
-    await newsFeed('machine learning');
+  it('queries Hacker News, not Google News', async () => {
+    mockFetch.mockResolvedValue(ok(1));
+    await newsFeed('ollama');
 
     const [url] = mockFetch.mock.calls[0] as [string];
-    expect(url).toContain(encodeURIComponent('machine learning'));
+    expect(url).toContain('hn.algolia.com');
+    expect(url).toContain('query=ollama');
   });
 
-  it('returns Error: string on non-2xx response — never throws', async () => {
-    mockFetch.mockResolvedValue(new Response('Service Unavailable', { status: 503 }));
+  it('formats numbered lines the chat loop can parse', async () => {
+    mockFetch.mockResolvedValue(ok(2));
+    const out = await newsFeed('ollama');
 
-    const result = await newsFeed('AI');
-
-    expect(result).toMatch(/^Error:/);
+    expect(out.split('\n')).toHaveLength(2);
+    expect(out).toContain('1. Story 0 — ');
+    expect(out).toContain('(https://example.com/0)');
   });
 
-  it('returns Error: string on network failure — never throws', async () => {
-    mockFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+  it('caps at five items', async () => {
+    mockFetch.mockResolvedValue(ok(12));
+    expect((await newsFeed('ollama')).split('\n')).toHaveLength(5);
+  });
 
-    const result = await newsFeed('AI');
+  it('reports an empty feed as an error string', async () => {
+    mockFetch.mockResolvedValue(ok(0));
+    expect(await newsFeed('ollama')).toBe('Error: no news items found');
+  });
 
-    expect(result).toMatch(/^Error:/);
+  // Tools signal failure with a string; they never throw at the ReAct loop.
+  it('returns an Error string on a non-2xx response', async () => {
+    mockFetch.mockResolvedValue(new Response('nope', { status: 503 }));
+    expect(await newsFeed('ollama')).toBe('Error: Hacker News returned 503');
+  });
+
+  it('returns an Error string when the network fails', async () => {
+    mockFetch.mockRejectedValue(new Error('Failed to fetch'));
+    expect(await newsFeed('ollama')).toBe('Error: Failed to fetch');
   });
 });
