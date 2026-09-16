@@ -1,7 +1,7 @@
 // TODO: Install test runner with: pnpm add -D vitest @vitest/ui
 // Run with: pnpm exec vitest run
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { chatStream } from '../ollama';
+import { chatStream, testModel } from '../ollama';
 import type { OllamaConfig } from '../../types';
 import type { ChatMessage } from '../../types';
 
@@ -366,5 +366,88 @@ describe('generateStructured', () => {
 
     const result = await generateStructured<typeof payload>(CONFIG, 'sys', 'user');
     expect(result).toEqual(payload);
+  });
+});
+
+describe('testModel', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('posts a one-message non-streaming request to /api/chat', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await testModel({ ...CONFIG, model: 'qwen3:8b' });
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://localhost:11434/api/chat');
+    const body = JSON.parse(init.body as string) as {
+      model: string;
+      stream: boolean;
+      messages: ChatMessage[];
+    };
+    expect(body.model).toBe('qwen3:8b');
+    expect(body.stream).toBe(false);
+    expect(body.messages).toHaveLength(1);
+  });
+
+  it('caps the generation at one token so a reasoning model cannot time the test out', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await testModel(CONFIG);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { options?: { num_predict?: number } };
+    expect(body.options?.num_predict).toBe(1);
+  });
+
+  it('resolves with a non-negative latency on success', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: true, json: () => Promise.resolve({}) }),
+    );
+    const latency = await testModel(CONFIG);
+    expect(latency).toBeGreaterThanOrEqual(0);
+  });
+
+  it("surfaces Ollama's own error text for an unknown model", async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 404,
+        text: () => Promise.resolve(JSON.stringify({ error: 'model "nope" not found' })),
+      }),
+    );
+    await expect(testModel({ ...CONFIG, model: 'nope' })).rejects.toThrow('model "nope" not found');
+  });
+
+  it('falls back to the raw body when the error payload is not JSON', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: false,
+        status: 500,
+        text: () => Promise.resolve('upstream exploded'),
+      }),
+    );
+    await expect(testModel(CONFIG)).rejects.toThrow('upstream exploded');
+  });
+
+  it('still reports the status when the body is empty', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({ ok: false, status: 503, text: () => Promise.resolve('') }),
+    );
+    await expect(testModel(CONFIG)).rejects.toThrow('503');
+  });
+
+  it('propagates an abort from the caller-supplied signal', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new Error('The operation was aborted')));
+    const controller = new AbortController();
+    controller.abort();
+    await expect(testModel(CONFIG, controller.signal)).rejects.toThrow(/abort/i);
   });
 });

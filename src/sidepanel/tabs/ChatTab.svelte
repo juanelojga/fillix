@@ -2,7 +2,7 @@
   import { getContext, onMount } from 'svelte';
   import { get } from 'svelte/store';
   import { messages, streamingState, activeMessage } from '../stores/chat';
-  import { providerConfig } from '../stores/settings';
+  import { ollamaConfig } from '../stores/settings';
   import type { PortMessage } from '../../types';
   import MessageBubble from '../components/MessageBubble.svelte';
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
@@ -76,7 +76,7 @@
         case 'done': {
           const current = get(activeMessage);
           if (!current) break;
-          const cfg = get(providerConfig);
+          const cfg = get(ollamaConfig);
           if (!cfg) {
             messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
             activeMessage.set(null);
@@ -85,7 +85,7 @@
           }
           activeMessage.update((m) => (m ? { ...m, isBeautifying: true } : m));
           streamingState.set('beautifying');
-          chatPort.postMessage({ type: 'BEAUTIFY', content: current.content, providerConfig: cfg });
+          chatPort.postMessage({ type: 'BEAUTIFY', content: current.content, config: cfg });
           break;
         }
         case 'beautified': {
@@ -135,8 +135,7 @@
       type: 'CHAT_START',
       messages: $messages,
       systemPrompt: '',
-      model: $providerConfig?.model,
-      provider: $providerConfig?.provider,
+      model: $ollamaConfig?.model,
     });
   }
 

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { detectToolCall, handleChatPort } from '../chat-runner';
 import type * as StorageModule from '../storage';
+import type * as OllamaModule from '../ollama';
 
 // ---------- detectToolCall ----------
 
@@ -47,28 +48,27 @@ vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof StorageModule>();
   return {
     ...actual,
-    getProviderConfig: vi.fn(),
     getSearchConfig: vi.fn(),
     getOllamaConfig: vi.fn(),
     getObsidianConfig: vi.fn(),
   };
 });
 
-vi.mock('../providers/index', () => ({
-  resolveProvider: vi.fn(),
-}));
+vi.mock('../ollama', async (importOriginal) => {
+  const actual = await importOriginal<typeof OllamaModule>();
+  return { ...actual, chatStream: vi.fn() };
+});
 
 vi.mock('../tools/registry', () => ({
   dispatchTool: vi.fn(),
 }));
 
 import * as storage from '../storage';
-import { resolveProvider } from '../providers/index';
+import { chatStream } from '../ollama';
 import { dispatchTool } from '../tools/registry';
-import type { ProviderConfig, SearchConfig } from '../../types';
+import type { OllamaConfig, SearchConfig } from '../../types';
 
-const defaultProvider: ProviderConfig = {
-  provider: 'ollama',
+const defaultConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 };
@@ -94,6 +94,7 @@ function makeChatStream(turns: Turn[]) {
   let callCount = 0;
   return vi.fn(
     async (
+      _config: unknown,
       _messages: unknown,
       _system: unknown,
       opts: {
@@ -126,12 +127,8 @@ function makeChatStream(turns: Turn[]) {
 describe('chat port handler — ReAct loop', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
     vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
-    vi.mocked(storage.getOllamaConfig).mockResolvedValue({
-      baseUrl: 'http://localhost:11434',
-      model: 'llama3.2',
-    });
     vi.mocked(storage.getObsidianConfig).mockResolvedValue({
       host: 'localhost',
       port: 27123,
@@ -141,7 +138,7 @@ describe('chat port handler — ReAct loop', () => {
 
   it('streams tokens directly to port when no tool call is detected', async () => {
     const chatStreamFn = makeChatStream([{ tokens: ['Hello', ' world'] }]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
@@ -160,7 +157,7 @@ describe('chat port handler — ReAct loop', () => {
       { toolCallLine: '{"tool":"wikipedia","args":{"title":"TypeScript"}}' },
       { tokens: ['TypeScript is a language.'] },
     ]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
     vi.mocked(dispatchTool).mockResolvedValue('TypeScript is a typed superset of JavaScript.');
 
     const port = makePort();
@@ -183,7 +180,7 @@ describe('chat port handler — ReAct loop', () => {
       toolCallLine: '{"tool":"wikipedia","args":{"title":"loop"}}',
     }));
     const chatStreamFn = makeChatStream(infiniteToolCalls);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
     vi.mocked(dispatchTool).mockResolvedValue('result');
 
     const port = makePort();
@@ -200,13 +197,13 @@ describe('chat port handler — ReAct loop', () => {
 
   it('prepends the tool system prompt to msg.systemPrompt', async () => {
     const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
     await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'user-sys' });
 
-    const [, systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, string, unknown];
+    const [, , systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(systemPromptArg).toContain('user-sys');
     expect(systemPromptArg).toContain('web_search');
     expect(systemPromptArg).toContain('wikipedia');
@@ -216,7 +213,7 @@ describe('chat port handler — ReAct loop', () => {
 describe('chat port handler — thinking tokens', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
     vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
@@ -224,7 +221,7 @@ describe('chat port handler — thinking tokens', () => {
     const chatStreamFn = makeChatStream([
       { thinkingTokens: ['step 1', ' step 2'], tokens: ['Answer'] },
     ]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
@@ -242,13 +239,13 @@ describe('chat port handler — thinking tokens', () => {
 describe('chat port handler — error handling', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
     vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('posts type:error to port when chatStream calls onError', async () => {
     const chatStreamFn = makeChatStream([{ error: 'connection refused' }]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
@@ -260,41 +257,17 @@ describe('chat port handler — error handling', () => {
     expect(errorMessages).toHaveLength(1);
     expect(errorMessages[0]).toMatchObject({ type: 'error', error: 'connection refused' });
   });
-
-  it('redacts API key from error message', async () => {
-    const apiKey = 'sk-secret-key-12345';
-    vi.mocked(storage.getProviderConfig).mockResolvedValue({
-      ...defaultProvider,
-      apiKey,
-    });
-    const chatStreamFn = makeChatStream([{ error: `Auth failed: ${apiKey} is invalid` }]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
-
-    const port = makePort();
-    const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
-
-    const errorMsg = port.sent.find((m: unknown) => (m as { type: string }).type === 'error') as
-      | { type: string; error: string }
-      | undefined;
-    expect(errorMsg).toBeDefined();
-    expect(errorMsg!.error).toContain('[REDACTED]');
-    expect(errorMsg!.error).not.toContain(apiKey);
-  });
 });
 
 describe('chat port handler — CHAT_STOP', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
     vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
   it('CHAT_STOP message posts done immediately', async () => {
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: vi.fn(async () => {}),
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(async () => {});
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
@@ -308,13 +281,13 @@ describe('chat port handler — CHAT_STOP', () => {
 describe('chat port handler — model override', () => {
   beforeEach(() => {
     vi.resetAllMocks();
-    vi.mocked(storage.getProviderConfig).mockResolvedValue(defaultProvider);
+    vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
     vi.mocked(storage.getSearchConfig).mockResolvedValue({} as SearchConfig);
   });
 
-  it('msg.model overrides providerConfig.model when provided', async () => {
+  it('msg.model overrides the stored model when provided', async () => {
     const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
@@ -325,8 +298,8 @@ describe('chat port handler — model override', () => {
       model: 'gpt-4',
     });
 
-    const resolveCall = vi.mocked(resolveProvider).mock.calls[0][0];
-    expect(resolveCall.model).toBe('gpt-4');
+    const [configArg] = chatStreamFn.mock.calls[0] as [OllamaConfig];
+    expect(configArg.model).toBe('gpt-4');
   });
 });
 

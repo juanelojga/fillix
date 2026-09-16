@@ -1,114 +1,83 @@
 import { writable, get } from 'svelte/store';
-import type { MessageResponse, ProviderConfig, ProviderType, SearchConfig } from '../../types';
-import type { FavoriteModels, ProviderConfigs } from '../../lib/storage';
+import type { MessageResponse, OllamaConfig, SearchConfig } from '../../types';
 import {
-  getProviderConfig,
-  setProviderConfig,
+  getOllamaConfig,
+  setOllamaConfig,
   getSearchConfig,
   setSearchConfig,
-  getFavoriteModels,
-  setFavoriteModels,
-  getProviderConfigs,
-  setProviderConfigs,
+  getModelList,
+  setModelList,
 } from '../../lib/storage';
 
-export const providerConfig = writable<ProviderConfig | null>(null);
+export const ollamaConfig = writable<OllamaConfig | null>(null);
 export const searchConfig = writable<SearchConfig | null>(null);
+/** The hand-maintained model list — never populated from /api/tags. */
 export const modelList = writable<string[]>([]);
-export const favoriteModels = writable<FavoriteModels>({});
-export const providerConfigs = writable<ProviderConfigs>({});
+
+export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [provider, search, favorites, configs] = await Promise.all([
-    getProviderConfig(),
+  const [ollama, search, models] = await Promise.all([
+    getOllamaConfig(),
     getSearchConfig(),
-    getFavoriteModels(),
-    getProviderConfigs(),
+    getModelList(),
   ]);
-  providerConfig.set(provider);
+  ollamaConfig.set(ollama);
   searchConfig.set(search);
-  favoriteModels.set(favorites);
-  const seededConfigs: ProviderConfigs =
-    Object.keys(configs).length === 0 ? { [provider.provider]: provider } : configs;
-  providerConfigs.set(seededConfigs);
+  // An existing install has a model but no list yet — seed it so the picker isn't empty.
+  modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
 
 export async function saveSettings(
-  newProviderConfig: ProviderConfig,
+  newOllamaConfig: OllamaConfig,
   newSearchConfig: SearchConfig,
 ): Promise<void> {
-  const currentConfigs = get(providerConfigs);
-  const updatedConfigs: ProviderConfigs = {
-    ...currentConfigs,
-    [newProviderConfig.provider]: newProviderConfig,
-  };
-  await Promise.all([
-    setProviderConfig(newProviderConfig),
-    setSearchConfig(newSearchConfig),
-    setProviderConfigs(updatedConfigs),
-  ]);
-  providerConfig.set(newProviderConfig);
+  await Promise.all([setOllamaConfig(newOllamaConfig), setSearchConfig(newSearchConfig)]);
+  ollamaConfig.set(newOllamaConfig);
   searchConfig.set(newSearchConfig);
-  providerConfigs.set(updatedConfigs);
 }
 
-export async function refreshModels(config: ProviderConfig): Promise<void> {
+export async function addModel(name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (!trimmed) return;
+  const current = get(modelList);
+  if (current.includes(trimmed)) return;
+  const updated = [...current, trimmed];
+  await setModelList(updated);
+  modelList.set(updated);
+  // First model added becomes the active one.
+  if (!get(ollamaConfig)?.model) await setActiveModel(trimmed);
+}
+
+export async function removeModel(name: string): Promise<void> {
+  const updated = get(modelList).filter((m) => m !== name);
+  await setModelList(updated);
+  modelList.set(updated);
+  if (get(ollamaConfig)?.model === name) await setActiveModel(updated[0] ?? '');
+}
+
+export async function setActiveModel(name: string): Promise<void> {
+  const cfg = get(ollamaConfig);
+  if (!cfg || cfg.model === name) return;
+  const updated = { ...cfg, model: name };
+  await setOllamaConfig(updated);
+  ollamaConfig.set(updated);
+}
+
+/**
+ * Runs a real one-token generation through the background worker. Errors are
+ * returned rather than swallowed — the message is the whole point of testing.
+ */
+export async function testModel(name: string): Promise<TestResult> {
   try {
     const response = (await chrome.runtime.sendMessage({
-      type: 'LIST_MODELS',
-      config,
+      type: 'TEST_MODEL',
+      model: name,
     })) as MessageResponse | undefined;
-    if (response?.ok && 'models' in response) {
-      const models = response.models;
-      modelList.set(models);
-
-      if (models.length > 0) {
-        const current = get(favoriteModels);
-        const pruned = pruneStaleModels(current, models, config.provider);
-        if (pruned !== current) {
-          await setFavoriteModels(pruned);
-          favoriteModels.set(pruned);
-        }
-      }
-    }
-  } catch {
-    // service worker unavailable — model list stays as-is
+    if (response?.ok && 'latencyMs' in response) return { ok: true, latencyMs: response.latencyMs };
+    if (response && !response.ok) return { ok: false, error: response.error };
+    return { ok: false, error: 'No response from the extension service worker' };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
-}
-
-export async function toggleFavorite(model: string, provider: ProviderType): Promise<void> {
-  const current = get(favoriteModels);
-  const providerFavs = current[provider] ?? [];
-  const updated: FavoriteModels = {
-    ...current,
-    [provider]: providerFavs.includes(model)
-      ? providerFavs.filter((m) => m !== model)
-      : [...providerFavs, model],
-  };
-  await setFavoriteModels(updated);
-  favoriteModels.set(updated);
-}
-
-export function filterModels(query: string, allModels: string[]): string[] {
-  if (!query.trim()) return allModels;
-  const lower = query.toLowerCase();
-  return allModels.filter((m) => m.toLowerCase().includes(lower));
-}
-
-export function sortWithFavorites(models: string[], favorites: string[]): string[] {
-  const pinned = models.filter((m) => favorites.includes(m));
-  const rest = models.filter((m) => !favorites.includes(m));
-  return [...pinned, ...rest];
-}
-
-export function pruneStaleModels(
-  favorites: FavoriteModels,
-  availableModels: string[],
-  provider: ProviderType,
-): FavoriteModels {
-  if (availableModels.length === 0) return favorites;
-  const current = favorites[provider] ?? [];
-  const pruned = current.filter((m) => availableModels.includes(m));
-  if (pruned.length === current.length) return favorites;
-  return { ...favorites, [provider]: pruned };
 }

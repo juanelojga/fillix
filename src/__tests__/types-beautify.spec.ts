@@ -3,23 +3,22 @@
 // Sprint 2 additions: ObsidianConfig.beautifierPromptPath (Task 2.1)
 // Will FAIL typecheck until Gate 4 adds the field to ObsidianConfig.
 import { describe, it, expect, expectTypeOf } from 'vitest';
-import type { ChatMessage, ObsidianConfig, PortMessage, ProviderConfig } from '../types';
+import type { ChatMessage, Message, ObsidianConfig, OllamaConfig, PortMessage } from '../types';
 import type { StreamingState, ActiveMessage } from '../sidepanel/stores/chat';
 
-const baseProvider: ProviderConfig = {
-  provider: 'ollama',
+const baseConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 };
 
-describe('PortMessage — BEAUTIFY variant', () => {
-  it('accepts BEAUTIFY type with content and providerConfig', () => {
-    const msg: PortMessage = {
+describe('Message — BEAUTIFY variant', () => {
+  it('accepts BEAUTIFY type with content and an Ollama config', () => {
+    const msg: Message = {
       type: 'BEAUTIFY',
       content: 'raw assistant text',
-      providerConfig: baseProvider,
+      config: baseConfig,
     };
-    expectTypeOf(msg).toMatchTypeOf<PortMessage>();
+    expectTypeOf(msg).toMatchTypeOf<Message>();
   });
 });
 

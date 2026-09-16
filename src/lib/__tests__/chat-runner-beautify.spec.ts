@@ -3,28 +3,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { handleChatPort } from '../chat-runner';
 import type * as StorageModule from '../storage';
+import type * as OllamaModule from '../ollama';
 
 vi.mock('../storage', async (importOriginal) => {
   const actual = await importOriginal<typeof StorageModule>();
   return {
     ...actual,
-    getProviderConfig: vi.fn(),
     getSearchConfig: vi.fn(),
     getOllamaConfig: vi.fn(),
     getObsidianConfig: vi.fn(),
   };
 });
 
-vi.mock('../providers/index', () => ({
-  resolveProvider: vi.fn(),
-}));
+vi.mock('../ollama', async (importOriginal) => {
+  const actual = await importOriginal<typeof OllamaModule>();
+  return { ...actual, chatStream: vi.fn() };
+});
 
 import * as storage from '../storage';
-import { resolveProvider } from '../providers/index';
-import type { ProviderConfig } from '../../types';
+import { chatStream } from '../ollama';
+import type { OllamaConfig } from '../../types';
 
-const baseProvider: ProviderConfig = {
-  provider: 'ollama',
+const baseConfig: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
   model: 'llama3.2',
 };
@@ -63,6 +63,7 @@ function setup(port: ReturnType<typeof makePort>) {
 function makeStream(tokens?: string[], error?: string) {
   return vi.fn(
     async (
+      _config: unknown,
       _msgs: unknown,
       _sys: unknown,
       opts: {
@@ -93,46 +94,38 @@ describe('BEAUTIFY handler', () => {
   });
 
   it('posts { type:"beautified", content } accumulating all streamed tokens on success', async () => {
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: makeStream(['Clean', ' text']),
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(makeStream(['Clean', ' text']));
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
     expect(port.sent).toContainEqual({ type: 'beautified', content: 'Clean text' });
   });
 
-  it('calls resolveProvider with the providerConfig from the BEAUTIFY message, not from storage', async () => {
-    const customCfg: ProviderConfig = {
-      provider: 'openai',
-      baseUrl: 'https://api.openai.com',
-      model: 'gpt-4o',
-      apiKey: 'sk-x',
-    };
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: makeStream(['ok']),
-      listModels: vi.fn(),
-    });
+  it('uses the config from the BEAUTIFY message, not the one in storage', async () => {
+    const customCfg: OllamaConfig = { baseUrl: 'http://custom:11434', model: 'qwen3:8b' };
+    const chatStreamFn = makeStream(['ok']);
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: customCfg });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: customCfg });
 
-    expect(vi.mocked(resolveProvider).mock.calls[0][0]).toMatchObject(customCfg);
+    const [configArg] = chatStreamFn.mock.calls[0] as [OllamaConfig];
+    expect(configArg).toMatchObject(customCfg);
   });
 
   it('passes the raw content as a single user message to chatStream', async () => {
     const chatStreamFn = makeStream(['formatted']);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'original text', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'original text', config: baseConfig });
 
-    const [messagesArg] = chatStreamFn.mock.calls[0] as [
+    const [, messagesArg] = chatStreamFn.mock.calls[0] as [
+      unknown,
       Array<{ role: string; content: string }>,
       unknown,
       unknown,
@@ -143,25 +136,22 @@ describe('BEAUTIFY handler', () => {
 
   it('uses a non-empty DEFAULT_BEAUTIFIER_PROMPT as the system prompt', async () => {
     const chatStreamFn = makeStream(['ok']);
-    vi.mocked(resolveProvider).mockReturnValue({ chatStream: chatStreamFn, listModels: vi.fn() });
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
-    const [, systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, string, unknown];
+    const [, , systemPrompt] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
     expect(systemPrompt.trim().length).toBeGreaterThan(0);
   });
 
   it('posts { type:"beautify-error", reason } when chatStream fires onError', async () => {
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: makeStream(undefined, 'timeout'),
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(makeStream(undefined, 'timeout'));
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'raw', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'raw', config: baseConfig });
 
     const errMsg = port.sent.find(
       (m: unknown) => (m as { type: string }).type === 'beautify-error',
@@ -171,14 +161,11 @@ describe('BEAUTIFY handler', () => {
   });
 
   it('removes the onDisconnect listener in the finally block to prevent listener leaks', async () => {
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: makeStream(['done']),
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(makeStream(['done']));
     const port = makePort();
     const { trigger } = setup(port);
 
-    await trigger({ type: 'BEAUTIFY', content: 'text', providerConfig: baseProvider });
+    await trigger({ type: 'BEAUTIFY', content: 'text', config: baseConfig });
 
     expect(port.onDisconnect.removeListener).toHaveBeenCalledOnce();
   });
@@ -186,6 +173,7 @@ describe('BEAUTIFY handler', () => {
   it('does not throw an unhandled rejection when port disconnects mid-beautify', async () => {
     const abortAwareStream = vi.fn(
       async (
+        _config: unknown,
         _msgs: unknown,
         _sys: unknown,
         opts: {
@@ -202,17 +190,14 @@ describe('BEAUTIFY handler', () => {
         opts.onDone();
       },
     );
-    vi.mocked(resolveProvider).mockReturnValue({
-      chatStream: abortAwareStream,
-      listModels: vi.fn(),
-    });
+    vi.mocked(chatStream).mockImplementation(abortAwareStream);
 
     const port = makePort();
     const { trigger } = setup(port);
 
     port.onDisconnect._fire();
     await expect(
-      trigger({ type: 'BEAUTIFY', content: 'text', providerConfig: baseProvider }),
+      trigger({ type: 'BEAUTIFY', content: 'text', config: baseConfig }),
     ).resolves.toBeUndefined();
   });
 });

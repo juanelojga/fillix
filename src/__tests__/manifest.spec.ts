@@ -3,15 +3,14 @@
 import { describe, it, expect } from 'vitest';
 import manifest from '../../manifest.config';
 
-// Sprint 7: verify all external endpoints used by the tool layer
-// are present in host_permissions so background fetch calls succeed.
+// Verify every external endpoint the tool layer reaches is present in
+// host_permissions so background fetch calls succeed — and that the retired
+// remote-LLM origins are gone now that Fillix is Ollama-only.
 
 const permissions: string[] = (manifest as { host_permissions?: string[] }).host_permissions ?? [];
 
-describe('manifest host_permissions — Sprint 7 endpoints', () => {
+describe('manifest host_permissions', () => {
   const required = [
-    'https://api.openai.com/*',
-    'https://openrouter.ai/*',
     'https://api.search.brave.com/*',
     'https://en.wikipedia.org/*',
     'https://news.google.com/*',
@@ -30,4 +29,10 @@ describe('manifest host_permissions — Sprint 7 endpoints', () => {
   it('retains the existing obsidian localhost entry', () => {
     expect(permissions).toContain('http://localhost:27123/*');
   });
+
+  for (const url of ['https://api.openai.com/*', 'https://openrouter.ai/*']) {
+    it(`no longer grants ${url}`, () => {
+      expect(permissions).not.toContain(url);
+    });
+  }
 });

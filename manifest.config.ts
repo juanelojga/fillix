@@ -24,8 +24,6 @@ export default defineManifest({
   host_permissions: [
     'http://localhost:11434/*',
     'http://localhost:27123/*',
-    'https://api.openai.com/*',
-    'https://openrouter.ai/*',
     'https://api.search.brave.com/*',
     'https://en.wikipedia.org/*',
     'https://news.google.com/*',

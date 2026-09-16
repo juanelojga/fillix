@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { get } from 'svelte/store';
 import { messages, streamingState, activeMessage } from '../stores/chat';
-import { providerConfig, searchConfig, modelList, favoriteModels } from '../stores/settings';
+import { ollamaConfig, searchConfig, modelList } from '../stores/settings';
 import { workflowList, agentMessages, pendingGate, isAgentRunning } from '../stores/workflow';
 
 describe('svelte stores (Task 2.5)', () => {
@@ -26,8 +26,8 @@ describe('svelte stores (Task 2.5)', () => {
   });
 
   describe('settings store', () => {
-    it('providerConfig initialises as null', () => {
-      expect(get(providerConfig)).toBeNull();
+    it('ollamaConfig initialises as null', () => {
+      expect(get(ollamaConfig)).toBeNull();
     });
 
     it('searchConfig initialises as null', () => {
@@ -38,13 +38,9 @@ describe('svelte stores (Task 2.5)', () => {
       expect(get(modelList)).toEqual([]);
     });
 
-    it('favoriteModels initialises as empty object', () => {
-      expect(get(favoriteModels)).toEqual({});
-    });
-
-    it('providerConfig is a writable store', () => {
-      expect(typeof providerConfig.subscribe).toBe('function');
-      expect(typeof providerConfig.set).toBe('function');
+    it('ollamaConfig is a writable store', () => {
+      expect(typeof ollamaConfig.subscribe).toBe('function');
+      expect(typeof ollamaConfig.set).toBe('function');
     });
   });
 

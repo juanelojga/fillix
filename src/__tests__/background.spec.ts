@@ -36,27 +36,36 @@ function makeMockPort(name: string): MockPort {
 let connectListeners: ((port: MockPort) => void)[] = [];
 
 const mockChatStream = vi.fn();
-const mockGetProviderConfig = vi.fn().mockResolvedValue({
-  provider: 'ollama',
-  baseUrl: 'http://localhost:11434',
-  model: 'llama3.2',
-});
+const mockTestModel = vi.fn();
 
-vi.mock('../lib/ollama', () => ({ chatStream: mockChatStream, listModels: vi.fn() }));
+vi.mock('../lib/ollama', () => ({
+  chatStream: mockChatStream,
+  testModel: mockTestModel,
+  inferFieldValue: vi.fn(),
+}));
+vi.mock('../lib/legacy-migration', () => ({ migrateLegacyProviderKeys: vi.fn() }));
 vi.mock('../lib/storage', () => ({
   getOllamaConfig: vi
     .fn()
     .mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' }),
-  getProviderConfig: mockGetProviderConfig,
   getChatConfig: vi.fn().mockResolvedValue({ systemPrompt: '' }),
   getSearchConfig: vi.fn().mockResolvedValue({}),
   getObsidianConfig: vi.fn().mockResolvedValue({ host: 'localhost', port: 27123, apiKey: '' }),
-  getFavoriteModels: vi.fn().mockResolvedValue({}),
+  getModelList: vi.fn().mockResolvedValue([]),
+  getWorkflows: vi.fn().mockResolvedValue([]),
+  getWorkflowsFolder: vi.fn().mockResolvedValue('fillix-workflows'),
+  setWorkflows: vi.fn(),
 }));
+
+const messageListeners: ((
+  msg: Message,
+  sender: { id?: string },
+  sendResponse: (r: unknown) => void,
+) => void)[] = [];
 
 vi.stubGlobal('chrome', {
   runtime: {
-    onMessage: { addListener: vi.fn() },
+    onMessage: { addListener: vi.fn((cb) => messageListeners.push(cb)) },
     onConnect: {
       addListener: vi.fn((cb: (port: MockPort) => void) => connectListeners.push(cb)),
     },
@@ -596,5 +605,42 @@ describe('background auto-refresh workflows on load', () => {
     const obsidianConfig = { host: 'localhost', port: 27123, apiKey: 'test-key-123' };
     const shouldRefresh = Boolean(obsidianConfig.apiKey);
     expect(shouldRefresh).toBe(true);
+  });
+});
+
+// --- TEST_MODEL: the manual model-list replacement for LIST_MODELS ---
+
+describe('TEST_MODEL message type', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    messageListeners.length = 0;
+    connectListeners = [];
+    await loadBackground();
+  });
+
+  function send(msg: Message): Promise<unknown> {
+    return new Promise((resolve) => {
+      messageListeners[0](msg, {}, resolve);
+    });
+  }
+
+  it('runs testModel against the requested model and returns its latency', async () => {
+    mockTestModel.mockResolvedValue(412);
+
+    const response = await send({ type: 'TEST_MODEL', model: 'qwen3:8b' });
+
+    expect(mockTestModel).toHaveBeenCalledWith({
+      baseUrl: 'http://localhost:11434',
+      model: 'qwen3:8b',
+    });
+    expect(response).toEqual({ ok: true, latencyMs: 412 });
+  });
+
+  it('returns the Ollama error text when the model does not run', async () => {
+    mockTestModel.mockRejectedValue(new Error('model "nope" not found'));
+
+    const response = await send({ type: 'TEST_MODEL', model: 'nope' });
+
+    expect(response).toEqual({ ok: false, error: 'model "nope" not found' });
   });
 });

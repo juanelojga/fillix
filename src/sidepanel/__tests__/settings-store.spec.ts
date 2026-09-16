@@ -1,130 +1,183 @@
-import { existsSync, readFileSync } from 'fs';
-import { resolve } from 'path';
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { get } from 'svelte/store';
 
-const storePath = resolve(process.cwd(), 'src/sidepanel/stores/settings.ts');
-const src = readFileSync(storePath, 'utf-8');
+const store: Record<string, unknown> = {};
+const mockSendMessage = vi.fn();
 
-describe('settings store (Task 4.1)', () => {
-  it('exists', () => {
-    expect(existsSync(storePath)).toBe(true);
+vi.stubGlobal('chrome', {
+  storage: {
+    local: {
+      get: vi.fn(async (keys: string | string[]) => {
+        const list = Array.isArray(keys) ? keys : [keys];
+        return Object.fromEntries(
+          list.filter((k) => store[k] !== undefined).map((k) => [k, store[k]]),
+        );
+      }),
+      set: vi.fn(async (items: Record<string, unknown>) => {
+        Object.assign(store, items);
+      }),
+    },
+  },
+  runtime: { sendMessage: mockSendMessage },
+});
+
+import {
+  ollamaConfig,
+  searchConfig,
+  modelList,
+  loadSettings,
+  saveSettings,
+  addModel,
+  removeModel,
+  setActiveModel,
+  testModel,
+} from '../stores/settings';
+
+beforeEach(() => {
+  for (const key of Object.keys(store)) delete store[key];
+  mockSendMessage.mockReset();
+  ollamaConfig.set(null);
+  searchConfig.set(null);
+  modelList.set([]);
+});
+
+describe('loadSettings', () => {
+  it('falls back to the Ollama defaults on a fresh profile', async () => {
+    await loadSettings();
+    expect(get(ollamaConfig)).toEqual({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+    expect(get(searchConfig)).toEqual({});
   });
 
-  describe('store exports', () => {
-    it('exports providerConfig writable store', () => {
-      expect(src).toContain('providerConfig');
-    });
-
-    it('exports searchConfig writable store', () => {
-      expect(src).toContain('searchConfig');
-    });
-
-    it('exports modelList writable store', () => {
-      expect(src).toContain('modelList');
-    });
-
-    it('exports favoriteModels writable store', () => {
-      expect(src).toContain('favoriteModels');
-    });
+  it('seeds the model list from the active model when no list is stored', async () => {
+    store.ollama = { baseUrl: 'http://localhost:11434', model: 'phi3' };
+    await loadSettings();
+    expect(get(modelList)).toEqual(['phi3']);
   });
 
-  describe('function exports', () => {
-    it('exports loadSettings', () => {
-      expect(src).toContain('loadSettings');
-    });
-
-    it('exports saveSettings', () => {
-      expect(src).toContain('saveSettings');
-    });
-
-    it('exports refreshModels', () => {
-      expect(src).toContain('refreshModels');
-    });
-
-    it('exports toggleFavorite', () => {
-      expect(src).toContain('toggleFavorite');
-    });
-
-    it('exports filterModels', () => {
-      expect(src).toContain('filterModels');
-    });
+  it('prefers the stored model list over the active model', async () => {
+    store.ollama = { baseUrl: 'http://localhost:11434', model: 'phi3' };
+    store.models = ['llama3.2', 'qwen3:8b'];
+    await loadSettings();
+    expect(get(modelList)).toEqual(['llama3.2', 'qwen3:8b']);
   });
 
-  describe('storage integration', () => {
-    it('imports getProviderConfig', () => {
-      expect(src).toContain('getProviderConfig');
-    });
+  it('never asks Ollama which models exist', async () => {
+    await loadSettings();
+    expect(mockSendMessage).not.toHaveBeenCalled();
+  });
+});
 
-    it('imports setProviderConfig', () => {
-      expect(src).toContain('setProviderConfig');
-    });
+describe('saveSettings', () => {
+  it('persists the ollama and search configs', async () => {
+    await saveSettings(
+      { baseUrl: 'http://custom:11434', model: 'mistral' },
+      { braveApiKey: 'BSA' },
+    );
+    expect(store.ollama).toEqual({ baseUrl: 'http://custom:11434', model: 'mistral' });
+    expect(store.search).toEqual({ braveApiKey: 'BSA' });
+    expect(get(ollamaConfig)?.model).toBe('mistral');
+  });
+});
 
-    it('imports getSearchConfig', () => {
-      expect(src).toContain('getSearchConfig');
-    });
-
-    it('imports setSearchConfig', () => {
-      expect(src).toContain('setSearchConfig');
-    });
-
-    it('imports getFavoriteModels', () => {
-      expect(src).toContain('getFavoriteModels');
-    });
-
-    it('imports setFavoriteModels', () => {
-      expect(src).toContain('setFavoriteModels');
-    });
+describe('addModel', () => {
+  beforeEach(async () => {
+    await loadSettings();
+    modelList.set([]);
   });
 
-  describe('filterModels (pure function)', () => {
-    it('is a synchronous function (no async)', () => {
-      // filterModels takes a query string and array — no chrome API needed
-      expect(src).toMatch(/function filterModels|filterModels\s*=/);
-    });
-
-    it('accepts query and allModels parameters', () => {
-      expect(src).toMatch(
-        /filterModels[^(]*\([^)]*query[^)]*allModels|filterModels[^(]*\([^)]*allModels[^)]*query/,
-      );
-    });
+  it('trims whitespace around the name', async () => {
+    await addModel('  qwen3:8b  ');
+    expect(get(modelList)).toEqual(['qwen3:8b']);
+    expect(store.models).toEqual(['qwen3:8b']);
   });
 
-  describe('toggleFavorite logic', () => {
-    it('references provider type to key favorites', () => {
-      expect(src).toContain('ProviderType');
-    });
+  it('ignores a blank name', async () => {
+    await addModel('   ');
+    expect(get(modelList)).toEqual([]);
   });
 
-  describe('refreshModels', () => {
-    it('updates modelList store', () => {
-      // refreshModels calls listModels on the provider and sets modelList
-      expect(src).toContain('modelList');
-    });
+  it('ignores a duplicate', async () => {
+    await addModel('phi3');
+    await addModel('phi3');
+    expect(get(modelList)).toEqual(['phi3']);
   });
 
-  describe('providerConfigs store (Task 1.3)', () => {
-    it('exports providerConfigs writable store', () => {
-      expect(src).toContain('providerConfigs');
-    });
+  it('does not validate the name against Ollama', async () => {
+    await addModel('not-a-real-model');
+    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(get(modelList)).toEqual(['not-a-real-model']);
+  });
 
-    it('imports getProviderConfigs from storage', () => {
-      expect(src).toContain('getProviderConfigs');
-    });
+  it('makes the first model active when none is set', async () => {
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: '' });
+    await addModel('phi3');
+    expect(get(ollamaConfig)?.model).toBe('phi3');
+  });
+});
 
-    it('imports setProviderConfigs from storage', () => {
-      expect(src).toContain('setProviderConfigs');
-    });
+describe('removeModel', () => {
+  beforeEach(async () => {
+    await loadSettings();
+    modelList.set(['llama3.2', 'phi3']);
+    store.models = ['llama3.2', 'phi3'];
+  });
 
-    it('seeds providerConfigs in loadSettings', () => {
-      expect(src).toMatch(
-        /loadSettings[\s\S]*getProviderConfigs|getProviderConfigs[\s\S]*loadSettings/,
-      );
-    });
+  it('drops the model from the list', async () => {
+    await removeModel('phi3');
+    expect(get(modelList)).toEqual(['llama3.2']);
+    expect(store.models).toEqual(['llama3.2']);
+  });
 
-    it('persists providerConfigs in saveSettings', () => {
-      expect(src).toMatch(
-        /saveSettings[\s\S]*setProviderConfigs|setProviderConfigs[\s\S]*saveSettings/,
-      );
-    });
+  it('reassigns the active model when the active one is removed', async () => {
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'phi3' });
+    await removeModel('phi3');
+    expect(get(ollamaConfig)?.model).toBe('llama3.2');
+  });
+
+  it('clears the active model when the last one is removed', async () => {
+    modelList.set(['phi3']);
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'phi3' });
+    await removeModel('phi3');
+    expect(get(ollamaConfig)?.model).toBe('');
+  });
+
+  it('leaves the active model alone when another is removed', async () => {
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+    await removeModel('phi3');
+    expect(get(ollamaConfig)?.model).toBe('llama3.2');
+  });
+});
+
+describe('setActiveModel', () => {
+  it('persists the new active model', async () => {
+    await loadSettings();
+    await setActiveModel('qwen3:8b');
+    expect(get(ollamaConfig)?.model).toBe('qwen3:8b');
+    expect(store.ollama).toMatchObject({ model: 'qwen3:8b' });
+  });
+});
+
+describe('testModel', () => {
+  it('sends TEST_MODEL and returns the latency on success', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true, latencyMs: 412 });
+    const result = await testModel('llama3.2');
+    expect(mockSendMessage).toHaveBeenCalledWith({ type: 'TEST_MODEL', model: 'llama3.2' });
+    expect(result).toEqual({ ok: true, latencyMs: 412 });
+  });
+
+  it('surfaces the error string rather than swallowing it', async () => {
+    mockSendMessage.mockResolvedValue({ ok: false, error: 'model "x" not found' });
+    expect(await testModel('x')).toEqual({ ok: false, error: 'model "x" not found' });
+  });
+
+  it('reports a thrown sendMessage failure', async () => {
+    mockSendMessage.mockRejectedValue(new Error('service worker asleep'));
+    expect(await testModel('x')).toEqual({ ok: false, error: 'service worker asleep' });
+  });
+
+  it('reports a missing response', async () => {
+    mockSendMessage.mockResolvedValue(undefined);
+    const result = await testModel('x');
+    expect(result.ok).toBe(false);
   });
 });

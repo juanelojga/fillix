@@ -8,8 +8,6 @@ import type {
   FieldSnapshot,
   FieldFill,
   PipelineStage,
-  ProviderConfig,
-  ProviderType,
   SearchConfig,
   WorkflowDefinition,
   UnderstandOutput,
@@ -152,34 +150,6 @@ describe('ReviewOutput', () => {
   });
 });
 
-describe('ProviderType', () => {
-  it('accepts all four expected literal values', () => {
-    const values: ProviderType[] = ['ollama', 'openai', 'openrouter', 'custom'];
-    expectTypeOf(values).toMatchTypeOf<ProviderType[]>();
-  });
-});
-
-describe('ProviderConfig', () => {
-  it('requires provider, baseUrl, and model', () => {
-    const cfg: ProviderConfig = {
-      provider: 'ollama',
-      baseUrl: 'http://localhost:11434',
-      model: 'llama3.2',
-    };
-    expectTypeOf(cfg).toMatchTypeOf<ProviderConfig>();
-  });
-
-  it('accepts optional apiKey', () => {
-    const cfg: ProviderConfig = {
-      provider: 'openai',
-      baseUrl: 'https://api.openai.com',
-      model: 'gpt-4o',
-      apiKey: 'sk-test',
-    };
-    expectTypeOf(cfg).toMatchTypeOf<ProviderConfig>();
-  });
-});
-
 describe('SearchConfig', () => {
   it('is fully optional (empty object is valid)', () => {
     const cfg: SearchConfig = {};
@@ -212,25 +182,25 @@ describe('PortMessage tool-call and tool-result variants', () => {
   });
 });
 
-describe('Message LIST_MODELS variant', () => {
-  it('LIST_MODELS is a valid Message type', () => {
-    const msg: Message = { type: 'LIST_MODELS' };
+describe('Message TEST_MODEL variant', () => {
+  it('TEST_MODEL carries the model name to test', () => {
+    const msg: Message = { type: 'TEST_MODEL', model: 'qwen3:8b' };
     expectTypeOf(msg).toMatchTypeOf<Message>();
   });
 });
 
-describe('CHAT_START provider field', () => {
-  it('accepts optional provider field', () => {
+describe('CHAT_START model field', () => {
+  it('accepts an optional model override', () => {
     const msg: Message = {
       type: 'CHAT_START',
       messages: [],
       systemPrompt: 'test',
-      provider: 'openai',
+      model: 'phi3',
     };
     expectTypeOf(msg).toMatchTypeOf<Message>();
   });
 
-  it('remains valid without provider field', () => {
+  it('remains valid without the model field', () => {
     const msg: Message = { type: 'CHAT_START', messages: [], systemPrompt: 'test' };
     expectTypeOf(msg).toMatchTypeOf<Message>();
   });
