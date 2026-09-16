@@ -63,6 +63,26 @@ describe('component spec files exist (Sprint 6)', () => {
     });
   });
 
+  describe('Model pickers', () => {
+    it('ModelPicker.spec.ts covers the presentational contract', () => {
+      expect(existsSync(comp('ModelPicker.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ModelPicker.spec.ts'), 'utf-8');
+      expect(src).toContain('onSelect');
+    });
+
+    it('ChatModelPicker.spec.ts exists and pins the ollama-key write', () => {
+      expect(existsSync(comp('ChatModelPicker.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ChatModelPicker.spec.ts'), 'utf-8');
+      expect(src).toContain('ollama');
+    });
+
+    it('NewsModelPicker.spec.ts exists and pins the newsConfig-key write', () => {
+      expect(existsSync(comp('NewsModelPicker.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('NewsModelPicker.spec.ts'), 'utf-8');
+      expect(src).toContain('newsConfig');
+    });
+  });
+
   describe('News row components', () => {
     it('NewsItemRow.spec.ts exists and covers the disclosure contract', () => {
       expect(existsSync(comp('NewsItemRow.spec.ts'))).toBe(true);

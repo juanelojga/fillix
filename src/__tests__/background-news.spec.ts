@@ -149,6 +149,29 @@ describe('NEWS_SUMMARIZE', () => {
     expect(mockSummarizeArticle.mock.calls[0]?.[2]).toBeInstanceOf(AbortSignal);
   });
 
+  it('summarizes with the model the panel resolved, not the active one', async () => {
+    mockSummarizeArticle.mockResolvedValue({ summary: 'x', keyPoints: [] });
+
+    await dispatch({ type: 'NEWS_SUMMARIZE', title: 't', source: 's', text: 'b', model: 'phi4' });
+
+    expect(mockSummarizeArticle.mock.calls[0]?.[0]).toEqual({
+      baseUrl: 'http://localhost:11434',
+      model: 'phi4',
+    });
+  });
+
+  // The field is optional so a panel that has not loaded settings yet still works.
+  it('falls back to the active model when no model is sent', async () => {
+    mockSummarizeArticle.mockResolvedValue({ summary: 'x', keyPoints: [] });
+
+    await dispatch({ type: 'NEWS_SUMMARIZE', title: 't', source: 's', text: 'b' });
+
+    expect(mockSummarizeArticle.mock.calls[0]?.[0]).toEqual({
+      baseUrl: 'http://localhost:11434',
+      model: 'llama3.2',
+    });
+  });
+
   it('surfaces a generation failure as an error response', async () => {
     mockSummarizeArticle.mockRejectedValue(new Error('Model returned no usable summary'));
 

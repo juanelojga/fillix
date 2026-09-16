@@ -1,6 +1,7 @@
 <script lang="ts">
   import { CATEGORY_LABEL } from '$lib/news/categories';
   import NewsItemRow from '$components/NewsItemRow.svelte';
+  import NewsModelPicker from '$components/NewsModelPicker.svelte';
   import { expandedItemId, feedState, newsItems, refreshNews, summaries } from '../stores/news';
 
   const loading = $derived($feedState.status === 'loading');
@@ -65,18 +66,26 @@
       <h2 class="text-sm font-semibold text-slate-800">News</h2>
       <p class="text-[11px] text-muted-foreground truncate">{statusLine}</p>
     </div>
-    <button
-      type="button"
-      class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-input
-             bg-background px-2.5 py-1.5 text-xs hover:bg-accent disabled:opacity-60
-             disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2
-             focus-visible:ring-ring"
-      onclick={() => refreshNews()}
-      disabled={loading}
-    >
-      <span class:animate-spin={loading} aria-hidden="true">⟳</span>
-      {loading ? 'Refreshing…' : 'Refresh'}
-    </button>
+    <!-- Picker and Refresh share one row. At sidepanel width a long model name would
+         otherwise push Refresh off-panel, so the trigger caps itself at max-w-[120px] and
+         truncates while Refresh stays shrink-0. The picker is deliberately never disabled
+         while a summary runs — that model is already captured, and the next story should
+         use the new choice. -->
+    <div class="shrink-0 flex items-center gap-1">
+      <NewsModelPicker />
+      <button
+        type="button"
+        class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-input
+               bg-background px-2.5 py-1.5 text-xs hover:bg-accent disabled:opacity-60
+               disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2
+               focus-visible:ring-ring"
+        onclick={() => refreshNews()}
+        disabled={loading}
+      >
+        <span class:animate-spin={loading} aria-hidden="true">⟳</span>
+        {loading ? 'Refreshing…' : 'Refresh'}
+      </button>
+    </div>
   </header>
 
   <p class="sr-only" role="status" aria-live="polite">{announcement}</p>

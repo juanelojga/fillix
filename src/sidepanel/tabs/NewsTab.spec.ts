@@ -3,6 +3,7 @@ import { render, screen, fireEvent } from '@testing-library/svelte';
 import { get } from 'svelte/store';
 import NewsTab from './NewsTab.svelte';
 import { expandedItemId, feedState, newsItems, summaries } from '../stores/news';
+import { modelList, newsModel, ollamaConfig } from '../stores/settings';
 import type { NewsCategory, NewsItem } from '../../types';
 
 function item(id: string, category: NewsCategory, title = `Story ${id}`): NewsItem {
@@ -27,11 +28,25 @@ const SIX = [
   item('f', 'technology'),
 ];
 
+/**
+ * Story disclosures only. The header's summary-model picker is also an aria-expanded
+ * button, so `getAllByRole('button', { expanded })` alone over-counts by one.
+ */
+function rows(expanded: boolean): HTMLElement[] {
+  return screen
+    .queryAllByRole('button', { expanded })
+    .filter((el) => el.getAttribute('aria-controls')?.startsWith('news-panel-'));
+}
+
 beforeEach(() => {
   newsItems.set([]);
   feedState.set({ status: 'idle' });
   expandedItemId.set(null);
   summaries.set({});
+  // The header now renders the summary-model picker, which reads the settings stores.
+  ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+  modelList.set(['llama3.2', 'phi4']);
+  newsModel.set('');
   vi.restoreAllMocks();
 });
 
@@ -70,7 +85,7 @@ describe('NewsTab', () => {
     feedState.set({ status: 'ready', fetchedAt: Date.now(), degraded: [] });
     render(NewsTab);
 
-    expect(screen.getAllByRole('button', { expanded: false })).toHaveLength(6);
+    expect(rows(false)).toHaveLength(6);
     expect(screen.getAllByText('AI')).toHaveLength(2);
     expect(screen.getByText('Curiosities')).toBeInTheDocument();
   });
@@ -107,11 +122,11 @@ describe('NewsTab', () => {
     });
     render(NewsTab);
 
-    const rows = screen.getAllByRole('button', { expanded: false });
-    await fireEvent.click(rows[0]!);
-    await fireEvent.click(rows[3]!);
+    const collapsed = rows(false);
+    await fireEvent.click(collapsed[0]!);
+    await fireEvent.click(collapsed[3]!);
 
-    expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(1);
+    expect(rows(true)).toHaveLength(1);
     expect(get(expandedItemId)).toBe('d');
   });
 
@@ -124,7 +139,7 @@ describe('NewsTab', () => {
     const spy = vi.spyOn(chrome.runtime, 'sendMessage');
     render(NewsTab);
 
-    await fireEvent.click(screen.getAllByRole('button', { expanded: false })[0]!);
+    await fireEvent.click(rows(false)[0]!);
 
     expect(spy).not.toHaveBeenCalled();
   });
@@ -142,12 +157,12 @@ describe('NewsTab', () => {
     });
 
     const first = render(NewsTab);
-    await fireEvent.click(screen.getAllByRole('button', { expanded: false })[0]!);
-    expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(1);
+    await fireEvent.click(rows(false)[0]!);
+    expect(rows(true)).toHaveLength(1);
     first.unmount();
 
     render(NewsTab);
-    expect(screen.getAllByRole('button', { expanded: true })).toHaveLength(1);
+    expect(rows(true)).toHaveLength(1);
   });
 
   it('announces summary progress through one persistent status region', () => {
@@ -165,5 +180,31 @@ describe('NewsTab', () => {
     render(NewsTab);
 
     expect(screen.getByRole('status')).toHaveTextContent(/everything is down/);
+  });
+});
+
+describe('NewsTab summary-model picker', () => {
+  it('exposes the summary model in the header', () => {
+    render(NewsTab);
+    expect(screen.getByRole('button', { name: /summary model: llama3\.2/i })).toBeInTheDocument();
+  });
+
+  // The picker trigger is another button in the same header — the Refresh query must
+  // still resolve to exactly one element.
+  it('does not collide with the Refresh button', () => {
+    render(NewsTab);
+    expect(screen.getByRole('button', { name: /Refresh/ })).toBeInTheDocument();
+  });
+
+  // Deliberate: the in-flight model is captured at send time, so the next story should
+  // be free to use a new choice.
+  it('leaves the picker usable while the feed is loading', async () => {
+    feedState.set({ status: 'loading' });
+    render(NewsTab);
+
+    const trigger = screen.getByRole('button', { name: /summary model/i });
+    expect(trigger).not.toBeDisabled();
+    await fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 });

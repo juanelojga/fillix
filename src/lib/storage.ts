@@ -37,6 +37,25 @@ export async function setChatConfig(chat: ChatConfig): Promise<void> {
 }
 
 /**
+ * The News tab's summary model. '' means "follow the active Ollama model" — the same
+ * ''-is-fallback convention as ChatConfig.systemPrompt.
+ *
+ * Deliberately its own key rather than a field inside `news`: that key is the article
+ * cache, and setNewsCache replaces it wholesale on every refresh and every completed
+ * summary, which would erase this preference within seconds.
+ */
+export type NewsConfig = { model: string };
+
+export async function getNewsConfig(): Promise<NewsConfig> {
+  const { newsConfig } = await chrome.storage.local.get('newsConfig');
+  return { model: (newsConfig as Partial<NewsConfig> | undefined)?.model ?? '' };
+}
+
+export async function setNewsConfig(newsConfig: NewsConfig): Promise<void> {
+  await chrome.storage.local.set({ newsConfig });
+}
+
+/**
  * The last refresh plus any summaries already generated for it, so closing the side
  * panel does not throw away a 20-second summary. Replaced wholesale on every refresh,
  * so it stays bounded to the six items currently on screen.

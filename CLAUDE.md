@@ -35,7 +35,7 @@ Shared code lives in `src/lib/`:
 
 - `ollama.ts` — the **only** LLM client. `chatStream()` (NDJSON `/api/chat`), `generateStructured()` and `inferFieldValue()` (`/api/generate`, `format: 'json'`), and `testModel()` which runs one tiny generation and returns its latency. Structured prompts expect `{"value": "..."}` back; if parse fails, the field is skipped (empty string), **never** hallucinated text. There is deliberately no `listModels()` — see `legacy-migration.ts`.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
-- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text.
+- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
 - `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs.
 
@@ -53,6 +53,14 @@ Backs the News tab. `aggregator.ts` fans four sources out in parallel with
 `interleave.ts` round-robins and dedupes them down to 6 items. Hacker News covers AI,
 Technology and Software development; the Wikipedia featured feed covers Curiosities. Both
 are JSON, so nothing here needs a DOM.
+
+The News tab has its own summary model, stored under `newsConfig` and picked from the tab
+header. `''` means "same as chat", so nothing changes until the user picks one.
+`lib/news/summary-model.ts` is the only place that convention is interpreted; the **sidepanel**
+resolves it and sends the result on `NEWS_SUMMARIZE`, rather than the worker re-reading
+storage. That is load-bearing: the panel needs the same value for its "Summarizing with X"
+label and for `diagnoseSummaryFailure`, and it captures it before the two round trips, so
+those can never name a model that did not run.
 
 Refresh costs **zero LLM calls** — collapsed rows render text the feed already provided.
 The model only runs when the user expands a row: `article-text.ts` decides whether the feed

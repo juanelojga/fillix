@@ -31,6 +31,7 @@ import {
   summaries,
   summarize,
 } from '../stores/news';
+import { newsModel, ollamaConfig } from '../stores/settings';
 import type { NewsItem } from '../../types';
 
 function item(id: string): NewsItem {
@@ -58,6 +59,8 @@ beforeEach(() => {
   feedState.set({ status: 'idle' });
   expandedItemId.set(null);
   summaries.set({});
+  ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+  newsModel.set('');
 });
 
 describe('refreshNews', () => {
@@ -244,5 +247,77 @@ describe('hydrateNewsCache', () => {
   it('is a no-op when nothing was cached', async () => {
     await hydrateNewsCache();
     expect(get(feedState)).toEqual({ status: 'idle' });
+  });
+});
+
+describe('the summary model that travels with the request', () => {
+  it('sends the News preference, not the chat model', async () => {
+    newsModel.set('phi4');
+    newsItems.set([item('a')]);
+    mockSendMessage.mockResolvedValueOnce(ARTICLE_OK).mockResolvedValueOnce(SUMMARY_OK);
+
+    await summarize('a');
+
+    expect(mockSendMessage.mock.calls[1]?.[0]).toMatchObject({
+      type: 'NEWS_SUMMARIZE',
+      model: 'phi4',
+    });
+    expect(get(summaries)['a']).toMatchObject({ status: 'ready', model: 'phi4' });
+  });
+
+  it("sends the chat model while the preference is ''", async () => {
+    newsItems.set([item('a')]);
+    mockSendMessage.mockResolvedValueOnce(ARTICLE_OK).mockResolvedValueOnce(SUMMARY_OK);
+
+    await summarize('a');
+
+    expect(mockSendMessage.mock.calls[1]?.[0]).toMatchObject({ model: 'llama3.2' });
+  });
+
+  // The field is optional, so the worker keeps its stored default rather than being
+  // handed an empty model name.
+  it('omits the model entirely when nothing is configured', async () => {
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: '' });
+    newsItems.set([item('a')]);
+    mockSendMessage.mockResolvedValueOnce(ARTICLE_OK).mockResolvedValueOnce(SUMMARY_OK);
+
+    await summarize('a');
+
+    expect(mockSendMessage.mock.calls[1]?.[0]).toMatchObject({ model: undefined });
+    expect(get(summaries)['a']).toMatchObject({ model: 'the local model' });
+  });
+
+  // The whole point of capturing the model before the two round trips: the attribution
+  // line must name the model that actually ran, not whatever the picker says now.
+  it('keeps the model captured at send time when the picker changes mid-flight', async () => {
+    newsModel.set('phi4');
+    newsItems.set([item('a')]);
+    mockSendMessage
+      .mockImplementationOnce(async () => {
+        newsModel.set('qwen3:8b');
+        return ARTICLE_OK;
+      })
+      .mockResolvedValueOnce(SUMMARY_OK);
+
+    await summarize('a');
+
+    expect(mockSendMessage.mock.calls[1]?.[0]).toMatchObject({ model: 'phi4' });
+    expect(get(summaries)['a']).toMatchObject({ status: 'ready', model: 'phi4' });
+  });
+
+  it('names the News model on a summarize failure, for the diagnostics', async () => {
+    newsModel.set('phi4');
+    newsItems.set([item('a')]);
+    mockSendMessage
+      .mockResolvedValueOnce(ARTICLE_OK)
+      .mockResolvedValueOnce({ ok: false, error: 'Model returned no usable summary' });
+
+    await summarize('a');
+
+    expect(get(summaries)['a']).toMatchObject({
+      status: 'error',
+      stage: 'summarize',
+      model: 'phi4',
+    });
   });
 });
