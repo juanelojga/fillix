@@ -4,13 +4,14 @@
   import { messages, streamingState, activeMessage } from '../stores/chat';
   import { ollamaConfig } from '../stores/settings';
   import type { PortMessage } from '../../types';
+  import type { ReconnectingPort } from '../reconnecting-port';
   import MessageBubble from '../components/MessageBubble.svelte';
   import ToolCallBlock from '../components/ToolCallBlock.svelte';
   import ThinkingBlock from '../components/ThinkingBlock.svelte';
   import ModelPicker from '../components/ModelPicker.svelte';
   import { createTokenBuffer } from '../token-buffer';
 
-  const chatPort = getContext<chrome.runtime.Port>('chatPort');
+  const chatPort = getContext<ReconnectingPort>('chatPort');
 
   let inputText = $state('');
   let textareaEl: HTMLTextAreaElement | null = $state(null);
@@ -53,8 +54,28 @@
 
   onDestroy(() => tokenBuffer.dispose());
 
+  /** Ends the turn locally: commit whatever streamed, then go back to idle. */
+  function finishTurn(trailing?: string): void {
+    tokenBuffer.flush();
+    const current = get(activeMessage);
+    const content = [current?.content ?? '', trailing].filter(Boolean).join('\n\n');
+    activeMessage.set(null);
+    if (content) messages.update((ms) => [...ms, { role: 'assistant', content }]);
+    streamingState.set('idle');
+  }
+
+  // A dropped port cannot resume the stream it was carrying, so say so instead of
+  // leaving the panel spinning on a reply that will never arrive.
+  function handleDisconnect(): void {
+    if (get(streamingState) !== 'streaming') return;
+    finishTurn(
+      'Error: lost the connection to the extension background before the reply finished — ' +
+        'Chrome suspends the service worker when it sits idle. Send the message again to retry.',
+    );
+  }
+
   onMount(() => {
-    chatPort.onMessage.addListener((rawMsg: unknown) => {
+    function handleMessage(rawMsg: unknown): void {
       const msg = rawMsg as PortMessage;
       switch (msg.type) {
         case 'token':
@@ -89,13 +110,9 @@
           );
           break;
         case 'done': {
-          // Flush first: buffered tokens would otherwise be dropped from the commit.
-          tokenBuffer.flush();
-          const current = get(activeMessage);
-          if (!current) break;
-          messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
-          activeMessage.set(null);
-          streamingState.set('idle');
+          // finishTurn flushes first: buffered tokens would otherwise be dropped.
+          if (!get(activeMessage)) break;
+          finishTurn();
           break;
         }
         case 'error':
@@ -112,7 +129,16 @@
           throw new Error(`Unhandled port message: ${JSON.stringify(_never)}`);
         }
       }
-    });
+    }
+
+    chatPort.onMessage.addListener(handleMessage);
+    chatPort.onDisconnect.addListener(handleDisconnect);
+    // Switching tabs unmounts this component; without this the next mount would
+    // stack a second listener on the same port and double every token.
+    return () => {
+      chatPort.onMessage.removeListener(handleMessage);
+      chatPort.onDisconnect.removeListener(handleDisconnect);
+    };
   });
 
   function send() {
@@ -132,14 +158,9 @@
   }
 
   function stop() {
+    // Reset locally first — stopping must work even if the background is gone.
+    finishTurn();
     chatPort.postMessage({ type: 'CHAT_STOP' });
-    tokenBuffer.flush();
-    const current = get(activeMessage);
-    if (current) {
-      messages.update((ms) => [...ms, { role: 'assistant', content: current.content }]);
-      activeMessage.set(null);
-    }
-    streamingState.set('idle');
   }
 
   function newConversation() {

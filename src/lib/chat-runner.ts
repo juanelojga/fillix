@@ -34,87 +34,107 @@ export function detectToolCall(
   }
 }
 
+/**
+ * Runs one chat turn: stream, dispatch any tool call, repeat until the model
+ * answers without one.
+ */
+async function runChat(
+  msg: Extract<Message, { type: 'CHAT_START' }>,
+  signal: AbortSignal,
+  post: (msg: PortMessage) => void,
+): Promise<void> {
+  const ollamaConfig = await getOllamaConfig();
+  const config = { ...ollamaConfig, model: msg.model ?? ollamaConfig.model };
+
+  const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${msg.systemPrompt}`;
+  const messages = [...msg.messages];
+  const MAX_ITERATIONS = 8;
+
+  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+    if (signal.aborted) return;
+
+    let accumulated = '';
+    let streamDone = false;
+
+    await chatStream(config, messages, systemPrompt, {
+      signal,
+      onToken: (value) => {
+        accumulated += value;
+        post({ type: 'token', value });
+      },
+      onThinking: (value) => post({ type: 'thinking', value }),
+      onDone: () => {
+        streamDone = true;
+      },
+      onError: (error) => {
+        post({ type: 'error', error });
+      },
+    });
+
+    if (signal.aborted) return;
+
+    let detectedTool: ReturnType<typeof detectToolCall> = null;
+    for (const line of accumulated.split('\n')) {
+      detectedTool = detectToolCall(line.trim());
+      if (detectedTool) break;
+    }
+
+    if (!detectedTool) {
+      if (streamDone) post({ type: 'done' });
+      return;
+    }
+
+    post({ type: 'tool-call', toolName: detectedTool.toolName, args: detectedTool.args });
+
+    const result = await dispatchTool(detectedTool.toolName, detectedTool.args);
+
+    post({ type: 'tool-result', toolName: detectedTool.toolName, result });
+
+    messages.push(
+      {
+        role: 'assistant',
+        content: `{"tool":"${detectedTool.toolName}","args":${JSON.stringify(detectedTool.args)}}`,
+      },
+      {
+        role: 'user',
+        content: `[Tool: ${detectedTool.toolName}]\nResult:\n${result}`,
+      },
+    );
+  }
+
+  post({ type: 'done' });
+}
+
 export function handleChatPort(port: chrome.runtime.Port): void {
   let controller: AbortController | null = null;
+
+  // The side panel can close mid-stream, and posting to a closed port throws.
+  // The run is over at that point, so swallow it rather than take down the
+  // listener with an unhandled rejection.
+  const post = (msg: PortMessage): void => {
+    try {
+      port.postMessage(msg);
+    } catch {
+      controller?.abort();
+    }
+  };
 
   port.onMessage.addListener(async (msg: Message) => {
     if (msg.type === 'CHAT_START') {
       controller?.abort();
       controller = new AbortController();
       const signal = controller.signal;
-
-      const ollamaConfig = await getOllamaConfig();
-      const config = { ...ollamaConfig, model: msg.model ?? ollamaConfig.model };
-
-      const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${msg.systemPrompt}`;
-      const messages = [...msg.messages];
-      const MAX_ITERATIONS = 8;
-
-      for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
+      try {
+        await runChat(msg, signal, post);
+      } catch (err) {
+        // Anything thrown in here — a storage read, a tool that rejects — used
+        // to leave the panel streaming forever with no reply and no error.
         if (signal.aborted) return;
-
-        let accumulated = '';
-        let streamDone = false;
-
-        await chatStream(config, messages, systemPrompt, {
-          signal,
-          onToken: (value) => {
-            accumulated += value;
-            port.postMessage({ type: 'token', value } satisfies PortMessage);
-          },
-          onThinking: (value) =>
-            port.postMessage({ type: 'thinking', value } satisfies PortMessage),
-          onDone: () => {
-            streamDone = true;
-          },
-          onError: (error) => {
-            port.postMessage({ type: 'error', error } satisfies PortMessage);
-          },
-        });
-
-        if (signal.aborted) return;
-
-        let detectedTool: ReturnType<typeof detectToolCall> = null;
-        for (const line of accumulated.split('\n')) {
-          detectedTool = detectToolCall(line.trim());
-          if (detectedTool) break;
-        }
-
-        if (!detectedTool) {
-          if (streamDone) port.postMessage({ type: 'done' } satisfies PortMessage);
-          return;
-        }
-
-        port.postMessage({
-          type: 'tool-call',
-          toolName: detectedTool.toolName,
-          args: detectedTool.args,
-        } satisfies PortMessage);
-
-        const result = await dispatchTool(detectedTool.toolName, detectedTool.args);
-
-        port.postMessage({
-          type: 'tool-result',
-          toolName: detectedTool.toolName,
-          result,
-        } satisfies PortMessage);
-
-        messages.push(
-          {
-            role: 'assistant',
-            content: `{"tool":"${detectedTool.toolName}","args":${JSON.stringify(detectedTool.args)}}`,
-          },
-          {
-            role: 'user',
-            content: `[Tool: ${detectedTool.toolName}]\nResult:\n${result}`,
-          },
-        );
+        post({ type: 'error', error: err instanceof Error ? err.message : String(err) });
       }
-
-      port.postMessage({ type: 'done' } satisfies PortMessage);
     } else if (msg.type === 'CHAT_STOP') {
       controller?.abort();
-      port.postMessage({ type: 'done' } satisfies PortMessage);
+      post({ type: 'done' });
     }
   });
 
