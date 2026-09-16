@@ -8,8 +8,10 @@ import {
   setOllamaConfig,
   getModelList,
   setModelList,
+  getNewsConfig,
+  setNewsConfig,
 } from '../storage';
-import type { ChatConfig } from '../storage';
+import type { ChatConfig, NewsConfig } from '../storage';
 import type { OllamaConfig } from '../../types';
 
 const mockGet = vi.fn();
@@ -133,5 +135,56 @@ describe('getOllamaConfig', () => {
     const config = await getOllamaConfig();
     expect(config.baseUrl).toBe('http://localhost:11434');
     expect(config.model).toBe('llama3.2');
+  });
+});
+
+describe('getNewsConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns '' on a fresh profile, i.e. follow the active model", async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getNewsConfig()).toEqual({ model: '' });
+  });
+
+  it('returns the stored model', async () => {
+    mockGet.mockResolvedValue({ newsConfig: { model: 'phi4' } });
+    expect(await getNewsConfig()).toEqual({ model: 'phi4' });
+  });
+
+  it('reads from the "newsConfig" storage key', async () => {
+    mockGet.mockResolvedValue({});
+    await getNewsConfig();
+    expect(mockGet).toHaveBeenCalledWith('newsConfig');
+  });
+
+  it('tolerates a non-object stored value', async () => {
+    mockGet.mockResolvedValue({ newsConfig: 'phi4' });
+    expect(await getNewsConfig()).toEqual({ model: '' });
+  });
+});
+
+describe('setNewsConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('writes to the "newsConfig" storage key', async () => {
+    const config: NewsConfig = { model: 'phi4' };
+    await setNewsConfig(config);
+    expect(mockSet).toHaveBeenCalledWith({ newsConfig: config });
+  });
+
+  // The `news` key is the article cache and is replaced wholesale on every refresh, so a
+  // preference written there would not survive the next Refresh press.
+  it('never touches the "news" cache key', async () => {
+    await setNewsConfig({ model: 'phi4' });
+    expect(Object.keys(mockSet.mock.calls[0]?.[0] ?? {})).toEqual(['newsConfig']);
+  });
+
+  it("persists '' so the News tab can go back to the active model", async () => {
+    await setNewsConfig({ model: '' });
+    expect(mockSet).toHaveBeenCalledWith({ newsConfig: { model: '' } });
   });
 });

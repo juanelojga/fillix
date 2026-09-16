@@ -75,7 +75,9 @@ export type Message =
   // News tab (sidepanel → bg, one-shot request/response)
   | { type: 'NEWS_REFRESH' }
   | { type: 'NEWS_ARTICLE'; item: NewsItem }
-  | { type: 'NEWS_SUMMARIZE'; title: string; source: string; text: string };
+  // `model` is resolved by the sidepanel, which needs the same value for the
+  // "Summarizing with X" label. Omitted ⇒ the worker uses the active model.
+  | { type: 'NEWS_SUMMARIZE'; title: string; source: string; text: string; model?: string };
 
 // Success arms are distinguished ONLY by payload key shape (narrowed with `'key' in r`).
 // Never reuse an existing key name with a different value type: it cross-wires silently

@@ -125,9 +125,20 @@ describe('News message contract', () => {
       text: 'body',
     };
 
+    // The News tab resolves its own summary model and sends it; omitting the field
+    // leaves the worker on the globally active model.
+    const summarizeWithModel: Message = {
+      type: 'NEWS_SUMMARIZE',
+      title: 'A story',
+      source: 'example.com',
+      text: 'body',
+      model: 'phi4',
+    };
+
     expectTypeOf(refresh).toMatchTypeOf<Message>();
     expectTypeOf(article).toMatchTypeOf<Message>();
     expectTypeOf(summarize).toMatchTypeOf<Message>();
+    expectTypeOf(summarizeWithModel).toMatchTypeOf<Message>();
   });
 
   it('restricts NewsCategory to the four fixed values', () => {

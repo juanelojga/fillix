@@ -29,6 +29,9 @@ import {
   addModel,
   removeModel,
   setActiveModel,
+  setNewsModel,
+  newsModel,
+  effectiveSummaryModel,
   testModel,
 } from '../stores/settings';
 
@@ -37,6 +40,7 @@ beforeEach(() => {
   mockSendMessage.mockReset();
   ollamaConfig.set(null);
   modelList.set([]);
+  newsModel.set('');
 });
 
 describe('loadSettings', () => {
@@ -178,5 +182,98 @@ describe('testModel', () => {
     mockSendMessage.mockResolvedValue(undefined);
     const result = await testModel('x');
     expect(result.ok).toBe(false);
+  });
+});
+
+describe('newsModel', () => {
+  it("loadSettings defaults the News model to '' on a fresh profile", async () => {
+    await loadSettings();
+    expect(get(newsModel)).toBe('');
+  });
+
+  it('loadSettings hydrates the News model from the newsConfig key', async () => {
+    store.newsConfig = { model: 'phi4' };
+    await loadSettings();
+    expect(get(newsModel)).toBe('phi4');
+  });
+
+  it('setNewsModel persists to newsConfig and leaves the chat model alone', async () => {
+    await loadSettings();
+    await setNewsModel('phi4');
+
+    expect(get(newsModel)).toBe('phi4');
+    expect(store.newsConfig).toEqual({ model: 'phi4' });
+    expect(store.ollama).toBeUndefined();
+    expect(get(ollamaConfig)?.model).toBe('llama3.2');
+  });
+
+  it("setNewsModel('') persists the follow-the-chat-model state", async () => {
+    store.newsConfig = { model: 'phi4' };
+    await loadSettings();
+    await setNewsModel('');
+
+    expect(get(newsModel)).toBe('');
+    expect(store.newsConfig).toEqual({ model: '' });
+  });
+
+  it('setNewsModel writes nothing when the value is unchanged', async () => {
+    store.newsConfig = { model: 'phi4' };
+    await loadSettings();
+    delete store.newsConfig;
+
+    await setNewsModel('phi4');
+
+    expect(store.newsConfig).toBeUndefined();
+  });
+});
+
+describe('effectiveSummaryModel', () => {
+  it("follows the chat model while the News preference is ''", async () => {
+    await loadSettings();
+    expect(get(effectiveSummaryModel)).toBe('llama3.2');
+  });
+
+  it('is the News preference once one is set', async () => {
+    await loadSettings();
+    await setNewsModel('phi4');
+    expect(get(effectiveSummaryModel)).toBe('phi4');
+  });
+
+  it('tracks the chat model changing while following it', async () => {
+    await loadSettings();
+    await setActiveModel('qwen3:8b');
+    expect(get(effectiveSummaryModel)).toBe('qwen3:8b');
+  });
+
+  it('ignores the chat model changing once an override is set', async () => {
+    await loadSettings();
+    await setNewsModel('phi4');
+    await setActiveModel('qwen3:8b');
+    expect(get(effectiveSummaryModel)).toBe('phi4');
+  });
+});
+
+describe('removeModel reconciles the News preference', () => {
+  beforeEach(async () => {
+    await loadSettings();
+    modelList.set(['llama3.2', 'phi3']);
+    store.models = ['llama3.2', 'phi3'];
+  });
+
+  // '' rather than updated[0]: silently summarizing with a model the user never picked
+  // is worse than visibly falling back to the one they can see in Settings.
+  it("resets the News model to '' when the selected one is removed", async () => {
+    await setNewsModel('phi3');
+    await removeModel('phi3');
+
+    expect(get(newsModel)).toBe('');
+    expect(store.newsConfig).toEqual({ model: '' });
+  });
+
+  it('leaves the News model alone when another model is removed', async () => {
+    await setNewsModel('llama3.2');
+    await removeModel('phi3');
+
+    expect(get(newsModel)).toBe('llama3.2');
   });
 });

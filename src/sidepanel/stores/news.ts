@@ -1,7 +1,7 @@
 import { get, writable } from 'svelte/store';
 import type { MessageResponse, NewsItem, NewsSourceFailure, NewsSummary } from '../../types';
 import { getNewsCache, setNewsCache } from '../../lib/storage';
-import { ollamaConfig } from './settings';
+import { effectiveSummaryModel } from './settings';
 
 export type FeedState =
   | { status: 'idle' }
@@ -89,7 +89,10 @@ export async function summarize(id: string, opts: { force?: boolean } = {}): Pro
   if (!opts.force && get(summaries)[id] !== undefined) return;
 
   const gen = generation;
-  const model = get(ollamaConfig)?.model ?? 'the local model';
+  // Captured once, before the two round trips: the worker is told exactly this model, so a
+  // picker change mid-flight can no longer make the on-screen attribution a lie.
+  const resolved = get(effectiveSummaryModel);
+  const model = resolved || 'the local model';
   const started = Date.now();
 
   setSummary(id, { status: 'fetching' });
@@ -116,6 +119,8 @@ export async function summarize(id: string, opts: { force?: boolean } = {}): Pro
     title: item.title,
     source: item.source,
     text: article.article.text,
+    // undefined serializes away, leaving the worker on its stored default.
+    model: resolved || undefined,
   });
   if (gen !== generation) return;
   if (!result.ok) {

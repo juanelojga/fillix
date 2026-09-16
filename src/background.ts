@@ -82,7 +82,9 @@ async function handle(msg: Message): Promise<MessageResponse> {
     }
     case 'NEWS_SUMMARIZE': {
       const summary = await summarizeArticle(
-        config,
+        // The News tab has its own model preference; the panel resolves it and sends it,
+        // so the label it shows and the model that runs are the same string.
+        { ...config, model: msg.model ?? config.model },
         { title: msg.title, source: msg.source, text: msg.text },
         AbortSignal.timeout(SUMMARY_TIMEOUT_MS),
       );
