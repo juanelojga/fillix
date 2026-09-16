@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { migrateLegacyProviderKeys, removeRetiredSearchKey } from '../legacy-migration';
+import {
+  migrateLegacyProviderKeys,
+  removeRetiredObsidianKeys,
+  removeRetiredSearchKey,
+} from '../legacy-migration';
 
 let store: Record<string, unknown> = {};
 const mockGet = vi.fn(async (keys: string[]) =>
@@ -141,5 +145,61 @@ describe('removeRetiredSearchKey', () => {
     await removeRetiredSearchKey();
     expect(store.ollama).toEqual({ baseUrl: 'http://localhost:11434', model: 'phi3' });
     expect(store.models).toEqual(['phi3']);
+  });
+});
+
+describe('removeRetiredObsidianKeys', () => {
+  it('is a no-op on a profile that never used Obsidian', async () => {
+    await removeRetiredObsidianKeys();
+    expect(mockSet).not.toHaveBeenCalled();
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  it('removes the obsidian, workflowsFolder and workflows keys', async () => {
+    store.obsidian = { host: 'localhost', port: 27123, apiKey: 'obs-secret' };
+    store.workflowsFolder = 'fillix-workflows';
+    store.workflows = [{ id: 'workflows/job.md', name: 'Job' }];
+
+    await removeRetiredObsidianKeys();
+
+    expect(store.obsidian).toBeUndefined();
+    expect(store.workflowsFolder).toBeUndefined();
+    expect(store.workflows).toBeUndefined();
+  });
+
+  // The obsidian key held a local REST API key: the credential must not
+  // outlive the feature that needed it.
+  it('leaves no trace of the stored API key', async () => {
+    store.obsidian = { host: 'localhost', port: 27123, apiKey: 'obs-secret' };
+    await removeRetiredObsidianKeys();
+    expect(JSON.stringify(store)).not.toContain('obs-secret');
+  });
+
+  it('fires even when only one of the three keys is present', async () => {
+    store.workflows = [];
+    await removeRetiredObsidianKeys();
+    expect(mockRemove).toHaveBeenCalledOnce();
+    expect(store.workflows).toBeUndefined();
+  });
+
+  it('is idempotent — a second run does nothing', async () => {
+    store.obsidian = { host: 'localhost', port: 27123, apiKey: 'obs-secret' };
+    await removeRetiredObsidianKeys();
+    mockRemove.mockClear();
+
+    await removeRetiredObsidianKeys();
+    expect(mockRemove).not.toHaveBeenCalled();
+  });
+
+  // A prompt the user typed is still theirs — only the vault wiring is retired.
+  it('preserves the chat system-prompt override and other unrelated keys', async () => {
+    store.obsidian = { host: 'localhost', port: 27123, apiKey: 'obs-secret' };
+    store.chat = { systemPrompt: 'Answer only in haiku.' };
+    store.ollama = { baseUrl: 'http://localhost:11434', model: 'phi3' };
+
+    await removeRetiredObsidianKeys();
+
+    expect(store.chat).toEqual({ systemPrompt: 'Answer only in haiku.' });
+    expect(store.ollama).toEqual({ baseUrl: 'http://localhost:11434', model: 'phi3' });
   });
 });

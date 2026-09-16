@@ -10,6 +10,7 @@ type LegacyProvider = { provider?: string; baseUrl?: string; model?: string };
 type LegacyFavorites = Record<string, string[] | undefined>;
 
 const LEGACY_KEYS = ['provider', 'providerConfigs', 'favoriteModels'];
+const RETIRED_OBSIDIAN_KEYS = ['obsidian', 'workflowsFolder', 'workflows'];
 
 /**
  * Cleans up the multi-provider era (`provider`, `providerConfigs`, `favoriteModels`).
@@ -55,4 +56,19 @@ export async function removeRetiredSearchKey(): Promise<void> {
   const { search } = await chrome.storage.local.get(['search']);
   if (search === undefined) return;
   await chrome.storage.local.remove(['search']);
+}
+
+/**
+ * Drops the keys of the Obsidian era (`obsidian`, `workflowsFolder`, `workflows`).
+ * The vault integration and the workflow-driven pipeline are gone; `obsidian` held
+ * the local REST API key, so — as with `search` — the credential must not outlive
+ * the feature that needed it.
+ *
+ * Note this deliberately leaves `chat` alone: a system-prompt override the user
+ * typed is still honoured, it just falls back to the packaged default when blank.
+ */
+export async function removeRetiredObsidianKeys(): Promise<void> {
+  const stored = await chrome.storage.local.get(RETIRED_OBSIDIAN_KEYS);
+  if (RETIRED_OBSIDIAN_KEYS.every((key) => stored[key] === undefined)) return;
+  await chrome.storage.local.remove(RETIRED_OBSIDIAN_KEYS);
 }

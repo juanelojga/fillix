@@ -1,251 +1,162 @@
-// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
-// Run with: pnpm exec vitest run
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type {
-  Message,
-  MessageResponse,
-  FieldFill,
-  FieldSnapshot,
-  ConversationMessage,
-} from '../types';
+import type { MessageResponse } from '../types';
+import type { FillableElement } from '../lib/forms';
 
 // ---- Chrome API stubs (must be in place before content.ts is imported) ----
 
-type ContentMessageListener = (
-  msg: Message,
-  sender: chrome.runtime.MessageSender,
-  sendResponse: (r: MessageResponse) => void,
-) => boolean | undefined;
-
-const messageListeners: ContentMessageListener[] = [];
+const mockSendMessage = vi.hoisted(() => vi.fn<[unknown], Promise<MessageResponse>>());
+const mockAddListener = vi.hoisted(() => vi.fn());
 
 vi.stubGlobal('chrome', {
   runtime: {
-    onMessage: {
-      addListener: vi.fn((cb: ContentMessageListener) => messageListeners.push(cb)),
-    },
+    id: 'test-extension-id',
+    sendMessage: mockSendMessage,
+    onMessage: { addListener: mockAddListener },
   },
 });
 
-// ---- Mock forms.ts ----
-// detectFields returns [] so init() skips button injection.
-// snapshotFields is controlled per-test.
-// setFieldValue uses the real implementation so DOM mutations are verifiable.
-
-const mockSnapshotFields = vi.fn<[], FieldSnapshot[]>().mockReturnValue([]);
-
-// ---- Mock conversation-extractor.ts ----
-
-const mockExtractConversation = vi.hoisted(() =>
-  vi.fn<[], ConversationMessage[]>().mockReturnValue([]),
-);
-const mockDetectPlatform = vi.hoisted(() => vi.fn<[], string | null>().mockReturnValue(null));
-
-vi.mock('../lib/conversation-extractor', () => ({
-  extractConversation: mockExtractConversation,
-  detectPlatform: mockDetectPlatform,
-}));
+// detectFields is controlled per-test; setFieldValue stays real so DOM
+// mutations (and the input/change events React relies on) are verifiable.
+type Detected = { element: FillableElement; context: { id?: string; type?: string } };
+const mockDetectFields = vi.hoisted(() => vi.fn<[], Detected[]>().mockReturnValue([]));
 
 vi.mock('../lib/forms', async (importOriginal) => {
   const real = await importOriginal<Record<string, unknown>>();
-  return {
-    ...real,
-    detectFields: vi.fn().mockReturnValue([]),
-    snapshotFields: mockSnapshotFields,
-  };
+  return { ...real, detectFields: mockDetectFields };
 });
-
-// ---- Helpers ----
 
 async function loadContent(): Promise<void> {
   vi.resetModules();
-  messageListeners.length = 0;
   await import('../content');
 }
 
-function fireMessage(msg: Message, sendResponse: (r: MessageResponse) => void = vi.fn()): void {
-  const sender = {} as chrome.runtime.MessageSender;
-  messageListeners.forEach((cb) => cb(msg, sender, sendResponse));
+function detected(el: HTMLInputElement): Detected {
+  return { element: el as FillableElement, context: { id: el.id, type: el.type } };
 }
 
-// ---- DETECT_FIELDS ----
-
-describe('content.ts DETECT_FIELDS handler', () => {
-  beforeEach(async () => {
+describe('content.ts trigger button', () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = '';
+    mockDetectFields.mockReturnValue([]);
+  });
+
+  // The content script runs on every URL the user visits, so staying passive
+  // until the button is clicked is a hard requirement, not a preference.
+  it('registers no chrome.runtime.onMessage listener', async () => {
     await loadContent();
+    expect(mockAddListener).not.toHaveBeenCalled();
   });
 
-  it('registers a chrome.runtime.onMessage listener on load', () => {
-    expect(chrome.runtime.onMessage.addListener).toHaveBeenCalled();
+  it('injects no button when the page has no fillable fields', async () => {
+    await loadContent();
+    expect(document.getElementById('fillix-trigger')).toBeNull();
   });
 
-  it('responds with { ok: true, fields } on DETECT_FIELDS', () => {
-    const stubFields: FieldSnapshot[] = [
-      { id: 'email', name: 'email', label: 'Email', currentValue: 'a@b.com', type: 'email' },
-    ];
-    mockSnapshotFields.mockReturnValue(stubFields);
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'DETECT_FIELDS' }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, fields: stubFields });
+  it('injects the button when fillable fields are present', async () => {
+    document.body.innerHTML = `<input id="email" type="email" />`;
+    const el = document.getElementById('email') as HTMLInputElement;
+    mockDetectFields.mockReturnValue([detected(el)]);
+
+    await loadContent();
+
+    const btn = document.getElementById('fillix-trigger');
+    expect(btn).not.toBeNull();
+    expect(btn?.textContent).toBe('Fillix: fill');
   });
 
-  it('returns an empty fields array when no fillable fields exist', () => {
-    mockSnapshotFields.mockReturnValue([]);
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'DETECT_FIELDS' }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, fields: [] });
+  it('does not inject a second button when one is already present', async () => {
+    document.body.innerHTML = `<input id="email" type="email" />`;
+    const el = document.getElementById('email') as HTMLInputElement;
+    mockDetectFields.mockReturnValue([detected(el)]);
+
+    await loadContent();
+    await loadContent();
+
+    expect(document.querySelectorAll('#fillix-trigger')).toHaveLength(1);
+  });
+
+  it('makes no network or inference call on load', async () => {
+    document.body.innerHTML = `<input id="email" type="email" />`;
+    const el = document.getElementById('email') as HTMLInputElement;
+    mockDetectFields.mockReturnValue([detected(el)]);
+
+    await loadContent();
+
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 });
 
-// ---- APPLY_FIELDS ----
-
-describe('content.ts APPLY_FIELDS handler', () => {
-  beforeEach(async () => {
+describe('content.ts fill on click', () => {
+  beforeEach(() => {
     vi.clearAllMocks();
     document.body.innerHTML = `
-      <input id="email" name="email" type="email" value="" />
-      <input id="firstName" name="firstName" type="text" value="" />
+      <input id="email" type="email" value="" />
+      <input id="name" type="text" value="" />
     `;
+    const email = document.getElementById('email') as HTMLInputElement;
+    const name = document.getElementById('name') as HTMLInputElement;
+    mockDetectFields.mockReturnValue([detected(email), detected(name)]);
+  });
+
+  async function clickFill(): Promise<void> {
     await loadContent();
+    document.getElementById('fillix-trigger')?.click();
+    // Let the fillAll() microtask chain settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  it('sends one OLLAMA_INFER message per detected field', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true, value: 'x' });
+    await clickFill();
+
+    expect(mockSendMessage).toHaveBeenCalledTimes(2);
+    expect(mockSendMessage).toHaveBeenCalledWith(expect.objectContaining({ type: 'OLLAMA_INFER' }));
   });
 
-  it('applies proposedValue to the matched DOM element by id', () => {
-    const fieldMap: FieldFill[] = [
-      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'test@example.com' },
-    ];
-    fireMessage({ type: 'APPLY_FIELDS', fieldMap });
-    const input = document.getElementById('email') as HTMLInputElement;
-    expect(input.value).toBe('test@example.com');
+  it('writes the returned value into the field', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true, value: 'alice@example.com' });
+    await clickFill();
+
+    expect((document.getElementById('email') as HTMLInputElement).value).toBe('alice@example.com');
   });
 
-  it('uses editedValue over proposedValue when editedValue is set', () => {
-    const fieldMap: FieldFill[] = [
-      {
-        fieldId: 'firstName',
-        label: 'First Name',
-        currentValue: '',
-        proposedValue: 'Alice',
-        editedValue: 'Bob',
-      },
-    ];
-    fireMessage({ type: 'APPLY_FIELDS', fieldMap });
-    expect((document.getElementById('firstName') as HTMLInputElement).value).toBe('Bob');
-  });
-
-  it('skips fields whose id is not found in the DOM without throwing', () => {
-    const fieldMap: FieldFill[] = [
-      { fieldId: 'nonexistent', label: 'Ghost', currentValue: '', proposedValue: 'x' },
-    ];
-    const sendResponse = vi.fn();
-    expect(() => fireMessage({ type: 'APPLY_FIELDS', fieldMap }, sendResponse)).not.toThrow();
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, applied: 0 });
-  });
-
-  it('returns the count of successfully applied fills', () => {
-    const fieldMap: FieldFill[] = [
-      { fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'a@b.com' },
-      { fieldId: 'firstName', label: 'Name', currentValue: '', proposedValue: 'Alice' },
-      { fieldId: 'missing', label: 'Missing', currentValue: '', proposedValue: 'x' },
-    ];
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'APPLY_FIELDS', fieldMap }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, applied: 2 });
-  });
-
-  it('dispatches input and change events when applying a value', () => {
-    const input = document.getElementById('email') as HTMLInputElement;
+  it('dispatches input and change so framework state updates', async () => {
+    const email = document.getElementById('email') as HTMLInputElement;
     const inputSpy = vi.fn();
     const changeSpy = vi.fn();
-    input.addEventListener('input', inputSpy);
-    input.addEventListener('change', changeSpy);
+    email.addEventListener('input', inputSpy);
+    email.addEventListener('change', changeSpy);
 
-    fireMessage({
-      type: 'APPLY_FIELDS',
-      fieldMap: [{ fieldId: 'email', label: 'Email', currentValue: '', proposedValue: 'x@y.com' }],
-    });
+    mockSendMessage.mockResolvedValue({ ok: true, value: 'x@y.com' });
+    await clickFill();
 
-    expect(inputSpy).toHaveBeenCalledOnce();
-    expect(changeSpy).toHaveBeenCalledOnce();
+    expect(inputSpy).toHaveBeenCalled();
+    expect(changeSpy).toHaveBeenCalled();
   });
 
-  it('falls back to querySelector by name when getElementById returns null', () => {
-    document.body.innerHTML = `<input name="phone" type="tel" value="" />`;
-    const fieldMap: FieldFill[] = [
-      { fieldId: 'phone', label: 'Phone', currentValue: '', proposedValue: '555-1234' },
-    ];
-    fireMessage({ type: 'APPLY_FIELDS', fieldMap });
-    const input = document.querySelector<HTMLInputElement>('[name="phone"]');
-    expect(input?.value).toBe('555-1234');
-  });
-});
+  // A failed parse comes back as '' rather than invented text — leave the field alone.
+  it('leaves the field untouched when the model returns an empty value', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true, value: '' });
+    await clickFill();
 
-// ---- EXTRACT_CONVERSATION ----
-
-describe('content.ts EXTRACT_CONVERSATION handler', () => {
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    document.body.innerHTML = '';
-    mockExtractConversation.mockReturnValue([]);
-    mockDetectPlatform.mockReturnValue(null);
-    await loadContent();
+    expect((document.getElementById('email') as HTMLInputElement).value).toBe('');
   });
 
-  it('responds with ok: true, messages, and platform', () => {
-    const messages: ConversationMessage[] = [
-      { sender: 'them', text: 'Are you available?' },
-      { sender: 'me', text: 'Yes!' },
-    ];
-    mockExtractConversation.mockReturnValue(messages);
-    mockDetectPlatform.mockReturnValue('whatsapp');
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'EXTRACT_CONVERSATION' }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, messages, platform: 'whatsapp' });
+  it('leaves the field untouched when the background reports an error', async () => {
+    mockSendMessage.mockResolvedValue({ ok: false, error: 'model not found' });
+    await clickFill();
+
+    expect((document.getElementById('email') as HTMLInputElement).value).toBe('');
   });
 
-  it('returns empty messages and null platform on an unknown page', () => {
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'EXTRACT_CONVERSATION' }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true, messages: [], platform: null });
-  });
-});
+  it('re-enables the button after a run', async () => {
+    mockSendMessage.mockResolvedValue({ ok: true, value: 'x' });
+    await clickFill();
 
-// ---- INSERT_TEXT (Task 6.3) ----
-
-describe('content.ts INSERT_TEXT handler', () => {
-  beforeEach(async () => {
-    vi.clearAllMocks();
-    document.body.innerHTML = '';
-    // jsdom does not implement execCommand; add a stub so vi.spyOn can instrument it
-    if (!('execCommand' in document)) {
-      Object.defineProperty(document, 'execCommand', {
-        value: vi.fn(),
-        writable: true,
-        configurable: true,
-      });
-    }
-    await loadContent();
-  });
-
-  it('inserts text into a focused contenteditable element and returns { ok: true }', () => {
-    document.body.innerHTML = '<div id="compose" contenteditable="true"></div>';
-    const compose = document.getElementById('compose') as HTMLElement;
-    compose.focus();
-
-    const execCommandSpy = vi.spyOn(document, 'execCommand').mockReturnValue(true);
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'INSERT_TEXT', text: 'Hello world' }, sendResponse);
-
-    expect(execCommandSpy).toHaveBeenCalledWith('insertText', false, 'Hello world');
-    expect(sendResponse).toHaveBeenCalledWith({ ok: true });
-  });
-
-  it('returns { ok: false, error: "no-compose-box" } when no compose box is found', () => {
-    document.body.innerHTML = '<p>No inputs here</p>';
-    const sendResponse = vi.fn();
-    fireMessage({ type: 'INSERT_TEXT', text: 'Hello' }, sendResponse);
-    expect(sendResponse).toHaveBeenCalledWith({ ok: false, error: 'no-compose-box' });
+    const btn = document.getElementById('fillix-trigger') as HTMLButtonElement;
+    expect(btn.disabled).toBe(false);
+    expect(btn.textContent).toBe('Fillix: fill');
   });
 });

@@ -1,23 +1,10 @@
 import { inferFieldValue, testModel } from './lib/ollama';
+import { getOllamaConfig } from './lib/storage';
 import {
-  appendToFile,
-  getFile,
-  listFiles,
-  listFilesInFolder,
-  testConnection,
-  writeFile,
-} from './lib/obsidian';
-import {
-  getObsidianConfig,
-  getOllamaConfig,
-  getWorkflows,
-  getWorkflowsFolder,
-  setWorkflows,
-} from './lib/storage';
-import { migrateLegacyProviderKeys, removeRetiredSearchKey } from './lib/legacy-migration';
-import { parseWorkflow } from './lib/workflow';
-import { runAgentPipeline } from './lib/agent-runner';
-import type { AgentPortIn, AgentPortOut } from './lib/agent-runner';
+  migrateLegacyProviderKeys,
+  removeRetiredObsidianKeys,
+  removeRetiredSearchKey,
+} from './lib/legacy-migration';
 import { handleChatPort } from './lib/chat-runner';
 import { refreshNews } from './lib/news/aggregator';
 import { articleFailureMessage, resolveArticleText } from './lib/news/article-text';
@@ -26,16 +13,6 @@ import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 
-async function autoRefreshWorkflows(): Promise<void> {
-  try {
-    const obsidian = await getObsidianConfig();
-    if (!obsidian.apiKey) return;
-    await handle({ type: 'WORKFLOWS_REFRESH' });
-  } catch (err) {
-    console.warn('[fillix] Auto-refresh workflows failed:', err);
-  }
-}
-
 async function initialize(): Promise<void> {
   await migrateLegacyProviderKeys().catch((err: unknown) => {
     console.warn('[fillix] Legacy provider migration failed:', err);
@@ -43,7 +20,9 @@ async function initialize(): Promise<void> {
   await removeRetiredSearchKey().catch((err: unknown) => {
     console.warn('[fillix] Retired search key cleanup failed:', err);
   });
-  await autoRefreshWorkflows();
+  await removeRetiredObsidianKeys().catch((err: unknown) => {
+    console.warn('[fillix] Retired Obsidian key cleanup failed:', err);
+  });
 }
 
 chrome.runtime.onInstalled.addListener(() => {
@@ -56,57 +35,6 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.runtime.onConnect.addListener((port) => {
   if (port.name === 'chat') {
     handleChatPort(port);
-  } else if (port.name === 'workflow') {
-    let controller: AbortController | null = null;
-    const registry: Parameters<typeof runAgentPipeline>[4] = { plan: null, fills: null };
-
-    port.onMessage.addListener(async (msg: AgentPortIn) => {
-      try {
-        switch (msg.type) {
-          case 'AGENTIC_RUN':
-            registry.plan?.reject(new Error('new run started'));
-            registry.fills?.reject(new Error('new run started'));
-            registry.plan = null;
-            registry.fills = null;
-            controller?.abort();
-            controller = new AbortController();
-            await runAgentPipeline(port, msg.workflowId, msg.tabId, controller.signal, registry);
-            break;
-          case 'AGENTIC_PLAN_FEEDBACK':
-            registry.plan?.resolve(
-              msg.approved ? { approved: true } : { approved: false, feedback: msg.feedback },
-            );
-            break;
-          case 'AGENTIC_FILLS_FEEDBACK':
-            registry.fills?.resolve(
-              msg.approved ? { approved: true } : { approved: false, feedback: msg.feedback },
-            );
-            break;
-          case 'AGENTIC_CANCEL':
-            registry.plan?.reject(new Error('cancelled'));
-            registry.fills?.reject(new Error('cancelled'));
-            registry.plan = null;
-            registry.fills = null;
-            controller?.abort();
-            break;
-          default: {
-            const _: never = msg;
-            throw new Error(`Unhandled port message: ${JSON.stringify(_)}`);
-          }
-        }
-      } catch (err) {
-        const error = err instanceof Error ? err.message : String(err);
-        port.postMessage({ type: 'AGENTIC_ERROR', stage: 'collect', error } satisfies AgentPortOut);
-      }
-    });
-
-    port.onDisconnect.addListener(() => {
-      controller?.abort();
-      registry.plan?.reject(new Error('port disconnected'));
-      registry.fills?.reject(new Error('port disconnected'));
-      registry.plan = null;
-      registry.fills = null;
-    });
   }
 });
 
@@ -122,13 +50,9 @@ chrome.runtime.onMessage.addListener((msg: Message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
   handle(msg)
     .then(sendResponse)
-    .catch(async (err: unknown) => {
+    .catch((err: unknown) => {
       const raw = err instanceof Error ? err.message : String(err);
-      const { apiKey: obsidianKey } = await getObsidianConfig().catch(() => ({ apiKey: '' }));
-      sendResponse({
-        ok: false,
-        error: sanitizeError(raw, obsidianKey),
-      } satisfies MessageResponse);
+      sendResponse({ ok: false, error: sanitizeError(raw) } satisfies MessageResponse);
     });
   return true;
 });
@@ -147,86 +71,6 @@ async function handle(msg: Message): Promise<MessageResponse> {
     case 'CHAT_START':
     case 'CHAT_STOP':
       return { ok: false, error: 'Use port channel for chat' };
-    case 'OBSIDIAN_TEST_CONNECTION': {
-      const obsidian = await getObsidianConfig();
-      await testConnection(obsidian);
-      return { ok: true };
-    }
-    case 'OBSIDIAN_LIST_FILES': {
-      const obsidian = await getObsidianConfig();
-      const files = await listFiles(obsidian);
-      return { ok: true, files };
-    }
-    case 'OBSIDIAN_GET_FILE': {
-      const obsidian = await getObsidianConfig();
-      const content = await getFile(obsidian, msg.path);
-      return { ok: true, content };
-    }
-    case 'OBSIDIAN_WRITE': {
-      const obsidian = await getObsidianConfig();
-      await writeFile(obsidian, msg.path, msg.content);
-      return { ok: true };
-    }
-    case 'OBSIDIAN_APPEND': {
-      const obsidian = await getObsidianConfig();
-      await appendToFile(obsidian, msg.path, msg.content);
-      return { ok: true };
-    }
-    case 'WORKFLOWS_REFRESH': {
-      const obsidian = await getObsidianConfig();
-      const folder = await getWorkflowsFolder();
-      const workflowFiles = await listFilesInFolder(obsidian, folder);
-      const results = await Promise.all(
-        workflowFiles.map(async (path) => {
-          try {
-            const raw = await getFile(obsidian, path);
-            return parseWorkflow(path, raw);
-          } catch (err) {
-            console.warn(`[fillix] Skipping workflow ${path}:`, err);
-            return null;
-          }
-        }),
-      );
-      const workflows = results.filter((w) => w !== null);
-      await setWorkflows(workflows);
-      return { ok: true };
-    }
-    case 'WORKFLOWS_LIST': {
-      const workflows = await getWorkflows();
-      return { ok: true, workflows };
-    }
-    case 'DETECT_FIELDS': {
-      const resp = await chrome.tabs.sendMessage(msg.tabId, { type: 'DETECT_FIELDS' });
-      return resp as MessageResponse;
-    }
-    case 'APPLY_FIELDS': {
-      const resp = await chrome.tabs.sendMessage(msg.tabId, {
-        type: 'APPLY_FIELDS',
-        fieldMap: msg.fieldMap,
-      });
-      return resp as MessageResponse;
-    }
-    case 'AGENTIC_PLAN_REVIEW':
-    case 'AGENTIC_PLAN_FEEDBACK':
-    case 'AGENTIC_FILLS_REVIEW':
-    case 'AGENTIC_FILLS_FEEDBACK':
-    case 'AGENTIC_SUMMARY':
-    case 'CONVERSATION_DATA':
-      throw new Error('not implemented');
-    case 'EXTRACT_CONVERSATION': {
-      const resp = await chrome.tabs.sendMessage(
-        (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ?? 0,
-        { type: 'EXTRACT_CONVERSATION' },
-      );
-      return resp as MessageResponse;
-    }
-    case 'INSERT_TEXT': {
-      const resp = await chrome.tabs.sendMessage(
-        (await chrome.tabs.query({ active: true, currentWindow: true }))[0]?.id ?? 0,
-        { type: 'INSERT_TEXT', text: msg.text },
-      );
-      return resp as MessageResponse;
-    }
     case 'NEWS_REFRESH': {
       const { items, degraded } = await refreshNews();
       return { ok: true, news: items, degraded };

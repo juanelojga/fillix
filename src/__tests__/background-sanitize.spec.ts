@@ -19,7 +19,7 @@ describe('sanitizeError', () => {
   });
 
   it('returns the error unchanged when the API key does not appear in the message', () => {
-    expect(sanitizeError('Obsidian API returned 404', 'abc123')).toBe('Obsidian API returned 404');
+    expect(sanitizeError('Ollama API returned 404', 'abc123')).toBe('Ollama API returned 404');
   });
 
   it('returns the error unchanged when apiKey is an empty string', () => {

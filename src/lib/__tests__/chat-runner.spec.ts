@@ -49,7 +49,7 @@ vi.mock('../storage', async (importOriginal) => {
   return {
     ...actual,
     getOllamaConfig: vi.fn(),
-    getObsidianConfig: vi.fn(),
+    getChatConfig: vi.fn(),
   };
 });
 
@@ -65,6 +65,7 @@ vi.mock('../tools/registry', () => ({
 import * as storage from '../storage';
 import { chatStream } from '../ollama';
 import { dispatchTool } from '../tools/registry';
+import { DEFAULT_SYSTEM_PROMPT } from '../system-prompt';
 import type { OllamaConfig } from '../../types';
 
 const defaultConfig: OllamaConfig = {
@@ -127,11 +128,8 @@ describe('chat port handler — ReAct loop', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
-    vi.mocked(storage.getObsidianConfig).mockResolvedValue({
-      host: 'localhost',
-      port: 27123,
-      apiKey: '',
-    });
+    // '' = no override, so the packaged prompt is what reaches the model.
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: '' });
   });
 
   it('streams tokens directly to port when no tool call is detected', async () => {
@@ -140,7 +138,7 @@ describe('chat port handler — ReAct loop', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const tokenMessages = port.sent.filter(
       (m: unknown) => (m as { type: string }).type === 'token',
@@ -160,7 +158,7 @@ describe('chat port handler — ReAct loop', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const toolCallMsg = port.sent.find(
       (m: unknown) => (m as { type: string }).type === 'tool-call',
@@ -186,7 +184,7 @@ describe('chat port handler — ReAct loop', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const toolCallCount = port.sent.filter(
       (m: unknown) => (m as { type: string }).type === 'tool-call',
@@ -196,19 +194,39 @@ describe('chat port handler — ReAct loop', () => {
     expect(doneMessages).toHaveLength(1);
   });
 
-  it('prepends the tool system prompt to msg.systemPrompt', async () => {
+  it('prepends the tool system prompt to the packaged default', async () => {
     const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
     vi.mocked(chatStream).mockImplementation(chatStreamFn);
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'user-sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const [, , systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
-    expect(systemPromptArg).toContain('user-sys');
+    expect(systemPromptArg).toContain(DEFAULT_SYSTEM_PROMPT);
     expect(systemPromptArg).toContain('wikipedia');
+    // Tool instructions must lead, or the model answers before it sees them.
+    expect(systemPromptArg.indexOf('wikipedia')).toBeLessThan(
+      systemPromptArg.indexOf(DEFAULT_SYSTEM_PROMPT),
+    );
     // The retired tool must not be advertised back to the model.
     expect(systemPromptArg).not.toContain('web_search');
+  });
+
+  it('uses the stored override in place of the packaged default', async () => {
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: 'Answer only in haiku.' });
+    const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
+
+    const [, , systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
+    expect(systemPromptArg).toContain('Answer only in haiku.');
+    expect(systemPromptArg).not.toContain(DEFAULT_SYSTEM_PROMPT);
+    // Tools survive an override — they are not the user's to switch off.
+    expect(systemPromptArg).toContain('wikipedia');
   });
 });
 
@@ -216,6 +234,7 @@ describe('chat port handler — thinking tokens', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: '' });
   });
 
   it('forwards thinking tokens to port as type:thinking messages', async () => {
@@ -226,7 +245,7 @@ describe('chat port handler — thinking tokens', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const thinkingMessages = port.sent.filter(
       (m: unknown) => (m as { type: string }).type === 'thinking',
@@ -241,6 +260,7 @@ describe('chat port handler — error handling', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: '' });
   });
 
   it('posts type:error to port when chatStream calls onError', async () => {
@@ -249,7 +269,7 @@ describe('chat port handler — error handling', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     const errorMessages = port.sent.filter(
       (m: unknown) => (m as { type: string }).type === 'error',
@@ -265,7 +285,7 @@ describe('chat port handler — error handling', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     expect(port.sent).toContainEqual({ type: 'error', error: 'storage unavailable' });
   });
@@ -278,7 +298,7 @@ describe('chat port handler — error handling', () => {
 
     const port = makePort();
     const { triggerChatStart } = await simulateChatPort(port);
-    await triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' });
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
 
     expect(port.sent).toContainEqual({ type: 'error', error: 'fetch failed' });
   });
@@ -292,9 +312,7 @@ describe('chat port handler — error handling', () => {
     });
     const { triggerChatStart } = await simulateChatPort(port);
 
-    await expect(
-      triggerChatStart({ type: 'CHAT_START', messages: [], systemPrompt: 'sys' }),
-    ).resolves.toBeUndefined();
+    await expect(triggerChatStart({ type: 'CHAT_START', messages: [] })).resolves.toBeUndefined();
   });
 });
 
@@ -302,6 +320,7 @@ describe('chat port handler — CHAT_STOP', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: '' });
   });
 
   it('CHAT_STOP message posts done immediately', async () => {
@@ -320,6 +339,7 @@ describe('chat port handler — model override', () => {
   beforeEach(() => {
     vi.resetAllMocks();
     vi.mocked(storage.getOllamaConfig).mockResolvedValue(defaultConfig);
+    vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: '' });
   });
 
   it('msg.model overrides the stored model when provided', async () => {
@@ -331,7 +351,6 @@ describe('chat port handler — model override', () => {
     await triggerChatStart({
       type: 'CHAT_START',
       messages: [],
-      systemPrompt: 'sys',
       model: 'gpt-4',
     });
 

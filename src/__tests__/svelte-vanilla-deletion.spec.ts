@@ -6,7 +6,18 @@ const sidepanel = (p: string) => resolve(process.cwd(), 'src/sidepanel', p);
 
 describe('vanilla DOM deletion (Task 2.6)', () => {
   describe('deleted files no longer exist', () => {
-    const deleted = ['agent.ts', 'settings.ts', 'obsidian-panel.ts', 'chat.ts', 'chat-tools.ts'];
+    const deleted = [
+      'agent.ts',
+      'settings.ts',
+      'obsidian-panel.ts',
+      'chat.ts',
+      'chat-tools.ts',
+      // Retired with the Obsidian/workflow era.
+      'workflow.ts',
+      'stores/workflow.ts',
+      'tabs/WorkflowTab.svelte',
+      'components/ObsidianPanel.svelte',
+    ];
     deleted.forEach((file) => {
       it(`${file} is gone`, () => {
         expect(existsSync(sidepanel(file))).toBe(false);
@@ -19,10 +30,9 @@ describe('vanilla DOM deletion (Task 2.6)', () => {
       'App.svelte',
       'tabs/ChatTab.svelte',
       'tabs/SettingsTab.svelte',
-      'tabs/WorkflowTab.svelte',
+      'tabs/NewsTab.svelte',
       'stores/chat.ts',
       'stores/settings.ts',
-      'stores/workflow.ts',
     ];
     required.forEach((file) => {
       it(`${file} exists`, () => {

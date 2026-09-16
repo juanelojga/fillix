@@ -106,14 +106,15 @@ pnpm dev
  content.ts (every page)    ──┐                        ┌── Ollama (localhost:11434)
                               ├──▶ background.ts ─────▶│
  sidepanel/main.ts (toolbar) ─┘      (service worker)  └── internet tools (search, wiki…)
-   (port 'chat' | 'agent')
+   (port 'chat')
 ```
 
-- **`src/background.ts`** — service worker, the only context that makes outbound HTTP requests. Routes both LLM calls and tool fetches through here so the origin is always `chrome-extension://<id>`. Handles streaming via named ports (`'chat'` for ReAct chat, `'agent'` for form-fill pipeline).
+- **`src/background.ts`** — service worker, the only context that makes outbound HTTP requests. Routes both LLM calls and tool fetches through here so the origin is always `chrome-extension://<id>`. Handles streaming via the named `'chat'` port (ReAct chat).
 - **`src/lib/ollama.ts`** — the only LLM client: streaming chat, structured generation, and a `testModel()` probe used by the Settings **Test** button.
 - **`src/lib/tools/`** — internet tool implementations: `wikipedia`, `news_feed`, `fetch_url`.
 - **`src/lib/chat-runner.ts`** — ReAct loop: streams tokens, detects tool calls, dispatches tools, loops up to 8 times.
-- **`src/lib/storage.ts`** — typed wrapper over `chrome.storage.local` for the Ollama config, the manual model list, and profile.
+- **`src/lib/storage.ts`** — typed wrapper over `chrome.storage.local` for the Ollama config, the manual model list, and the system-prompt override.
+- **`src/prompts/system.md`** — the default chat system prompt, bundled into the build with Vite's `?raw`. Editable in Settings, which stores an override; **Reset to default** clears it.
 - **`src/types.ts`** — cross-context message contract. Update `Message`, `MessageResponse`, and `PortMessage` here when adding new message kinds.
 
 Build tooling: Vite + [`@crxjs/vite-plugin`](https://crxjs.dev) — handles manifest wiring and HMR for all contexts.

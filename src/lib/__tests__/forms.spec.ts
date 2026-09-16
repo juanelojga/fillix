@@ -1,46 +1,35 @@
-// TODO: Install test runner with: pnpm add -D vitest @vitest/ui
-// Run with: pnpm exec vitest run
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { snapshotFields } from '../forms';
+import { detectFields } from '../forms';
 
-describe('snapshotFields', () => {
+describe('detectFields', () => {
   beforeEach(() => {
     document.body.innerHTML = '';
   });
 
-  it('returns a FieldSnapshot for each fillable text-type input', () => {
+  it('returns one entry per fillable text-type input, paired with its element', () => {
     document.body.innerHTML = `
       <label for="name">Full Name</label>
       <input id="name" name="fullName" type="text" value="Alice" />
       <label for="email">Email</label>
       <input id="email" name="email" type="email" value="alice@example.com" />
     `;
-    const snaps = snapshotFields();
-    expect(snaps).toHaveLength(2);
-    expect(snaps[0].currentValue).toBe('Alice');
-    expect(snaps[1].currentValue).toBe('alice@example.com');
+    const found = detectFields();
+    expect(found).toHaveLength(2);
+    expect(found[0].element.value).toBe('Alice');
+    expect(found[1].element.value).toBe('alice@example.com');
   });
 
-  it('populates id, name, label, autocomplete from the DOM element', () => {
+  it('populates id, name, label and autocomplete from the DOM element', () => {
     document.body.innerHTML = `
       <label for="first">First Name</label>
       <input id="first" name="firstName" type="text" autocomplete="given-name" value="Bob" />
     `;
-    const [snap] = snapshotFields();
-    expect(snap.id).toBe('first');
-    expect(snap.name).toBe('firstName');
-    expect(snap.label).toBe('First Name');
-    expect(snap.autocomplete).toBe('given-name');
-    expect(snap.currentValue).toBe('Bob');
-  });
-
-  it('reflects the live DOM value at the time of the call', () => {
-    document.body.innerHTML = `<input id="live" type="text" value="" />`;
-    const input = document.getElementById('live') as HTMLInputElement;
-    input.value = 'typed-later';
-    const [snap] = snapshotFields();
-    expect(snap.currentValue).toBe('typed-later');
+    const [{ context }] = detectFields();
+    expect(context.id).toBe('first');
+    expect(context.name).toBe('firstName');
+    expect(context.label).toBe('First Name');
+    expect(context.autocomplete).toBe('given-name');
   });
 
   it('excludes password fields', () => {
@@ -48,48 +37,60 @@ describe('snapshotFields', () => {
       <input type="text" value="user" />
       <input type="password" value="secret" />
     `;
-    const snaps = snapshotFields();
-    expect(snaps).toHaveLength(1);
-    expect(snaps.every((s) => s.type !== 'password')).toBe(true);
+    const found = detectFields();
+    expect(found).toHaveLength(1);
+    expect(found.every(({ context }) => context.type !== 'password')).toBe(true);
   });
 
   it('excludes file fields', () => {
     document.body.innerHTML = `<input type="file" /><input type="text" value="x" />`;
-    expect(snapshotFields()).toHaveLength(1);
+    expect(detectFields()).toHaveLength(1);
   });
 
   it('excludes hidden fields', () => {
     document.body.innerHTML = `<input type="hidden" value="csrf" /><input type="email" value="a@b.com" />`;
-    expect(snapshotFields()).toHaveLength(1);
+    expect(detectFields()).toHaveLength(1);
   });
 
-  it('includes textarea elements with currentValue set to their content', () => {
+  it('includes textarea elements', () => {
     document.body.innerHTML = `<textarea>My bio</textarea>`;
-    const [snap] = snapshotFields();
-    expect(snap.currentValue).toBe('My bio');
-    expect(snap.type).toBe('textarea');
+    const [{ element, context }] = detectFields();
+    expect(element.value).toBe('My bio');
+    expect(context.type).toBe('textarea');
   });
 
-  it('includes select elements with currentValue set to the selected option', () => {
+  it('includes select elements', () => {
     document.body.innerHTML = `
       <select>
         <option value="a">A</option>
         <option value="b" selected>B</option>
       </select>
     `;
-    const [snap] = snapshotFields();
-    expect(snap.currentValue).toBe('b');
+    const [{ element }] = detectFields();
+    expect(element.value).toBe('b');
   });
 
   it('returns an empty array when the document has no fillable fields', () => {
     document.body.innerHTML = '<div>No fields here</div>';
-    expect(snapshotFields()).toEqual([]);
+    expect(detectFields()).toEqual([]);
   });
 
-  it('does not include DOM element references — output is serializable', () => {
+  it('resolves a label from a wrapping <label> when there is no for attribute', () => {
+    document.body.innerHTML = `<label>Phone <input type="tel" /></label>`;
+    const [{ context }] = detectFields();
+    expect(context.label).toBe('Phone');
+  });
+
+  it('falls back to aria-label', () => {
+    document.body.innerHTML = `<input type="text" aria-label="Search query" />`;
+    const [{ context }] = detectFields();
+    expect(context.label).toBe('Search query');
+  });
+
+  it('context is serializable — it carries no element reference', () => {
     document.body.innerHTML = `<input type="text" value="x" />`;
-    const [snap] = snapshotFields();
-    expect(snap).not.toHaveProperty('element');
-    expect(() => JSON.stringify(snap)).not.toThrow();
+    const [{ context }] = detectFields();
+    expect(context).not.toHaveProperty('element');
+    expect(() => JSON.stringify(context)).not.toThrow();
   });
 });

@@ -4,17 +4,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import {
   getChatConfig,
   setChatConfig,
-  getWorkflows,
-  setWorkflows,
-  getWorkflowsFolder,
-  setWorkflowsFolder,
   getOllamaConfig,
   setOllamaConfig,
   getModelList,
   setModelList,
 } from '../storage';
 import type { ChatConfig } from '../storage';
-import type { OllamaConfig, WorkflowDefinition } from '../../types';
+import type { OllamaConfig } from '../../types';
 
 const mockGet = vi.fn();
 const mockSet = vi.fn();
@@ -33,14 +29,15 @@ describe('getChatConfig', () => {
     vi.resetAllMocks();
   });
 
-  it('returns the default systemPrompt when storage has no chat key', async () => {
+  // '' is "no override" — the packaged src/prompts/system.md is the default now,
+  // so storage must not carry a copy of it.
+  it("returns '' when storage has no chat key", async () => {
     mockGet.mockResolvedValue({});
     const config = await getChatConfig();
-    expect(config.systemPrompt).toBeTruthy();
-    expect(typeof config.systemPrompt).toBe('string');
+    expect(config.systemPrompt).toBe('');
   });
 
-  it('merges stored value over defaults', async () => {
+  it('returns the stored override', async () => {
     const stored: ChatConfig = { systemPrompt: 'Custom prompt' };
     mockGet.mockResolvedValue({ chat: stored });
     const config = await getChatConfig();
@@ -77,80 +74,6 @@ describe('setChatConfig', () => {
     const config: ChatConfig = { systemPrompt: 'You are a pirate.' };
     await setChatConfig(config);
     expect(mockSet).toHaveBeenCalledWith({ chat: config });
-  });
-});
-
-describe('getWorkflowsFolder', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('returns "fillix-workflows" when no value is stored', async () => {
-    mockGet.mockResolvedValue({});
-    const folder = await getWorkflowsFolder();
-    expect(folder).toBe('fillix-workflows');
-  });
-
-  it('returns the stored value when one exists', async () => {
-    mockGet.mockResolvedValue({ workflowsFolder: 'my-custom-folder' });
-    const folder = await getWorkflowsFolder();
-    expect(folder).toBe('my-custom-folder');
-  });
-});
-
-describe('setWorkflowsFolder', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    mockSet.mockResolvedValue(undefined);
-  });
-
-  it('persists the folder path to storage', async () => {
-    await setWorkflowsFolder('custom-workflows');
-    expect(mockSet).toHaveBeenCalledWith({ workflowsFolder: 'custom-workflows' });
-  });
-});
-
-describe('getWorkflows', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('returns an empty array when no workflows are stored', async () => {
-    mockGet.mockResolvedValue({});
-    const workflows = await getWorkflows();
-    expect(workflows).toEqual([]);
-  });
-
-  it('returns stored workflows array', async () => {
-    const stub: WorkflowDefinition[] = [
-      {
-        id: 'workflows/test.md',
-        name: 'Test Workflow',
-        taskType: 'form',
-        tone: 'professional',
-        requiredProfileFields: [],
-        review: true,
-        logFullOutput: true,
-        autoApply: false,
-        systemPrompt: 'Fill the form.',
-      },
-    ];
-    mockGet.mockResolvedValue({ workflows: stub });
-    const workflows = await getWorkflows();
-    expect(workflows).toEqual(stub);
-  });
-});
-
-describe('setWorkflows', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    mockSet.mockResolvedValue(undefined);
-  });
-
-  it('persists the workflows array to storage', async () => {
-    const stub: WorkflowDefinition[] = [];
-    await setWorkflows(stub);
-    expect(mockSet).toHaveBeenCalledWith({ workflows: stub });
   });
 });
 
@@ -200,7 +123,7 @@ describe('setModelList', () => {
   });
 });
 
-describe('getOllamaConfig (must remain functional — pipeline depends on it)', () => {
+describe('getOllamaConfig', () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });

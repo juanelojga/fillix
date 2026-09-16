@@ -59,19 +59,18 @@ describe('app shell structure (Sprint 2)', () => {
       expect(src).toContain("setContext('chatPort'");
     });
 
-    it('uses setContext to expose workflowPort', () => {
-      expect(src).toContain("setContext('workflowPort'");
-    });
-
     it('imports Tabs from shadcn', () => {
       expect(src).toContain('$components/ui/tabs');
     });
 
-    it('renders chat, news, settings, and workflow tab triggers', () => {
+    it('renders chat, news and settings tab triggers', () => {
       expect(src).toContain('value="chat"');
       expect(src).toContain('value="news"');
       expect(src).toContain('value="settings"');
-      expect(src).toContain('value="workflow"');
+    });
+
+    it('no longer renders a workflow tab', () => {
+      expect(src).not.toContain('value="workflow"');
     });
 
     it('disconnects ports on cleanup', () => {
@@ -80,7 +79,7 @@ describe('app shell structure (Sprint 2)', () => {
   });
 
   describe('stub tab components (Task 2.4)', () => {
-    const tabs = ['ChatTab', 'NewsTab', 'SettingsTab', 'WorkflowTab'];
+    const tabs = ['ChatTab', 'NewsTab', 'SettingsTab'];
     tabs.forEach((tab) => {
       it(`${tab}.svelte exists`, () => {
         expect(existsSync(sidepanel(`tabs/${tab}.svelte`))).toBe(true);

@@ -22,8 +22,8 @@ describe('manifest host_permissions', () => {
     expect(permissions).toContain('http://localhost:11434/*');
   });
 
-  it('retains the existing obsidian localhost entry', () => {
-    expect(permissions).toContain('http://localhost:27123/*');
+  it('drops the obsidian localhost entry — the vault integration is gone', () => {
+    expect(permissions).not.toContain('http://localhost:27123/*');
   });
 
   for (const url of [
@@ -32,6 +32,9 @@ describe('manifest host_permissions', () => {
     'https://api.search.brave.com/*',
     // Retired with the News tab: its article links are opaque redirect pages.
     'https://news.google.com/*',
+    // Retired with the workflow pipeline's message-reply task type.
+    'https://web.whatsapp.com/*',
+    'https://www.linkedin.com/*',
   ]) {
     it(`no longer grants ${url}`, () => {
       expect(permissions).not.toContain(url);

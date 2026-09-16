@@ -152,7 +152,6 @@
     chatPort.postMessage({
       type: 'CHAT_START',
       messages: $messages,
-      systemPrompt: '',
       model: $ollamaConfig?.model,
     });
   }

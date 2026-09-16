@@ -1,16 +1,33 @@
 import { writable, get } from 'svelte/store';
 import type { MessageResponse, OllamaConfig } from '../../types';
-import { getOllamaConfig, setOllamaConfig, getModelList, setModelList } from '../../lib/storage';
+import {
+  getOllamaConfig,
+  setOllamaConfig,
+  getModelList,
+  setModelList,
+  getChatConfig,
+} from '../../lib/storage';
+import {
+  setSystemPromptOverride,
+  resetSystemPrompt as clearOverride,
+} from '../../lib/system-prompt';
 
 export const ollamaConfig = writable<OllamaConfig | null>(null);
 /** The hand-maintained model list — never populated from /api/tags. */
 export const modelList = writable<string[]>([]);
+/** The user's system-prompt override. '' means the packaged default is in use. */
+export const systemPromptOverride = writable<string>('');
 
 export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [ollama, models] = await Promise.all([getOllamaConfig(), getModelList()]);
+  const [ollama, models, chat] = await Promise.all([
+    getOllamaConfig(),
+    getModelList(),
+    getChatConfig(),
+  ]);
   ollamaConfig.set(ollama);
+  systemPromptOverride.set(chat.systemPrompt);
   // An existing install has a model but no list yet — seed it so the picker isn't empty.
   modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
@@ -63,4 +80,15 @@ export async function testModel(name: string): Promise<TestResult> {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/** Persists an override. A blank value is stored as '', i.e. back to the default. */
+export async function saveSystemPrompt(text: string): Promise<void> {
+  await setSystemPromptOverride(text);
+  systemPromptOverride.set(text.trim());
+}
+
+export async function resetSystemPrompt(): Promise<void> {
+  await clearOverride();
+  systemPromptOverride.set('');
 }

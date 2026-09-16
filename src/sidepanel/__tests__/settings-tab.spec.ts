@@ -69,9 +69,28 @@ describe('SettingsTab.svelte', () => {
     });
   });
 
-  describe('Obsidian section', () => {
-    it('embeds ObsidianPanel component', () => {
-      expect(src).toContain('ObsidianPanel');
+  describe('system prompt section', () => {
+    it('no longer embeds the retired ObsidianPanel', () => {
+      expect(src).not.toContain('ObsidianPanel');
+    });
+
+    it('renders a textarea bound to the prompt override', () => {
+      expect(src).toContain('Textarea');
+      expect(src).toContain('bind:value={promptText}');
+    });
+
+    it('shows the packaged prompt as the placeholder', () => {
+      expect(src).toContain('DEFAULT_SYSTEM_PROMPT');
+      expect(src).toContain('placeholder={DEFAULT_SYSTEM_PROMPT}');
+    });
+
+    it('offers a reset back to the packaged default', () => {
+      expect(src).toContain('resetSystemPrompt');
+      expect(src).toContain('Reset to default');
+    });
+
+    it('persists the override through the settings store', () => {
+      expect(src).toContain('saveSystemPrompt');
     });
   });
 
@@ -84,8 +103,8 @@ describe('SettingsTab.svelte', () => {
       expect(src).toContain('Button');
     });
 
-    it('uses ObsidianPanel component', () => {
-      expect(src).toContain('ObsidianPanel');
+    it('uses the Textarea primitive rather than a bare element', () => {
+      expect(src).toContain('$components/ui/textarea');
     });
   });
 
