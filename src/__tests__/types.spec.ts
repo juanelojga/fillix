@@ -8,7 +8,6 @@ import type {
   FieldSnapshot,
   FieldFill,
   PipelineStage,
-  SearchConfig,
   WorkflowDefinition,
   UnderstandOutput,
   PlanOutput,
@@ -150,24 +149,12 @@ describe('ReviewOutput', () => {
   });
 });
 
-describe('SearchConfig', () => {
-  it('is fully optional (empty object is valid)', () => {
-    const cfg: SearchConfig = {};
-    expectTypeOf(cfg).toMatchTypeOf<SearchConfig>();
-  });
-
-  it('accepts braveApiKey and searxngUrl', () => {
-    const cfg: SearchConfig = { braveApiKey: 'bsak-123', searxngUrl: 'https://searx.example.com' };
-    expectTypeOf(cfg).toMatchTypeOf<SearchConfig>();
-  });
-});
-
 describe('PortMessage tool-call and tool-result variants', () => {
   it('tool-call variant has toolName and args', () => {
     const msg: PortMessage = {
       type: 'tool-call',
-      toolName: 'web_search',
-      args: { query: 'AI news' },
+      toolName: 'news_feed',
+      args: { topic: 'AI news' },
     };
     expectTypeOf(msg).toMatchTypeOf<PortMessage>();
   });
@@ -175,7 +162,7 @@ describe('PortMessage tool-call and tool-result variants', () => {
   it('tool-result variant has toolName and result', () => {
     const msg: PortMessage = {
       type: 'tool-result',
-      toolName: 'web_search',
+      toolName: 'news_feed',
       result: '1. Result...',
     };
     expectTypeOf(msg).toMatchTypeOf<PortMessage>();

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { get } from 'svelte/store';
 import { messages, streamingState, activeMessage } from '../stores/chat';
-import { ollamaConfig, searchConfig, modelList } from '../stores/settings';
+import { ollamaConfig, modelList } from '../stores/settings';
 import { workflowList, agentMessages, pendingGate, isAgentRunning } from '../stores/workflow';
 
 describe('svelte stores (Task 2.5)', () => {
@@ -28,10 +28,6 @@ describe('svelte stores (Task 2.5)', () => {
   describe('settings store', () => {
     it('ollamaConfig initialises as null', () => {
       expect(get(ollamaConfig)).toBeNull();
-    });
-
-    it('searchConfig initialises as null', () => {
-      expect(get(searchConfig)).toBeNull();
     });
 
     it('modelList initialises as empty array', () => {

@@ -16,10 +16,6 @@ describe('SettingsTab.svelte', () => {
       expect(src).toContain('ollamaConfig');
     });
 
-    it('imports searchConfig store', () => {
-      expect(src).toContain('searchConfig');
-    });
-
     it('imports modelList store', () => {
       expect(src).toContain('modelList');
     });
@@ -60,9 +56,16 @@ describe('SettingsTab.svelte', () => {
     });
   });
 
-  describe('search section', () => {
-    it('has a Brave API key input', () => {
-      expect(src).toContain('braveApiKey');
+  describe('retired web search', () => {
+    for (const token of ['searchConfig', 'SearchConfig', 'braveApiKey', 'brave-api-key']) {
+      it(`no longer references ${token}`, () => {
+        expect(src).not.toContain(token);
+      });
+    }
+
+    // Catches the visible label text too, not just the identifiers.
+    it('shows nothing about Brave', () => {
+      expect(src.toLowerCase()).not.toContain('brave');
     });
   });
 

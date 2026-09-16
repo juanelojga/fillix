@@ -12,11 +12,9 @@ import {
   setOllamaConfig,
   getModelList,
   setModelList,
-  getSearchConfig,
-  setSearchConfig,
 } from '../storage';
 import type { ChatConfig } from '../storage';
-import type { OllamaConfig, SearchConfig, WorkflowDefinition } from '../../types';
+import type { OllamaConfig, WorkflowDefinition } from '../../types';
 
 const mockGet = vi.fn();
 const mockSet = vi.fn();
@@ -199,41 +197,6 @@ describe('setModelList', () => {
   it('writes to the models storage key', async () => {
     await setModelList(['phi3']);
     expect(mockSet).toHaveBeenCalledWith({ models: ['phi3'] });
-  });
-});
-
-describe('getSearchConfig', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-  });
-
-  it('returns empty object on a fresh profile', async () => {
-    mockGet.mockResolvedValue({});
-    const config = await getSearchConfig();
-    expect(config).toEqual({});
-  });
-
-  it('returns stored SearchConfig when search key exists', async () => {
-    const stored: SearchConfig = {
-      braveApiKey: 'bsak-abc',
-      searxngUrl: 'https://searx.example.com',
-    };
-    mockGet.mockResolvedValue({ search: stored });
-    const config = await getSearchConfig();
-    expect(config).toEqual(stored);
-  });
-});
-
-describe('setSearchConfig', () => {
-  beforeEach(() => {
-    vi.resetAllMocks();
-    mockSet.mockResolvedValue(undefined);
-  });
-
-  it('writes to the search storage key', async () => {
-    const cfg: SearchConfig = { braveApiKey: 'bsak-write' };
-    await setSearchConfig(cfg);
-    expect(mockSet).toHaveBeenCalledWith({ search: cfg });
   });
 });
 

@@ -28,9 +28,11 @@ describe('chat UI components (Sprint 3)', () => {
       expect(src).toContain('renderMarkdown');
     });
 
-    it('renders markdown via {@html} only when not streaming', () => {
+    it('renders markdown via {@html} for streaming and final content alike', () => {
       expect(src).toContain('{@html');
       expect(src).toContain('isStreaming');
+      // The old plain-text streaming branch must not creep back.
+      expect(src).not.toMatch(/\{#if isStreaming\}/);
     });
 
     it('applies distinct class for user role', () => {

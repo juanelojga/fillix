@@ -1,4 +1,4 @@
-import type { ObsidianConfig, OllamaConfig, SearchConfig, WorkflowDefinition } from '../types';
+import type { ObsidianConfig, OllamaConfig, WorkflowDefinition } from '../types';
 
 /** Models the user typed in by hand — never inferred from Ollama. */
 export async function getModelList(): Promise<string[]> {
@@ -80,13 +80,4 @@ export async function getWorkflowsFolder(): Promise<string> {
 
 export async function setWorkflowsFolder(folder: string): Promise<void> {
   await chrome.storage.local.set({ workflowsFolder: folder });
-}
-
-export async function getSearchConfig(): Promise<SearchConfig> {
-  const { search } = await chrome.storage.local.get('search');
-  return (search as SearchConfig | undefined) ?? {};
-}
-
-export async function setSearchConfig(config: SearchConfig): Promise<void> {
-  await chrome.storage.local.set({ search: config });
 }

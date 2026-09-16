@@ -3,11 +3,6 @@ export interface OllamaConfig {
   model: string;
 }
 
-export interface SearchConfig {
-  braveApiKey?: string;
-  searxngUrl?: string;
-}
-
 export interface FieldContext {
   name?: string;
   id?: string;
@@ -20,7 +15,6 @@ export interface FieldContext {
 export type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
-  beautifyError?: string;
 };
 
 export type PortMessage =
@@ -29,16 +23,13 @@ export type PortMessage =
   | { type: 'done' }
   | { type: 'error'; error: string }
   | { type: 'tool-call'; toolName: string; args: Record<string, string> }
-  | { type: 'tool-result'; toolName: string; result: string }
-  | { type: 'beautified'; content: string }
-  | { type: 'beautify-error'; reason: string };
+  | { type: 'tool-result'; toolName: string; result: string };
 
 export interface ObsidianConfig {
   host: string;
   port: number;
   apiKey: string;
   systemPromptPath?: string;
-  beautifierPromptPath?: string;
 }
 
 export type Message =
@@ -79,8 +70,7 @@ export type Message =
   | { type: 'EXTRACT_CONVERSATION' }
   | { type: 'CONVERSATION_DATA'; messages: ConversationMessage[]; platform: string | null }
   // Text insertion (bg → content script)
-  | { type: 'INSERT_TEXT'; text: string }
-  | { type: 'BEAUTIFY'; content: string; config: OllamaConfig };
+  | { type: 'INSERT_TEXT'; text: string };
 
 // Serializable field snapshot (no DOM refs — safe to send via messages)
 export interface FieldSnapshot {

@@ -14,7 +14,7 @@ import {
   getWorkflowsFolder,
   setWorkflows,
 } from './lib/storage';
-import { migrateLegacyProviderKeys } from './lib/legacy-migration';
+import { migrateLegacyProviderKeys, removeRetiredSearchKey } from './lib/legacy-migration';
 import { parseWorkflow } from './lib/workflow';
 import { runAgentPipeline } from './lib/agent-runner';
 import type { AgentPortIn, AgentPortOut } from './lib/agent-runner';
@@ -36,6 +36,9 @@ async function autoRefreshWorkflows(): Promise<void> {
 async function initialize(): Promise<void> {
   await migrateLegacyProviderKeys().catch((err: unknown) => {
     console.warn('[fillix] Legacy provider migration failed:', err);
+  });
+  await removeRetiredSearchKey().catch((err: unknown) => {
+    console.warn('[fillix] Retired search key cleanup failed:', err);
   });
   await autoRefreshWorkflows();
 }
@@ -140,7 +143,6 @@ async function handle(msg: Message): Promise<MessageResponse> {
     }
     case 'CHAT_START':
     case 'CHAT_STOP':
-    case 'BEAUTIFY':
       return { ok: false, error: 'Use port channel for chat' };
     case 'OBSIDIAN_TEST_CONNECTION': {
       const obsidian = await getObsidianConfig();
