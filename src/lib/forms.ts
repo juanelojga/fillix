@@ -1,4 +1,4 @@
-import type { FieldContext, FieldSnapshot } from '../types';
+import type { FieldContext } from '../types';
 
 export type FillableElement = HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
 
@@ -63,13 +63,6 @@ function findLabelText(el: HTMLElement): string | undefined {
     if (target?.textContent) return target.textContent.trim();
   }
   return undefined;
-}
-
-export function snapshotFields(root: Document = document): FieldSnapshot[] {
-  return detectFields(root).map(({ element, context }) => ({
-    ...context,
-    currentValue: element.value ?? '',
-  }));
 }
 
 export function setFieldValue(el: FillableElement, value: string): void {

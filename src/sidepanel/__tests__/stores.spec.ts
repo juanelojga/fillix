@@ -1,8 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { get } from 'svelte/store';
 import { messages, streamingState, activeMessage } from '../stores/chat';
-import { ollamaConfig, modelList } from '../stores/settings';
-import { workflowList, agentMessages, pendingGate, isAgentRunning } from '../stores/workflow';
+import { ollamaConfig, modelList, systemPromptOverride } from '../stores/settings';
 
 describe('svelte stores (Task 2.5)', () => {
   describe('chat store', () => {
@@ -38,28 +37,9 @@ describe('svelte stores (Task 2.5)', () => {
       expect(typeof ollamaConfig.subscribe).toBe('function');
       expect(typeof ollamaConfig.set).toBe('function');
     });
-  });
 
-  describe('workflow store', () => {
-    it('workflowList initialises as empty array', () => {
-      expect(get(workflowList)).toEqual([]);
-    });
-
-    it('agentMessages initialises as empty array', () => {
-      expect(get(agentMessages)).toEqual([]);
-    });
-
-    it('pendingGate initialises as null', () => {
-      expect(get(pendingGate)).toBeNull();
-    });
-
-    it('isAgentRunning initialises as false', () => {
-      expect(get(isAgentRunning)).toBe(false);
-    });
-
-    it('isAgentRunning is a writable store', () => {
-      expect(typeof isAgentRunning.subscribe).toBe('function');
-      expect(typeof isAgentRunning.set).toBe('function');
+    it("systemPromptOverride initialises as '' — meaning the packaged default is in use", () => {
+      expect(get(systemPromptOverride)).toBe('');
     });
   });
 });

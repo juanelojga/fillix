@@ -2,19 +2,11 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../lib/storage', () => ({
   getOllamaConfig: vi.fn(async () => ({ baseUrl: 'http://localhost:11434', model: 'llama3.2' })),
-  getObsidianConfig: vi.fn(async () => ({ host: 'localhost', port: 27123, apiKey: '' })),
 }));
 
 vi.mock('../lib/ollama', () => ({
   inferFieldValue: vi.fn(async () => 'inferred-value'),
-  listModels: vi.fn(async () => []),
   chatStream: vi.fn(),
-}));
-
-vi.mock('../lib/obsidian', () => ({
-  getFile: vi.fn(async () => ''),
-  listFiles: vi.fn(async () => []),
-  testConnection: vi.fn(async () => undefined),
 }));
 
 import { getOllamaConfig } from '../lib/storage';

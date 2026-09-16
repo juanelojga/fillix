@@ -20,14 +20,11 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'activeTab', 'sidePanel', 'tabs', 'scripting'],
+  permissions: ['storage', 'activeTab', 'sidePanel'],
   host_permissions: [
     'http://localhost:11434/*',
-    'http://localhost:27123/*',
     'https://en.wikipedia.org/*',
     'https://hn.algolia.com/*',
-    'https://web.whatsapp.com/*',
-    'https://www.linkedin.com/*',
     '<all_urls>',
   ],
 });

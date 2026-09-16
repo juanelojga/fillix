@@ -49,39 +49,6 @@ describe('component spec files exist (Sprint 6)', () => {
     });
   });
 
-  describe('Task 6.5 — WorkflowMessage.spec.ts (replaced PipelineStages)', () => {
-    it('exists', () => {
-      expect(existsSync(comp('WorkflowMessage.spec.ts'))).toBe(true);
-    });
-
-    it('tests plan-review variant', () => {
-      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
-      expect(src).toContain('plan-review');
-    });
-
-    it('tests summary variant', () => {
-      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
-      expect(src).toContain('summary');
-    });
-  });
-
-  describe('Task 6.6 — WorkflowMessage fills-review (replaced ConfirmTable)', () => {
-    it('WorkflowMessage.spec.ts covers fills-review', () => {
-      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
-      expect(src).toContain('fills-review');
-    });
-
-    it('WorkflowMessage.spec.ts covers replyText', () => {
-      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
-      expect(src).toContain('replyText');
-    });
-
-    it('WorkflowMessage.spec.ts covers error variant', () => {
-      const src = readFileSync(comp('WorkflowMessage.spec.ts'), 'utf-8');
-      expect(src).toContain('error');
-    });
-  });
-
   describe('Task 6.7 — tab smoke tests', () => {
     it('ChatTab.spec.ts exists', () => {
       expect(existsSync(tab('ChatTab.spec.ts'))).toBe(true);
@@ -89,10 +56,6 @@ describe('component spec files exist (Sprint 6)', () => {
 
     it('SettingsTab.spec.ts exists', () => {
       expect(existsSync(tab('SettingsTab.spec.ts'))).toBe(true);
-    });
-
-    it('WorkflowTab.spec.ts exists', () => {
-      expect(existsSync(tab('WorkflowTab.spec.ts'))).toBe(true);
     });
 
     it('NewsTab.spec.ts exists', () => {

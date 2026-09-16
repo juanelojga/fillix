@@ -1,5 +1,6 @@
 import { chatStream } from './ollama';
 import { getOllamaConfig } from './storage';
+import { getSystemPrompt } from './system-prompt';
 import { dispatchTool } from './tools/registry';
 import type { Message, PortMessage } from '../types';
 
@@ -46,7 +47,7 @@ async function runChat(
   const ollamaConfig = await getOllamaConfig();
   const config = { ...ollamaConfig, model: msg.model ?? ollamaConfig.model };
 
-  const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${msg.systemPrompt}`;
+  const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${await getSystemPrompt()}`;
   const messages = [...msg.messages];
   const MAX_ITERATIONS = 8;
 

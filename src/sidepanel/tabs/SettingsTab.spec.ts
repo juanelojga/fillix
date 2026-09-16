@@ -9,7 +9,13 @@ describe('SettingsTab (smoke)', () => {
 
   it('renders a save button', () => {
     render(SettingsTab);
-    expect(screen.getByRole('button', { name: /save/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /save settings/i })).toBeInTheDocument();
+  });
+
+  it('renders the system prompt section', () => {
+    render(SettingsTab);
+    expect(screen.getByRole('heading', { name: /system prompt/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /reset to default/i })).toBeInTheDocument();
   });
 
   it('renders the Ollama section heading', () => {

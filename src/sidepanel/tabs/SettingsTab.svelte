@@ -10,9 +10,13 @@
     removeModel,
     setActiveModel,
     testModel,
+    systemPromptOverride,
+    saveSystemPrompt,
+    resetSystemPrompt,
   } from '../stores/settings';
   import type { OllamaConfig } from '../../types';
   import { Input } from '$components/ui/input';
+  import { Textarea } from '$components/ui/textarea';
   import { Button } from '$components/ui/button';
   import { Badge } from '$components/ui/badge';
   import {
@@ -22,7 +26,7 @@
     TooltipProvider,
   } from '$components/ui/tooltip';
   import { diagnoseTestFailure } from '../../lib/model-test-diagnostics';
-  import ObsidianPanel from '../components/ObsidianPanel.svelte';
+  import { DEFAULT_SYSTEM_PROMPT } from '../../lib/system-prompt';
 
   type TestState = { status: 'testing' } | { status: 'ok'; latencyMs: number } | { status: 'error'; error: string };
 
@@ -35,6 +39,8 @@
   let newModel = $state('');
   let saveStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let testStates = $state<Record<string, TestState>>({});
+  let promptText = $state('');
+  let promptStatus = $state<'idle' | 'saving' | 'saved'>('idle');
 
   onMount(async () => {
     await loadSettings();
@@ -43,6 +49,7 @@
       baseUrl = cfg.baseUrl;
       model = cfg.model;
     }
+    promptText = get(systemPromptOverride);
   });
 
   // Keep the radio in sync when the model changes from elsewhere (e.g. chat header).
@@ -77,6 +84,21 @@
         ? { status: 'ok', latencyMs: result.latencyMs }
         : { status: 'error', error: result.error },
     };
+  }
+
+  async function handleSavePrompt() {
+    promptStatus = 'saving';
+    await saveSystemPrompt(promptText);
+    promptText = get(systemPromptOverride);
+    promptStatus = 'saved';
+    setTimeout(() => {
+      promptStatus = 'idle';
+    }, 2000);
+  }
+
+  async function handleResetPrompt() {
+    await resetSystemPrompt();
+    promptText = '';
   }
 
   async function handleSave() {
@@ -212,8 +234,49 @@
       </div>
     </section>
 
-    <!-- Obsidian section -->
-    <ObsidianPanel />
+    <!-- System prompt section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-indigo-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">System prompt</h2>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <Textarea
+          id="system-prompt"
+          bind:value={promptText}
+          rows={8}
+          placeholder={DEFAULT_SYSTEM_PROMPT}
+          class="font-mono text-xs"
+        />
+        <p class="text-xs text-muted-foreground">
+          {#if $systemPromptOverride}
+            Using your override. <strong>Reset to default</strong> restores the prompt that ships with
+            Fillix.
+          {:else}
+            Using the default that ships with Fillix, shown above. Type here to override it.
+          {/if}
+          Tool instructions are always prepended, so the model keeps its web access either way.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 self-end">
+        <Button
+          variant="ghost"
+          onclick={handleResetPrompt}
+          disabled={!$systemPromptOverride && !promptText.trim()}
+        >
+          Reset to default
+        </Button>
+        <Button
+          variant="secondary"
+          onclick={handleSavePrompt}
+          disabled={promptStatus === 'saving' || promptText.trim() === $systemPromptOverride}
+        >
+          {promptStatus === 'saving' ? 'Saving…' : promptStatus === 'saved' ? '✓ Saved' : 'Save prompt'}
+        </Button>
+      </div>
+    </section>
 
     <!-- Save -->
     <Button

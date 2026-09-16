@@ -13,17 +13,14 @@ vi.mock('../lib/ollama', () => ({
 vi.mock('../lib/legacy-migration', () => ({
   migrateLegacyProviderKeys: vi.fn(),
   removeRetiredSearchKey: vi.fn(),
+  removeRetiredObsidianKeys: vi.fn(),
 }));
 vi.mock('../lib/storage', () => ({
   getOllamaConfig: vi
     .fn()
     .mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' }),
   getChatConfig: vi.fn().mockResolvedValue({ systemPrompt: '' }),
-  getObsidianConfig: vi.fn().mockResolvedValue({ host: 'localhost', port: 27123, apiKey: '' }),
   getModelList: vi.fn().mockResolvedValue([]),
-  getWorkflows: vi.fn().mockResolvedValue([]),
-  getWorkflowsFolder: vi.fn().mockResolvedValue('fillix-workflows'),
-  setWorkflows: vi.fn(),
 }));
 vi.mock('../lib/news/aggregator', () => ({ refreshNews: mockRefreshNews }));
 vi.mock('../lib/news/article-text', () => ({
