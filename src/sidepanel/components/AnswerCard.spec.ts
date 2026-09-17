@@ -19,9 +19,20 @@ function field(overrides: Partial<ApplicationField> = {}): ApplicationField {
 }
 
 function drafted(
-  overrides: Partial<{ text: string; drewOn: string[]; gaps: string[] }> = {},
+  overrides: Partial<{
+    text: string;
+    drewOn: string[];
+    gaps: string[];
+    noExperience: boolean;
+  }> = {},
 ): DraftState {
-  const draft = { text: 'I have shipped one.', drewOn: ['Known gaps'], gaps: [], ...overrides };
+  const draft = {
+    text: 'I have shipped one.',
+    drewOn: ['Known gaps'],
+    gaps: [],
+    noExperience: false,
+    ...overrides,
+  };
   return { status: 'drafted', draft, edited: draft.text };
 }
 
@@ -68,6 +79,39 @@ describe('AnswerCard', () => {
     render(AnswerCard, { field: field(), state: drafted({ text: '', drewOn: [] }) });
 
     expect(screen.getByText(/Your profile had nothing for this one/)).toBeInTheDocument();
+  });
+
+  /**
+   * The answer cites nothing, so the card has to say that and not merely that the question
+   * touched a gap. It is what stands between the user and a short uncited sentence that reads
+   * like a denial while still claiming something.
+   */
+  it('says an uncited answer is the model declaring no experience', () => {
+    render(AnswerCard, {
+      field: field(),
+      state: drafted({
+        text: "I don't have experience with the Square API.",
+        drewOn: [],
+        noExperience: true,
+      }),
+    });
+
+    expect(screen.getByText(/this answer says so, and cites nothing/)).toBeInTheDocument();
+    // Not the blank-case wording, which would tell the user nothing was drafted at all.
+    expect(screen.queryByText(/Your profile had nothing for this one/)).not.toBeInTheDocument();
+  });
+
+  it('puts a no-experience answer in the editable box like any other', () => {
+    render(AnswerCard, {
+      field: field(),
+      state: drafted({
+        text: "I don't have experience with the Square API.",
+        drewOn: [],
+        noExperience: true,
+      }),
+    });
+
+    expect(screen.getByRole('textbox')).toHaveValue("I don't have experience with the Square API.");
   });
 
   it('shows a failure as a cause plus a next step, and offers Re-draft', () => {

@@ -13,6 +13,7 @@ describe('normalizeAnswerDraft', () => {
       text: 'I have eight years of Python.',
       drewOn: ['Python, FastAPI and Django'],
       gaps: ['Square API'],
+      noExperience: false,
     });
   });
 
@@ -22,6 +23,8 @@ describe('normalizeAnswerDraft', () => {
    * exists to prevent, and it arrives looking confident and well-written.
    */
   it('throws away an answer that cites nothing', () => {
+    // Untouched by the no-experience allowance: the fixture is a claim, not a denial, so
+    // `statesNoExperience` rejects it and the guard fires exactly as it always did.
     expect(() =>
       normalizeAnswerDraft({ text: 'I am a Square API expert.', drew_on: [], gaps: [] }),
     ).toThrow(/without citing your profile/);
@@ -33,14 +36,59 @@ describe('normalizeAnswerDraft', () => {
     );
   });
 
-  // The model correctly finding nothing is a valid outcome, and the one the prompt asks for
-  // when no excerpt is relevant. It must not be confused with the fabrication case above.
+  // A tolerated shortfall, no longer the requested outcome: the prompt now asks for a plain
+  // statement of having no experience instead. Still accepted rather than thrown, because a
+  // blank box is safe and turning it into a hard failure would lose a working screen.
   it('accepts an empty answer with no citations', () => {
     expect(normalizeAnswerDraft({ text: '', drew_on: [], gaps: ['Square API'] })).toEqual({
       text: '',
       drewOn: [],
       gaps: ['Square API'],
+      noExperience: false,
     });
+  });
+
+  // The point of the whole change: a question the profile cannot answer gets a sentence
+  // saying so, not an empty box the user has to notice and fill in themselves.
+  it('lets an uncited answer through when it is a plain statement of no experience', () => {
+    const draft = normalizeAnswerDraft({
+      text: "I don't have experience with the Square API.",
+      drew_on: [],
+      gaps: ['Square API'],
+    });
+
+    expect(draft.text).toBe("I don't have experience with the Square API.");
+  });
+
+  it('marks an uncited denial so the card need not re-read the text', () => {
+    const draft = normalizeAnswerDraft({
+      text: "I don't have experience with the Square API.",
+      drew_on: [],
+      gaps: [],
+    });
+
+    expect(draft.noExperience).toBe(true);
+  });
+
+  it('still discards an uncited denial that smuggles in a claim', () => {
+    expect(() =>
+      normalizeAnswerDraft({
+        text: "I don't have Square experience, but I built the checkout at Acme in 2019.",
+        drew_on: [],
+        gaps: [],
+      }),
+    ).toThrow(/without citing your profile/);
+  });
+
+  // Derived, not reported: a cited answer cannot be flagged as a denial however it is worded.
+  it('never marks a cited answer as no-experience', () => {
+    const draft = normalizeAnswerDraft({
+      text: "I don't have experience with Square.",
+      drew_on: ['Payments'],
+      gaps: [],
+    });
+
+    expect(draft.noExperience).toBe(false);
   });
 
   it('drops non-string and blank entries rather than rendering them', () => {
@@ -59,6 +107,7 @@ describe('normalizeAnswerDraft', () => {
       text: '',
       drewOn: [],
       gaps: [],
+      noExperience: false,
     });
   });
 });
@@ -92,7 +141,12 @@ describe('draftAnswer', () => {
   it('returns the normalized draft', async () => {
     const draft = await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000));
 
-    expect(draft).toEqual({ text: 'Eight years of Python.', drewOn: ['Python'], gaps: [] });
+    expect(draft).toEqual({
+      text: 'Eight years of Python.',
+      drewOn: ['Python'],
+      gaps: [],
+      noExperience: false,
+    });
   });
 
   /**
@@ -115,6 +169,16 @@ describe('draftAnswer', () => {
     expect(body.prompt).toContain('## Python\n\nEight years.');
     expect(body.prompt).toContain('the only source you may draw on');
     expect(body.system).toContain('Use ONLY the profile excerpts provided');
+  });
+
+  // The instruction the always-answer behaviour rests on. If it stops being sent, the model
+  // reverts to blanks and nothing else in this file notices.
+  it('tells the model never to return an empty answer', async () => {
+    await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000));
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    expect(system).toContain('Never return an empty "text"');
+    expect(system).toContain('saying you do not have that experience');
   });
 
   // Ollama truncates from the start, so whatever leads is what gets silently dropped. The

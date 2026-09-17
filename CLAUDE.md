@@ -362,8 +362,22 @@ aloud to a client.
   shape. Passes `num_ctx: 8192` explicitly, because Ollama defaults to 2048 and truncates
   silently. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
   `drew_on` is thrown away, because it was written out of the model's training rather than out
-  of the profile. An empty answer with no citations is fine — that is the model correctly
-  finding nothing, and the two must not be confused.
+  of the profile. The **one** exception is a bare statement of having no experience, which is
+  what the prompt now asks for in place of a blank — it claims nothing, so there is nothing for
+  a citation to support. `states-no-experience.ts` decides what counts. `noExperience` on the
+  draft is **derived here**, never read off the wire: a self-reported flag is one a small model
+  drops under a long prompt, and its absence would then mislabel a correct answer. It cannot be
+  true when anything was cited. An empty answer still passes, but it is now a tolerated
+  shortfall rather than the requested outcome.
+- `states-no-experience.ts` — whether an uncited answer is a bare denial. The **mirror image of
+  `mentions-time.ts`**, whose gate is loose because a false positive there costs one small
+  generation; here a false positive costs an uncited claim in front of a recruiter, so it is
+  strict and returns false when in doubt. The checks are structural, not about tone — short
+  enough to be one sentence, the negation in the _first_ sentence, and no year and no tenure —
+  because the answer to catch is not "I am a Square expert" (a confused model, rare) but the
+  mixed one that opens with a negation and then invents an employer and a date. It is also why
+  the prompt no longer invites "then say what the nearest real experience is" unconditionally:
+  that clause is only honest when an excerpt supports it and is cited.
 - `draft-diagnostics.ts` — failure → cause and next step. The `ungrounded` arm is checked first
   and is worded as the guard firing rather than as a bug, because it is the one failure that is
   working as designed.
@@ -377,7 +391,11 @@ eight at once would not finish sooner — it would only make every question appe
 
 `AnswerCard.svelte` shows the answer in an editable box plus the two things that make it
 checkable in one glance: _Drew on_ (the cited headings) and _Not in your profile_ (the declared
-gaps). A question with no locator is **named, never dropped** — it is on the page whether or not
+gaps). A `noExperience` draft gets a third branch that says the answer **cites nothing**, not
+merely that the question touched a gap — that wording is the only thing standing between the
+user and a short uncited sentence that reads like a denial while still claiming something, and
+for the same reason the footer under the list promises a citation _or_ a stated gap, never a
+citation on every answer. A question with no locator is **named, never dropped** — it is on the page whether or not
 we can fill it, and a missing card reads as "Toptal did not ask this". `ApplicationDrafts.svelte`
 owns the "Draft answers" button, which is deliberately not called Capture.
 

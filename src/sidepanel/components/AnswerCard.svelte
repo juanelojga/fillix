@@ -88,6 +88,13 @@
         <p class="text-[10px] text-muted-foreground">
           Drew on: {drafted.draft.drewOn.join(' · ')}
         </p>
+      {:else if drafted.draft.noExperience}
+        <!-- It must say the answer cites nothing, not merely that it is a gap. This is the
+             only thing standing between the user and a short uncited sentence that reads
+             like a denial but still claims something. -->
+        <p class="text-[10px] text-amber-700">
+          Not in your profile — this answer says so, and cites nothing. Edit it if that is wrong.
+        </p>
       {:else}
         <p class="text-[10px] text-amber-700">
           Your profile had nothing for this one. Anything written here is yours, not drafted.

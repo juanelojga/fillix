@@ -20,7 +20,7 @@ const FIELDS = [
 
 const ANSWERED = {
   status: 'drafted' as const,
-  draft: { text: 'Yes.', drewOn: ['Python'], gaps: [] },
+  draft: { text: 'Yes.', drewOn: ['Python'], gaps: [], noExperience: false },
   edited: 'Yes.',
 };
 
@@ -58,7 +58,7 @@ describe('ApplicationDrafts', () => {
     drafts.set({
       [Q1]: {
         status: 'drafted',
-        draft: { text: 'Yes.', drewOn: ['Python'], gaps: [] },
+        draft: { text: 'Yes.', drewOn: ['Python'], gaps: [], noExperience: false },
         edited: 'Yes.',
       },
     });
@@ -67,11 +67,47 @@ describe('ApplicationDrafts', () => {
     expect(screen.getByText('1 of 2 answered')).toBeInTheDocument();
   });
 
-  // An empty answer is the model correctly finding nothing, not an answered question.
+  /**
+   * A denial is a real answer: it is what gets written into the field, so it has to count.
+   * Otherwise the header tells the user work is outstanding that Fill page will happily do.
+   */
+  it('counts a no-experience answer as answered, because it will be written', () => {
+    fields.set(FIELDS);
+    drafts.set({
+      [Q1]: {
+        status: 'drafted',
+        draft: {
+          text: "I don't have experience with Square.",
+          drewOn: [],
+          gaps: ['Square'],
+          noExperience: true,
+        },
+        edited: "I don't have experience with Square.",
+      },
+    });
+    render(ApplicationDrafts);
+
+    expect(screen.getByText('1 of 2 answered')).toBeInTheDocument();
+  });
+
+  // The standing promise under the list. It stopped being true the moment an uncited denial
+  // could be shown, and it is the claim the whole citation UI rests on.
+  it('does not promise every answer names a section', () => {
+    fields.set(FIELDS);
+    render(ApplicationDrafts);
+
+    expect(screen.getByText(/or says you do not have that experience/)).toBeInTheDocument();
+  });
+
+  // A blank is the model ignoring the instruction, not an answered question.
   it('does not count a blank answer as answered', () => {
     fields.set(FIELDS);
     drafts.set({
-      [Q1]: { status: 'drafted', draft: { text: '', drewOn: [], gaps: [] }, edited: '' },
+      [Q1]: {
+        status: 'drafted',
+        draft: { text: '', drewOn: [], gaps: [], noExperience: false },
+        edited: '',
+      },
     });
     render(ApplicationDrafts);
 
@@ -95,7 +131,7 @@ describe('ApplicationDrafts', () => {
     drafts.set({
       [Q1]: {
         status: 'drafted',
-        draft: { text: 'Yes.', drewOn: ['Python'], gaps: [] },
+        draft: { text: 'Yes.', drewOn: ['Python'], gaps: [], noExperience: false },
         edited: 'Yes.',
       },
     });

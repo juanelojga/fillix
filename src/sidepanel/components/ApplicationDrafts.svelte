@@ -92,9 +92,9 @@
     {/if}
 
     <p class="px-3 pb-2 text-[10px] text-muted-foreground leading-relaxed">
-      Answers are written from your profile and nothing else, and every one says which sections
-      it drew on. Read them before you paste anything into the page — nothing is written to
-      Toptal, and Submit is never pressed for you.
+      Answers are written from your profile and nothing else. Each one either names the sections
+      it drew on, or says you do not have that experience. Read them before you paste anything
+      into the page — nothing is written to Toptal, and Submit is never pressed for you.
     </p>
 
     <div class="border-t">

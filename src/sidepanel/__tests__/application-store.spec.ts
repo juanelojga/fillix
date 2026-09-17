@@ -86,7 +86,7 @@ function profileIsReady() {
 }
 
 function draftReply(text: string, drewOn: string[] = ['Python']) {
-  return { ok: true, draft: { text, drewOn, gaps: [] } };
+  return { ok: true, draft: { text, drewOn, gaps: [], noExperience: false } };
 }
 
 beforeEach(() => {
@@ -133,7 +133,11 @@ describe('fields follow the capture', () => {
   it('replaces the questions when a second capture lands', () => {
     ready(1000);
     drafts.set({
-      [Q1]: { status: 'drafted', draft: { text: 'old', drewOn: ['x'], gaps: [] }, edited: 'old' },
+      [Q1]: {
+        status: 'drafted',
+        draft: { text: 'old', drewOn: ['x'], gaps: [], noExperience: false },
+        edited: 'old',
+      },
     });
 
     ready(2000);
@@ -250,7 +254,7 @@ describe('editDraft', () => {
     drafts.set({
       [Q1]: {
         status: 'drafted',
-        draft: { text: 'Drafted.', drewOn: ['Python'], gaps: [] },
+        draft: { text: 'Drafted.', drewOn: ['Python'], gaps: [], noExperience: false },
         edited: 'Drafted.',
       },
     });
@@ -272,7 +276,7 @@ describe('editDraft', () => {
 function drafted(text: string) {
   return {
     status: 'drafted' as const,
-    draft: { text, drewOn: ['Python'], gaps: [] },
+    draft: { text, drewOn: ['Python'], gaps: [], noExperience: false },
     edited: text,
   };
 }
@@ -285,6 +289,33 @@ describe('what would be written', () => {
 
     expect(get(fillable)).toEqual([
       { question: Q1, locator: { by: 'name', value: 'q1' }, value: 'Mine.' },
+    ]);
+  });
+
+  /**
+   * A denial is a real answer and belongs on the page. Leaving it out would quietly drop the
+   * one response the user asked to always be there.
+   */
+  it('offers a no-experience answer to the page, because it is a real answer', () => {
+    drafts.set({
+      [Q1]: {
+        status: 'drafted',
+        draft: {
+          text: "I don't have experience with Square.",
+          drewOn: [],
+          gaps: ['Square'],
+          noExperience: true,
+        },
+        edited: "I don't have experience with Square.",
+      },
+    });
+
+    expect(get(fillable)).toEqual([
+      {
+        question: Q1,
+        locator: { by: 'name', value: 'q1' },
+        value: "I don't have experience with Square.",
+      },
     ]);
   });
 

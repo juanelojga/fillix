@@ -37,7 +37,7 @@ export function diagnoseDraftFailure(error: string, model: string): DraftDiagnos
     return {
       cause: 'ungrounded',
       summary: 'The answer was not grounded in your profile',
-      hint: `"${model}" wrote an answer without saying which sections it came from, so it was discarded rather than shown. Press Re-draft. If it keeps happening, a larger model follows this instruction more reliably.`,
+      hint: `"${model}" wrote an answer that neither names the sections it came from nor plainly says you have no experience with this, so it was discarded rather than shown. Press Re-draft. If it keeps happening, a larger model follows this instruction more reliably.`,
       detail,
     };
   }
