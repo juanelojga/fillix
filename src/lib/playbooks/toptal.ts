@@ -1,5 +1,6 @@
 import { captureActiveTabHtml } from '../capture/active-tab-html';
 import type { PlaybookDefinition, PlaybookResult } from './playbook';
+import { buildJobBrief } from './toptal-job-brief';
 import { extractJobSections } from './toptal-job-sections';
 import { TOPTAL_JOB_PAGE } from './toptal-job-url';
 
@@ -13,7 +14,13 @@ import { TOPTAL_JOB_PAGE } from './toptal-job-url';
 async function run(): Promise<PlaybookResult> {
   const result = await captureActiveTabHtml(TOPTAL_JOB_PAGE);
   if (!result.ok) return result;
-  return { ok: true, capture: result.capture, sections: extractJobSections(result.capture.html) };
+  const sections = extractJobSections(result.capture.html);
+  return {
+    ok: true,
+    capture: result.capture,
+    sections,
+    brief: buildJobBrief(sections, result.capture.html),
+  };
 }
 
 export const toptalPlaybook: PlaybookDefinition = {

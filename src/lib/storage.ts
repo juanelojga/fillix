@@ -105,3 +105,100 @@ export async function getWorkflowsConfig(): Promise<WorkflowsConfig> {
 export async function setWorkflowsConfig(workflowsConfig: WorkflowsConfig): Promise<void> {
   await chrome.storage.local.set({ workflowsConfig });
 }
+
+/**
+ * The user's own CV, project history and availability as one sectioned Markdown document —
+ * the evidence every drafted application answer is grounded in.
+ *
+ * Its own key rather than a field beside `chat`: that key holds a *preference* the user may
+ * leave empty forever, while this is content, and the vector index derived from it is
+ * rewritten on a completely different schedule. Keeping the prose and the vectors in separate
+ * keys means editing a sentence never rewrites a quarter-megabyte of floats, and a failed
+ * re-index leaves the prose untouched.
+ *
+ * `updatedAt: 0` means never saved, which the UI words differently from saved-then-emptied.
+ */
+export type ProfileDocument = { markdown: string; updatedAt: number };
+
+export async function getProfile(): Promise<ProfileDocument> {
+  const { profile } = await chrome.storage.local.get('profile');
+  const stored = profile as Partial<ProfileDocument> | undefined;
+  return {
+    markdown: typeof stored?.markdown === 'string' ? stored.markdown : '',
+    updatedAt: typeof stored?.updatedAt === 'number' ? stored.updatedAt : 0,
+  };
+}
+
+export async function setProfile(profile: ProfileDocument): Promise<void> {
+  await chrome.storage.local.set({ profile });
+}
+
+/**
+ * The embedding model, named by hand exactly as chat models are — the extension never asks
+ * Ollama what is installed. '' means "not chosen", and nothing can be indexed until it is.
+ *
+ * Its own key rather than a second field on `ollama`: that config is the chat model and base
+ * URL, read on every message, while this one is read only when indexing or retrieving.
+ */
+export type ProfileConfig = { embedModel: string };
+
+export async function getProfileConfig(): Promise<ProfileConfig> {
+  const { profileConfig } = await chrome.storage.local.get('profileConfig');
+  return {
+    embedModel: (profileConfig as Partial<ProfileConfig> | undefined)?.embedModel ?? '',
+  };
+}
+
+export async function setProfileConfig(profileConfig: ProfileConfig): Promise<void> {
+  await chrome.storage.local.set({ profileConfig });
+}
+
+/** One indexed section: the text an answer may cite, and the vector that finds it. */
+export interface IndexedChunk {
+  id: string;
+  heading: string;
+  ordinal: number;
+  text: string;
+  vector: number[];
+}
+
+/**
+ * The profile's vectors, and everything needed to know whether they are still valid.
+ *
+ * `hash` and `chars` are compared against the *current* document, and `model` and `dim`
+ * against the current embedding model: vectors from two different models are not comparable
+ * to each other at all, so switching models has to invalidate this exactly as an edit does.
+ *
+ * Separate from the `profile` key because the two are rewritten on different schedules and at
+ * wildly different sizes — roughly 275 KB of rounded floats against ~11 KB of prose.
+ */
+export interface ProfileIndex {
+  hash: string;
+  chars: number;
+  model: string;
+  dim: number;
+  builtAt: number;
+  chunks: IndexedChunk[];
+}
+
+export async function getProfileIndex(): Promise<ProfileIndex | null> {
+  const { profileIndex } = await chrome.storage.local.get('profileIndex');
+  if (!profileIndex || typeof profileIndex !== 'object') return null;
+  const index = profileIndex as Partial<ProfileIndex>;
+  // Validated rather than trusted, like getNewsCache: a half-written index scores every query
+  // identically, which reads as a bad model rather than bad data.
+  if (!Array.isArray(index.chunks) || typeof index.hash !== 'string') return null;
+  if (typeof index.model !== 'string' || typeof index.dim !== 'number') return null;
+  return {
+    hash: index.hash,
+    chars: index.chars ?? 0,
+    model: index.model,
+    dim: index.dim,
+    builtAt: index.builtAt ?? 0,
+    chunks: index.chunks,
+  };
+}
+
+export async function setProfileIndex(profileIndex: ProfileIndex): Promise<void> {
+  await chrome.storage.local.set({ profileIndex });
+}

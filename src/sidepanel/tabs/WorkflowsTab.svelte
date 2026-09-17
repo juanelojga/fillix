@@ -82,7 +82,11 @@
         <p class="text-xs text-destructive break-words font-mono">{diagnosis.detail}</p>
       </div>
     {:else if $runState.status === 'ready'}
-      <CapturedSections capture={$runState.capture} sections={$runState.sections} />
+      <CapturedSections
+        capture={$runState.capture}
+        sections={$runState.sections}
+        brief={$runState.brief}
+      />
     {:else}
       <div class="flex flex-col gap-2 p-4 text-center">
         <p class="text-sm font-medium text-slate-700">No page captured yet.</p>

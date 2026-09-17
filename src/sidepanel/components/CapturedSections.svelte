@@ -5,11 +5,16 @@
     type PageCapture,
   } from '$lib/capture/html-budget';
   import type { CapturedSection } from '$lib/playbooks/playbook';
+  import type { JobBrief } from '$lib/playbooks/job-brief';
+  import ApplicationDrafts from './ApplicationDrafts.svelte';
+  import JobBriefCard from './JobBriefCard.svelte';
+  import RawCapture from './RawCapture.svelte';
 
   let {
     capture,
     sections,
-  }: { capture: PageCapture; sections: CapturedSection[] } = $props();
+    brief = null,
+  }: { capture: PageCapture; sections: CapturedSection[]; brief?: JobBrief | null } = $props();
 
   const truncation = $derived(describeTruncation(capture));
 </script>
@@ -29,6 +34,12 @@
     </p>
   {/if}
 
+  {#if brief}
+    <JobBriefCard {brief} />
+  {/if}
+
+  <ApplicationDrafts />
+
   {#each sections as section (section.heading)}
     <section class="border-b px-3 py-2 last:border-b-0">
       <h3 class="text-xs font-semibold text-slate-800">{section.heading}</h3>
@@ -45,4 +56,8 @@
       {/if}
     </section>
   {/each}
+
+  <!-- Last, and collapsed: the decoded sections are the answer, the markup behind them is
+       the appeal. -->
+  <RawCapture {capture} />
 </div>

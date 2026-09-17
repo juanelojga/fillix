@@ -33,7 +33,8 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 Shared code lives in `src/lib/`:
 
-- `ollama.ts` — the **only** LLM client. `chatStream()` (NDJSON `/api/chat`), `generateStructured()` and `inferFieldValue()` (`/api/generate`, `format: 'json'`), and `testModel()` which runs one tiny generation and returns its latency. Structured prompts expect `{"value": "..."}` back; if parse fails, the field is skipped (empty string), **never** hallucinated text. There is deliberately no `listModels()` — see `legacy-migration.ts`.
+- `ollama.ts` — the chat and structured-generation client, and the only caller of `/api/chat` and `/api/generate`. `chatStream()` (NDJSON `/api/chat`), `generateStructured()` and `inferFieldValue()` (`/api/generate`, `format: 'json'`), and `testModel()` which runs one tiny generation and returns its latency. Structured prompts expect `{"value": "..."}` back; if parse fails, the field is skipped (empty string), **never** hallucinated text. There is deliberately no `listModels()` — see `legacy-migration.ts`. `extractOllamaError` is exported for `ollama-embed.ts`, which formats its HTTP failures identically so both diagnostics modules can match on one shape.
+- `ollama-embed.ts` — the **embeddings** client, a sibling rather than a section of `ollama.ts`: a different endpoint, a different failure set, and a different model entirely. `embedTexts()` batches through `/api/embed` and falls back to the older singular `/api/embeddings` on a 404; it validates the row count and a uniform width, because a malformed reply produces an index that scores every query identically and by then the vectors are in storage. `testEmbedModel()` exists because `testModel()` POSTs `/api/chat`, which an embed-only model rejects outright — testing `nomic-embed-text` with it reports "not installed" for a model that is installed and working.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
 - `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig.playbook` is the Workflows tab's selected playbook, `''` meaning "never chosen" — and the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
@@ -53,6 +54,28 @@ three lines composing `captureActiveTabHtml` with the two things that are Toptal
 else's, each in its own file: `toptal-job-url.ts` (which URLs are job pages) and
 `toptal-job-sections.ts` (which parts of one are worth reading). Both change for their own
 reasons — Toptal can move its routes without touching its markup, and the reverse.
+
+**The brief.** `job-brief.ts` holds `JobBrief` and `SkillMention` and is deliberately free of
+Toptal: a description, an attributes grid and a required/optional skill split are what every job
+board has. `PlaybookResult` carries `brief: JobBrief | null`, so a playbook that reads something
+other than a job posting simply returns null. Filling it is Toptal's business, split again by
+reason to change: `toptal-job-attributes.ts` (the grid) and `toptal-job-skills.ts` (the chips),
+composed by a ~15-line `toptal-job-brief.ts`.
+
+`toptal-job-attributes.ts` reads the **decoded text**, because `readable-text.ts` already
+flattens the grid to one line per cell. A label line is one that _ends_ with a colon, and that
+the check is on the end is load-bearing: `Client's Hours:` is a label and `2:00 AM – 3:00 PM` is
+a value, and both contain one.
+
+`toptal-job-skills.ts` reads the **markup**, and that split is the point of the file. In the
+decoded text a claimed skill reads `Python6` and an unclaimed one reads `Payment APIs`, so the
+only available signal is "does this line end in a digit" — which misreads any skill whose name
+ends in one (`Web3`, `Vue 3`, `GPT-4`) and would silently claim experience the user does not
+have. In the markup the answer is explicit: `aria-disabled="true"` is Toptal greying out a skill
+the profile lacks. That split is the **gaps signal** the whole grounding design leans on, so it
+is worth a `DOMParser`. The number beside a claimed skill is a **connection count** — not years,
+not a proficiency; it is displayed and never reasoned with. Chips are cloned before the count
+node is removed, because other parsers read the same document afterwards.
 
 The mechanism learns none of it. `captureActiveTabHtml` takes an optional `PageRequirement`
 — a predicate plus the phrase naming the page it wanted — and refuses a mismatch as
@@ -107,6 +130,110 @@ session-only: a page's full markup is the user's browsing content and nothing co
 across sessions. `selectPlaybook` clears via `clearRun()` rather than resetting the state
 directly — `clearRun` bumps the generation counter, without which a run started under the
 previous playbook resolves later and lands under the new one's label.
+
+**Profile and retrieval (`src/lib/profile/`)**
+
+The user's CV, project history and availability as one sectioned Markdown document, plus the
+vectors that let a drafting step find the right sections per question. Authored by hand in the
+Profile tab; no PDF parsing, no import.
+
+- `chunk.ts` — splits on `##` headings, because that is the contract the Profile tab states to
+  the user and counts back to them: a heading is both the retrieval key and the citation an
+  answer carries, so the author picks the granularity. `###` deliberately does **not** split.
+  The heading is prepended to each chunk's text before embedding — "Eight years." on its own
+  scores against "Do you know Python?" on nothing at all. A section over `MAX_CHUNK_CHARS`
+  splits on blank lines, never mid-paragraph, and a single over-long paragraph is emitted whole
+  rather than cut.
+- `profile-hash.ts` — FNV-1a 32-bit, **not** `crypto.subtle`: the digest APIs are async, and
+  making staleness a promise would push `await` into the store, the tab's derived state and the
+  status line. Not a security boundary; the worst a collision costs is one stale index. The
+  embed model name is part of the hashed input, separated by a NUL.
+- `index-staleness.ts` — `isIndexStale()`, pure, its own module. It is asked in the **panel** on
+  every keystroke while building runs only in the **worker**, and keeping the two together made
+  the panel import the embeddings client — and through it the whole chat client — to perform
+  three string comparisons.
+- `profile-index.ts` — `buildProfileIndex()`, worker-only by construction. Vectors are rounded
+  to six decimals before storage: cosine is unaffected at that precision, while raw float64
+  costs ~20 JSON characters per number against 9, which on a 40-chunk 768-dimension index is
+  ~600 KB against ~275 KB of a 10 MB quota shared with the news cache. An empty profile throws
+  `EmptyProfileError` rather than storing an index of nothing, which would read as fresh and
+  quietly ground every answer in no evidence.
+- `retrieve.ts` — `topChunks()`, pure like `news/interleave.ts`. Cosine, so magnitude cannot
+  decide a ranking (a long section is not a more relevant one); a zero vector scores 0 rather
+  than the NaN the division gives, because NaN compares false against everything and one of
+  them scatters the sort. Ties fall back to the author's order, so rebuilding the same profile
+  cannot reshuffle which section an answer cites. The best chunk is taken **even when it alone
+  exceeds the budget** — returning nothing would make the model answer from thin air, which is
+  the one outcome this whole design exists to prevent. A query vector of a different width
+  yields `[]`: two embedding spaces have no relationship, so the scores would be confidently
+  ranked noise.
+- `retrieval-diagnostics.ts` — the four _configuration_ refusals plus the embed failure, each
+  with a next step. Every hint names the Profile tab, because unlike the capture hints the
+  button that fixes it is not on screen when the message appears.
+- `embed-diagnostics.ts` — failure → worded cause and next step, same contract as
+  `model-test-diagnostics.ts`. Two causes are unique to this path and are why it is not that
+  module: naming a **chat** model as the embed model (where "not installed" would be actively
+  misleading), and an Ollama old enough to have neither embeddings endpoint (where pulling a
+  model would not help).
+
+Storage is three keys, deliberately separate. `profile` is the prose, `profileConfig` the
+hand-named embed model, `profileIndex` the vectors — rewritten on different schedules and at
+wildly different sizes, so an edit never rewrites a quarter-megabyte of floats and a failed
+re-index leaves the prose intact. Embedding is an outbound request, so it runs in the worker
+(`PROFILE_INDEX`, `TEST_EMBED_MODEL`); the vectors then live in storage and the panel scores
+them locally, because shipping ~275 KB of floats through `sendMessage` per question would be
+absurd. `MessageResponse` gains two keys: `indexed`, carrying only the counts the status line
+prints, and `queryVector`, the one embedded question that does cross the port.
+
+`retrieveProfileContext()` in `stores/profile.ts` refuses **before** embedding anything whenever
+the index cannot be trusted — no model, empty profile, no index, stale index. That ordering is
+load-bearing: `topChunks` also returns an empty list for an unusable index, and a silent empty
+result is indistinguishable from "your CV says nothing about this", which is a very different
+thing to tell someone applying for a job. A question the profile genuinely has nothing for is
+`{ ok: true, chunks: [] }`; every other case is a typed failure with wording attached.
+
+**Drafting (`src/lib/answers/`)**
+
+Turns a captured job plus the profile into one answer per application question. Everything here
+exists to stop one failure: a fluent, confident claim of experience the applicant does not have.
+A wrong answer on a job application is not a bad summary — it is something a recruiter reads
+aloud to a client.
+
+- `answer-query.ts` — the text whose embedding retrieves the right sections. Not the question
+  alone: "What is your experience with their stack?" names no technology, so on its own it
+  retrieves whichever section is phrased most like a question. The job's skills are appended,
+  **including the unclaimed ones**, because those are the likeliest to retrieve a gaps section.
+- `job-context.ts` — the job, budgeted. The description is the only part that runs to thousands
+  of characters, so it is what gets truncated; the attributes and the skill split are tiny and
+  are what the answers turn on. Unclaimed required skills are named under an explicit "never
+  imply experience with these" heading, because that is a far stronger instruction than leaving
+  them to be inferred from an absence.
+- `answer-prompt.ts` — in TS, not `src/prompts/`, by the rule above: it defines the JSON envelope
+  its parser depends on. Evidence goes **last** in the user prompt, and that ordering is
+  load-bearing — Ollama truncates an overflowing context from the _start_, so whatever leads is
+  what gets silently dropped, and the applicant's own words must be the thing that survives.
+- `draft-answer.ts` — `generateStructured` then `normalizeAnswerDraft`, the `news/summarizer.ts`
+  shape. Passes `num_ctx: 8192` explicitly, because Ollama defaults to 2048 and truncates
+  silently. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
+  `drew_on` is thrown away, because it was written out of the model's training rather than out
+  of the profile. An empty answer with no citations is fine — that is the model correctly
+  finding nothing, and the two must not be confused.
+- `draft-diagnostics.ts` — failure → cause and next step. The `ungrounded` arm is checked first
+  and is worded as the guard firing rather than as a bug, because it is the one failure that is
+  working as designed.
+
+`stores/application.ts` holds the questions and their drafts, a sibling of `stores/playbook.ts`
+rather than part of it — one store holds what the page _is_, the other what we propose to write
+back. It carries the same invariant across the boundary by keying every in-flight draft on the
+capture's `capturedAt`, so a slow answer for the previous job cannot land under this one's
+question. Drafting is **sequential**: Ollama serialises generation on one model anyway, so firing
+eight at once would not finish sooner — it would only make every question appear to hang at once.
+
+`AnswerCard.svelte` shows the answer in an editable box plus the two things that make it
+checkable in one glance: _Drew on_ (the cited headings) and _Not in your profile_ (the declared
+gaps). A question with no locator is **named, never dropped** — it is on the page whether or not
+we can fill it, and a missing card reads as "Toptal did not ask this". `ApplicationDrafts.svelte`
+owns the "Draft answers" button, which is deliberately not called Capture.
 
 **Tools (`src/lib/tools/`)**
 

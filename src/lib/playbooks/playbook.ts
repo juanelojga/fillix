@@ -1,5 +1,6 @@
 import type { CaptureFailure } from '../capture/active-tab-html';
 import type { PageCapture } from '../capture/html-budget';
+import type { JobBrief } from './job-brief';
 
 /**
  * The playbooks the Workflows tab offers. Stored in `workflowsConfig.playbook`, so an id
@@ -21,7 +22,13 @@ export interface CapturedSection {
  * meaning to a success and has nothing to add to a refusal.
  */
 export type PlaybookResult =
-  | { ok: true; capture: PageCapture; sections: CapturedSection[] }
+  | {
+      ok: true;
+      capture: PageCapture;
+      sections: CapturedSection[];
+      /** null when a playbook reads a page that is not a job posting. */
+      brief: JobBrief | null;
+    }
   | ({ ok: false } & CaptureFailure);
 
 export interface PlaybookDefinition {
