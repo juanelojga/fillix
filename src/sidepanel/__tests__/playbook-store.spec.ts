@@ -1,3 +1,6 @@
+// @vitest-environment jsdom
+// runPlaybook decodes its capture with DOMParser, which the side panel has and the
+// default node environment does not.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { get } from 'svelte/store';
 
@@ -23,7 +26,12 @@ import {
   selectedPlaybookId,
 } from '../stores/playbook';
 
-const TAB = { id: 7, url: 'https://example.com/a', title: 'Example', status: 'complete' };
+// A Toptal job page: the playbook refuses anything else before it reads a tab.
+const JOB_URL = 'https://talent.toptal.com/portal/job/VjEtSm9iLTUwNzc5MA/confirm';
+const TAB = { id: 7, url: JOB_URL, title: 'Lead Engineer', status: 'complete' };
+
+/** Carries one section hook, so a run comes back with something decoded to assert on. */
+const JOB_HTML = '<div data-testid="jobHiringStatus">Matchers reviewing</div>';
 
 /** A promise the test resolves by hand, to observe the in-flight state. */
 function deferred<T>() {
@@ -40,7 +48,7 @@ beforeEach(() => {
   storageGet.mockReset();
   storageSet.mockReset();
   query.mockResolvedValue([TAB]);
-  executeScript.mockResolvedValue([{ result: { html: '<html></html>', totalChars: 13 } }]);
+  executeScript.mockResolvedValue([{ result: { html: JOB_HTML, totalChars: JOB_HTML.length } }]);
   storageGet.mockResolvedValue({});
   selectedPlaybookId.set('toptal');
   clearRun();
@@ -58,12 +66,18 @@ describe('runPlaybook', () => {
     const run = runPlaybook();
     expect(get(runState).status).toBe('running');
 
-    gate.resolve([{ result: { html: '<h1>hi</h1>', totalChars: 11 } }]);
+    gate.resolve([{ result: { html: JOB_HTML, totalChars: JOB_HTML.length } }]);
     await run;
 
-    expect(get(runState)).toMatchObject({
-      status: 'ready',
-      capture: { html: '<h1>hi</h1>', url: 'https://example.com/a' },
+    // The section list itself belongs to toptal-job-sections.spec.ts; what this pins is
+    // that the store carries it through beside the capture.
+    const state = get(runState);
+    expect(state).toMatchObject({ status: 'ready', capture: { html: JOB_HTML, url: JOB_URL } });
+    if (state.status !== 'ready') throw new Error(`expected ready, got ${state.status}`);
+    expect(state.sections[0]).toEqual({
+      heading: 'Hiring Status',
+      body: 'Matchers reviewing',
+      found: true,
     });
   });
 
@@ -75,21 +89,22 @@ describe('runPlaybook', () => {
     await runPlaybook();
 
     expect(executeScript).toHaveBeenCalledTimes(1);
-    gate.resolve([{ result: { html: '<html></html>', totalChars: 13 } }]);
+    gate.resolve([{ result: { html: JOB_HTML, totalChars: JOB_HTML.length } }]);
     await run;
   });
 
+  // chrome://extensions is refused for two reasons at once. The playbook's own gate runs
+  // first on purpose, because "open a Toptal job page" is the advice that actually works.
   it('keeps the failure reason intact rather than flattening it to a string', async () => {
     query.mockResolvedValue([{ ...TAB, url: 'chrome://extensions' }]);
 
     await runPlaybook();
 
-    expect(get(runState)).toEqual({
+    expect(get(runState)).toMatchObject({
       status: 'failed',
       failure: {
         ok: false,
-        reason: 'restricted-page',
-        block: { kind: 'restricted-scheme', scheme: 'chrome:' },
+        reason: 'wrong-page',
         url: 'chrome://extensions',
       },
     });
@@ -115,7 +130,8 @@ describe('runPlaybook', () => {
     await runPlaybook();
 
     for (const [items] of storageSet.mock.calls as unknown as [Record<string, unknown>][]) {
-      expect(JSON.stringify(items)).not.toContain('<html>');
+      expect(JSON.stringify(items)).not.toContain('jobHiringStatus');
+      expect(JSON.stringify(items)).not.toContain('Matchers reviewing');
     }
   });
 });

@@ -4,16 +4,25 @@ import WorkflowsTab from './WorkflowsTab.svelte';
 import { runState, clearRun, selectedPlaybookId } from '../stores/playbook';
 import { resolvePlaybook } from '$lib/playbooks/registry';
 import type { PageCapture } from '$lib/capture/html-budget';
+import type { CapturedSection } from '$lib/playbooks/playbook';
 
 function capture(overrides: Partial<PageCapture> = {}): PageCapture {
   return {
     html: '<html><h1>Hello</h1></html>',
     totalChars: 27,
-    url: 'https://example.com/a',
-    title: 'Example Domain',
+    url: 'https://talent.toptal.com/portal/job/VjEtSm9iLTUwNzc5MA/confirm',
+    title: 'Full-Stack Lead Engineer',
     capturedAt: Date.parse('2026-09-16T09:00:00Z'),
     ...overrides,
   };
+}
+
+const SECTIONS: CapturedSection[] = [
+  { heading: 'Hiring Status', body: 'Matchers reviewing applications', found: true },
+];
+
+function ready(sections: CapturedSection[] = SECTIONS) {
+  return { status: 'ready', capture: capture(), sections } as const;
 }
 
 beforeEach(() => {
@@ -76,12 +85,40 @@ describe('WorkflowsTab', () => {
     expect(screen.getByText('Reading the active tab…')).toBeInTheDocument();
   });
 
-  it('renders the captured markup as text', () => {
-    runState.set({ status: 'ready', capture: capture() });
+  it('renders each decoded section under its heading', () => {
+    runState.set(ready());
+    render(WorkflowsTab);
+
+    expect(screen.getByText('Hiring Status')).toBeInTheDocument();
+    expect(screen.getByText('Matchers reviewing applications')).toBeInTheDocument();
+  });
+
+  // Decoded or not, the text came off an arbitrary page and stays text.
+  it('renders a section body as text, never as HTML', () => {
+    runState.set(ready([{ heading: 'Job Description', body: '<h1>Hi</h1>', found: true }]));
     const { container } = render(WorkflowsTab);
 
-    expect(container.querySelector('pre')?.textContent).toContain('<h1>Hello</h1>');
-    expect(container.querySelector('pre h1')).toBeNull();
+    expect(screen.getByText('<h1>Hi</h1>')).toBeInTheDocument();
+    expect(container.querySelector('h1')).toBeNull();
+  });
+
+  // The playbook reads one site, so this is the refusal the user will actually hit.
+  it('tells the user which page to open when the tab is not a Toptal job page', () => {
+    runState.set({
+      status: 'failed',
+      failure: {
+        ok: false,
+        reason: 'wrong-page',
+        url: 'https://example.com/a',
+        expected: 'a Toptal job page — https://talent.toptal.com/portal/job/…',
+      },
+    });
+    render(WorkflowsTab);
+
+    expect(screen.getByText(/press Capture again/)).toHaveTextContent(
+      'https://talent.toptal.com/portal/job/',
+    );
+    expect(screen.getByText('https://example.com/a')).toBeInTheDocument();
   });
 
   // A worded badge alone is not enough — the hint says what to do and the detail says
@@ -116,13 +153,13 @@ describe('WorkflowsTab', () => {
    * recreates this component.
    */
   it('survives an unmount and remount with the capture intact', () => {
-    runState.set({ status: 'ready', capture: capture() });
+    runState.set(ready());
 
     const first = render(WorkflowsTab);
-    expect(first.container.querySelector('pre')?.textContent).toContain('Hello');
+    expect(first.getByText('Matchers reviewing applications')).toBeInTheDocument();
     first.unmount();
 
     const second = render(WorkflowsTab);
-    expect(second.container.querySelector('pre')?.textContent).toContain('Hello');
+    expect(second.getByText('Matchers reviewing applications')).toBeInTheDocument();
   });
 });

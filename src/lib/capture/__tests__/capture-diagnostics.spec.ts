@@ -18,6 +18,7 @@ const ALL_FAILURES: CaptureFailure[] = [
   },
   { reason: 'restricted-page', block: { kind: 'file-url' }, url: 'file:///tmp/a.html' },
   { reason: 'restricted-page', block: { kind: 'unknown-url' }, url: '' },
+  { reason: 'wrong-page', url: URL, expected: 'a Toptal job page' },
   { reason: 'still-loading', url: URL },
   { reason: 'injection-failed', error: 'Cannot access contents of the url', url: URL },
   { reason: 'empty-result', url: URL },
@@ -31,6 +32,12 @@ describe('diagnoseCaptureFailure', () => {
     expect(d.summary.length).toBeGreaterThan(0);
     expect(d.hint.length).toBeGreaterThan(0);
     expect(d.detail.length).toBeGreaterThan(0);
+  });
+
+  // CLAUDE.md pins the Capture verb to this: every hint promises the button by name, so
+  // renaming the button must break here rather than on screen.
+  it.each(ALL_FAILURES)('tells the user to press Capture after $reason', (failure) => {
+    expect(diagnoseCaptureFailure(failure).hint).toContain('Capture');
   });
 
   it('keeps the raw Chrome error verbatim', () => {
@@ -56,6 +63,19 @@ describe('diagnoseCaptureFailure', () => {
       url: 'file:///tmp/a.html',
     });
     expect(d.hint).toContain('Allow access to file URLs');
+  });
+
+  // The mechanism never learns which site a playbook wants — the playbook hands over the
+  // phrase and this only frames it.
+  it("names the page the playbook wanted, in the playbook's own words", () => {
+    const d = diagnoseCaptureFailure({
+      reason: 'wrong-page',
+      url: 'https://example.com/a',
+      expected: 'a Toptal job page — https://talent.toptal.com/portal/job/…',
+    });
+
+    expect(d.hint).toContain('https://talent.toptal.com/portal/job/');
+    expect(d.detail).toBe('https://example.com/a');
   });
 
   it('tells the user to wait rather than retry blindly while loading', () => {

@@ -4,9 +4,21 @@ import { HTML_CAPTURE_LIMIT, type PageCapture } from './html-budget';
 export type CaptureFailure =
   | { reason: 'no-active-tab' }
   | { reason: 'restricted-page'; block: InjectionBlock; url: string }
+  | { reason: 'wrong-page'; url: string; expected: string }
   | { reason: 'still-loading'; url: string }
   | { reason: 'injection-failed'; error: string; url: string }
   | { reason: 'empty-result'; url: string };
+
+/**
+ * A playbook's claim on which page it can read. The mechanism knows only *that* a playbook
+ * can demand one — never which: the predicate and its wording both come from `playbooks/`.
+ */
+export interface PageRequirement {
+  /** True when the playbook can read the page at `url`. */
+  accepts(url: string): boolean;
+  /** Named in the refusal: "Open <expected> and press Capture again." */
+  expected: string;
+}
 
 export type CaptureResult = { ok: true; capture: PageCapture } | ({ ok: false } & CaptureFailure);
 
@@ -25,7 +37,7 @@ export function readDocumentHtml(limit: number): { html: string; totalChars: num
 }
 
 /** Never throws: every refusal comes back as a typed failure for the UI to word. */
-export async function captureActiveTabHtml(): Promise<CaptureResult> {
+export async function captureActiveTabHtml(requirement?: PageRequirement): Promise<CaptureResult> {
   // `currentWindow` is exact here and only here: the side panel is per-window, so this is
   // the tab the user is looking at. From the service worker there is no current window and
   // it would degrade to "last focused", which is wrong whenever another window has focus.
@@ -33,6 +45,15 @@ export async function captureActiveTabHtml(): Promise<CaptureResult> {
   if (!tab?.id) return { ok: false, reason: 'no-active-tab' };
 
   const url = tab.url ?? '';
+  // First of the pre-flights, ahead of the broader ones: whenever a playbook cannot use
+  // this page, "open a Toptal job page" is complete advice, while "Chrome blocks chrome:
+  // pages — switch to an http:// tab" is true and still not enough to succeed. Like the
+  // restricted-page check it must never reach executeScript: a playbook that cannot use
+  // the page has no business reading it.
+  if (requirement && !requirement.accepts(url)) {
+    return { ok: false, reason: 'wrong-page', url, expected: requirement.expected };
+  }
+
   const block = findInjectionBlock(tab.url);
   if (block) return { ok: false, reason: 'restricted-page', block, url };
 

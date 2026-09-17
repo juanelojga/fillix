@@ -27,7 +27,7 @@ function describeBlock(block: InjectionBlock): Pick<CaptureDiagnosis, 'summary' 
     case 'web-store':
       return {
         summary: 'The Chrome Web Store is off limits',
-        hint: 'Chrome refuses every extension on Web Store pages, whatever permissions it holds. Try it on any other site.',
+        hint: 'Chrome refuses every extension on Web Store pages, whatever permissions it holds. Switch to any other site and press Capture again.',
       };
     case 'file-url':
       return {
@@ -53,6 +53,15 @@ export function diagnoseCaptureFailure(failure: CaptureFailure): CaptureDiagnosi
 
     case 'restricted-page':
       return { ...describeBlock(failure.block), detail: failure.url || NO_URL };
+
+    // Generic on purpose: the mechanism never learns which site a playbook wants, so the
+    // playbook supplies the phrase and this only frames it.
+    case 'wrong-page':
+      return {
+        summary: 'This playbook does not read this page',
+        hint: `Open ${failure.expected} and press Capture again.`,
+        detail: failure.url || NO_URL,
+      };
 
     case 'still-loading':
       return {

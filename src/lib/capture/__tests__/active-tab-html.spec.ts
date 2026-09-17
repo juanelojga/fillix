@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { captureActiveTabHtml, readDocumentHtml } from '../active-tab-html';
+import { captureActiveTabHtml, readDocumentHtml, type PageRequirement } from '../active-tab-html';
 import { HTML_CAPTURE_LIMIT } from '../html-budget';
 
 const query = vi.fn();
@@ -15,6 +15,13 @@ function tab(overrides: Record<string, unknown> = {}) {
     status: 'complete',
     ...overrides,
   };
+}
+
+/**
+ * Deliberately not Toptal's: the mechanism must never learn which site a playbook wants.
+ */
+function requirement(accepts: (url: string) => boolean): PageRequirement {
+  return { accepts, expected: 'a test page' };
 }
 
 beforeEach(() => {
@@ -110,6 +117,62 @@ describe('captureActiveTabHtml', () => {
   it('reports an empty result when the frame answered with nothing', async () => {
     executeScript.mockResolvedValue([{ result: undefined }]);
     expect(await captureActiveTabHtml()).toMatchObject({ ok: false, reason: 'empty-result' });
+  });
+
+  it('captures as before when the playbook demands no particular page', async () => {
+    const result = await captureActiveTabHtml();
+
+    expect(executeScript).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  it('captures when the requirement accepts the page', async () => {
+    const result = await captureActiveTabHtml(requirement(() => true));
+
+    expect(executeScript).toHaveBeenCalledTimes(1);
+    expect(result).toMatchObject({ ok: true });
+  });
+
+  // Same reasoning as the restricted-page pre-flight: a playbook that cannot use the page
+  // has no business reading it.
+  it('never calls executeScript for a page the requirement rejects', async () => {
+    const result = await captureActiveTabHtml(requirement(() => false));
+
+    expect(executeScript).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      ok: false,
+      reason: 'wrong-page',
+      url: 'https://example.com/a',
+      expected: 'a test page',
+    });
+  });
+
+  // '' is what the predicate gets for a tab Chrome reports no URL for, so it must cope.
+  it('offers the requirement an empty string when the tab has no URL', async () => {
+    query.mockResolvedValue([tab({ url: undefined })]);
+    const accepts = vi.fn().mockReturnValue(false);
+
+    await captureActiveTabHtml(requirement(accepts));
+
+    expect(accepts).toHaveBeenCalledWith('');
+  });
+
+  // Ahead of the broader refusals on purpose: "open the page this playbook reads" is
+  // complete advice, while "Chrome blocks chrome: pages" is true and still not enough.
+  it('prefers the wrong-page refusal over the restricted-page one', async () => {
+    query.mockResolvedValue([tab({ url: 'chrome://extensions' })]);
+
+    const result = await captureActiveTabHtml(requirement(() => false));
+
+    expect(result).toMatchObject({ ok: false, reason: 'wrong-page' });
+  });
+
+  it('prefers the wrong-page refusal over the still-loading one', async () => {
+    query.mockResolvedValue([tab({ status: 'loading' })]);
+
+    const result = await captureActiveTabHtml(requirement(() => false));
+
+    expect(result).toMatchObject({ ok: false, reason: 'wrong-page' });
   });
 
   it('falls back to the URL when the tab has no title', async () => {

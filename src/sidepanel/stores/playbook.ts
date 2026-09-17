@@ -1,14 +1,14 @@
 import { get, writable } from 'svelte/store';
 import type { CaptureFailure } from '../../lib/capture/active-tab-html';
 import type { PageCapture } from '../../lib/capture/html-budget';
-import type { PlaybookId } from '../../lib/playbooks/playbook';
+import type { CapturedSection, PlaybookId } from '../../lib/playbooks/playbook';
 import { DEFAULT_PLAYBOOK_ID, resolvePlaybook } from '../../lib/playbooks/registry';
 import { getWorkflowsConfig, setWorkflowsConfig } from '../../lib/storage';
 
 export type RunState =
   | { status: 'idle' }
   | { status: 'running' }
-  | { status: 'ready'; capture: PageCapture }
+  | { status: 'ready'; capture: PageCapture; sections: CapturedSection[] }
   | { status: 'failed'; failure: CaptureFailure };
 
 /**
@@ -59,7 +59,7 @@ export async function runPlaybook(): Promise<void> {
 
   runState.set(
     result.ok
-      ? { status: 'ready', capture: result.capture }
+      ? { status: 'ready', capture: result.capture, sections: result.sections }
       : { status: 'failed', failure: result },
   );
 }

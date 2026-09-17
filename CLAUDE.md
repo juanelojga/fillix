@@ -27,7 +27,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Four tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which shows the active tab's raw HTML), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Four tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows its sections as decoded text, and refuses any other page), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
@@ -48,9 +48,18 @@ Together these back the Workflows tab, and the split is the point: `capture/` is
 `string`, not a `PlaybookId`, because the argument comes from storage and may be `''` or name
 a playbook an older build wrote. A stranded tab is worse than silently landing on the default.
 
-`toptal.ts` is the original Capture action and is deliberately thin — a label, the empty-state
-prose, and `captureActiveTabHtml`. A playbook owns what the user picked and what it says about
-itself; nothing more.
+`toptal.ts` is the original Capture action and stays thin — a label, the empty-state prose, and
+three lines composing `captureActiveTabHtml` with the two things that are Toptal's and nobody
+else's, each in its own file: `toptal-job-url.ts` (which URLs are job pages) and
+`toptal-job-sections.ts` (which parts of one are worth reading). Both change for their own
+reasons — Toptal can move its routes without touching its markup, and the reverse.
+
+The mechanism learns none of it. `captureActiveTabHtml` takes an optional `PageRequirement`
+— a predicate plus the phrase naming the page it wanted — and refuses a mismatch as
+`wrong-page` _before_ `findInjectionBlock`, which reads oddly until you try the other order:
+on `chrome://extensions` "Chrome blocks chrome: pages, switch to an http:// tab" is true and
+still not enough to succeed, while "open a Toptal job page" is complete advice in every case
+the predicate rejects.
 
 The run button says **Capture** whichever playbook is selected. That is not laziness: every
 hint in `capture-diagnostics.ts` tells the user to "press Capture again", and those stay true
@@ -59,7 +68,8 @@ carries the action.
 
 Inside `capture/`, `active-tab-html.ts` is the **only** module that
 touches `chrome.*`; `injectable-url.ts` (which URLs Chrome refuses), `html-budget.ts` (the cap
-and its wording) and `capture-diagnostics.ts` (refusal → next step) are pure.
+and its wording), `capture-diagnostics.ts` (refusal → next step) and `readable-text.ts`
+(a DOM subtree → text) are pure.
 
 Unlike everything else here, the capture runs **in the sidepanel, not the background**, and
 adds nothing to `Message`/`MessageResponse`. The rule that the worker owns outbound requests is
@@ -73,6 +83,19 @@ module-scope reference resolves to nothing in the page world. And it slices **th
 the structured clone, so a 12 MB document never crosses the boundary. Restricted URLs
 (`chrome://`, the Web Store, `file://`, other extensions) are rejected _before_ injecting —
 Chrome's own refusal is brittle to match on and unfit to show a user.
+
+Decoding happens on this side of that boundary, not in the injected function:
+`extractJobSections` parses the captured markup with `DOMParser`, which the panel has and the
+worker does not, so the selector table and the walker stay ordinary testable modules instead of
+being inlined into one string. `readable-text.ts` walks `textContent` rather than reading
+`innerText` — a parsed document has no layout, and the blocks worth reading (a folded
+description, a collapsed accordion) are exactly the ones CSS hides on the live page. It emits
+`input`/`textarea`/`select` values too, because a form's answers live in `value` and not in any
+text node; the flip side is the limit worth knowing: `outerHTML` serializes **attributes**, so a
+value React set only as a property — anything the user typed and has not submitted — is not in
+the capture and cannot be decoded out of it. A section whose hook is missing comes back
+`found: false` and is named on screen, because `data-pendoid` is Pendo instrumentation and is
+simply absent when Pendo is blocked.
 
 `sidepanel/stores/playbook.ts` holds both the selected playbook and the last result, in one
 store because they share one invariant: the displayed result always belongs to the displayed

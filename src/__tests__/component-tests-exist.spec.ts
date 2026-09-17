@@ -98,10 +98,16 @@ describe('component spec files exist (Sprint 6)', () => {
   });
 
   describe('Capture components', () => {
-    it('CapturedHtml.spec.ts exists and pins that markup renders as text', () => {
-      expect(existsSync(comp('CapturedHtml.spec.ts'))).toBe(true);
-      const src = readFileSync(comp('CapturedHtml.spec.ts'), 'utf-8');
-      expect(src).toContain('pre h1');
+    it('CapturedSections.spec.ts exists and pins that a section body renders as text', () => {
+      expect(existsSync(comp('CapturedSections.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('CapturedSections.spec.ts'), 'utf-8');
+      expect(src).toContain('never as HTML');
+    });
+
+    // A section whose hook has moved must be named on screen, not silently dropped.
+    it('CapturedSections.spec.ts pins the wording of a section it could not find', () => {
+      const src = readFileSync(comp('CapturedSections.spec.ts'), 'utf-8');
+      expect(src).toContain('Not found on this page');
     });
   });
 
