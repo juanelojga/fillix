@@ -20,7 +20,7 @@ export default defineManifest({
       run_at: 'document_idle',
     },
   ],
-  permissions: ['storage', 'activeTab', 'sidePanel'],
+  permissions: ['storage', 'activeTab', 'scripting', 'sidePanel'],
   host_permissions: [
     'http://localhost:11434/*',
     'https://en.wikipedia.org/*',

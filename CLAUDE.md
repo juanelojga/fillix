@@ -27,7 +27,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Three tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Four tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (a Capture button that shows the active tab's raw HTML), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
@@ -38,6 +38,27 @@ Shared code lives in `src/lib/`:
 - `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
 - `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs.
+
+**Capture (`src/lib/capture/`)**
+
+Backs the Workflows tab. `active-tab-html.ts` is the **only** module in the feature that
+touches `chrome.*`; `injectable-url.ts` (which URLs Chrome refuses), `html-budget.ts` (the cap
+and its wording) and `capture-diagnostics.ts` (refusal → next step) are pure.
+
+Unlike everything else here, the capture runs **in the sidepanel, not the background**, and
+adds nothing to `Message`/`MessageResponse`. The rule that the worker owns outbound requests is
+about network _origin_; `chrome.scripting` has no origin concern. Meanwhile
+`chrome.tabs.query({ active: true, currentWindow: true })` is exact from the panel — the panel
+is per-window — and degrades to a guess from a worker, which has no current window.
+
+Two load-bearing details. `readDocumentHtml` is stringified by `chrome.scripting` and run in the
+page, so it must close over nothing: the cap arrives through `args`, because a bundled
+module-scope reference resolves to nothing in the page world. And it slices **there**, before
+the structured clone, so a 12 MB document never crosses the boundary. Restricted URLs
+(`chrome://`, the Web Store, `file://`, other extensions) are rejected _before_ injecting —
+Chrome's own refusal is brittle to match on and unfit to show a user.
+
+Nothing is persisted: the capture is session-only, held in `sidepanel/stores/capture.ts`.
 
 **Tools (`src/lib/tools/`)**
 
@@ -91,14 +112,20 @@ prompt in `ollama.ts` — because changing them changes how the code parses the 
 
 `@crxjs/vite-plugin` reads `manifest.config.ts` (typed via `defineManifest`) and wires HMR for all extension contexts. To add a script/page (e.g. options page), add it to `manifest.config.ts`; crxjs handles the Vite input entries automatically.
 
+`permissions` in `manifest.config.ts` carries `scripting` for the Workflows tab's Capture
+button. `activeTab` cannot replace it: it grants neither the `chrome.scripting` namespace nor a
+host grant that survives a click on a button _inside the side panel_ — only a click on the
+extension's action mints one, for whichever tab was active at that instant. The injection is
+authorized by the standing `<all_urls>` entry below instead.
+
 `host_permissions` in `manifest.config.ts` lists every endpoint the service worker is allowed to reach:
 
-| Entry                        | Purpose                           |
-| ---------------------------- | --------------------------------- |
-| `http://localhost:11434/*`   | Ollama inference                  |
-| `https://en.wikipedia.org/*` | `wikipedia` tool + News tab       |
-| `https://hn.algolia.com/*`   | `news_feed` tool + News tab       |
-| `<all_urls>`                 | `fetch_url` tool (arbitrary URLs) |
+| Entry                        | Purpose                              |
+| ---------------------------- | ------------------------------------ |
+| `http://localhost:11434/*`   | Ollama inference                     |
+| `https://en.wikipedia.org/*` | `wikipedia` tool + News tab          |
+| `https://hn.algolia.com/*`   | `news_feed` tool + News tab          |
+| `<all_urls>`                 | `fetch_url` tool + Capture injection |
 
 Pointing the Ollama base URL somewhere other than `http://localhost:11434` requires adding that origin here **and** reloading the extension — a runtime `baseUrl` without a matching permission entry will fail silently.
 

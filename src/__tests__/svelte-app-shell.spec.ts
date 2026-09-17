@@ -63,14 +63,19 @@ describe('app shell structure (Sprint 2)', () => {
       expect(src).toContain('$components/ui/tabs');
     });
 
-    it('renders chat, news and settings tab triggers', () => {
+    it('renders chat, news, workflows and settings tab triggers', () => {
       expect(src).toContain('value="chat"');
       expect(src).toContain('value="news"');
+      expect(src).toContain('value="workflows"');
       expect(src).toContain('value="settings"');
     });
 
-    it('no longer renders a workflow tab', () => {
+    // Pins the removal of the Obsidian-era workflow pipeline, whose retired storage keys
+    // legacy-migration.ts still purges. The closing quote is load-bearing: the current
+    // Workflows tab is `value="workflows"`, a different feature, and must not match.
+    it('no longer renders the retired singular workflow tab', () => {
       expect(src).not.toContain('value="workflow"');
+      expect(src).not.toContain('WorkflowTab');
     });
 
     it('disconnects ports on cleanup', () => {
@@ -79,7 +84,7 @@ describe('app shell structure (Sprint 2)', () => {
   });
 
   describe('stub tab components (Task 2.4)', () => {
-    const tabs = ['ChatTab', 'NewsTab', 'SettingsTab'];
+    const tabs = ['ChatTab', 'NewsTab', 'WorkflowsTab', 'SettingsTab'];
     tabs.forEach((tab) => {
       it(`${tab}.svelte exists`, () => {
         expect(existsSync(sidepanel(`tabs/${tab}.svelte`))).toBe(true);

@@ -61,6 +61,12 @@ describe('component spec files exist (Sprint 6)', () => {
     it('NewsTab.spec.ts exists', () => {
       expect(existsSync(tab('NewsTab.spec.ts'))).toBe(true);
     });
+
+    it('WorkflowsTab.spec.ts exists and covers the Capture button', () => {
+      expect(existsSync(tab('WorkflowsTab.spec.ts'))).toBe(true);
+      const src = readFileSync(tab('WorkflowsTab.spec.ts'), 'utf-8');
+      expect(src).toContain('Capture');
+    });
   });
 
   describe('Model pickers', () => {
@@ -80,6 +86,14 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(comp('NewsModelPicker.spec.ts'))).toBe(true);
       const src = readFileSync(comp('NewsModelPicker.spec.ts'), 'utf-8');
       expect(src).toContain('newsConfig');
+    });
+  });
+
+  describe('Capture components', () => {
+    it('CapturedHtml.spec.ts exists and pins that markup renders as text', () => {
+      expect(existsSync(comp('CapturedHtml.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('CapturedHtml.spec.ts'), 'utf-8');
+      expect(src).toContain('pre h1');
     });
   });
 

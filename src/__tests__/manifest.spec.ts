@@ -8,6 +8,7 @@ import manifest from '../../manifest.config';
 // retired capabilities (remote LLM providers, Brave web search) are gone.
 
 const permissions: string[] = (manifest as { host_permissions?: string[] }).host_permissions ?? [];
+const apiPermissions: string[] = (manifest as { permissions?: string[] }).permissions ?? [];
 
 describe('manifest host_permissions', () => {
   const required = ['https://en.wikipedia.org/*', 'https://hn.algolia.com/*'];
@@ -40,4 +41,22 @@ describe('manifest host_permissions', () => {
       expect(permissions).not.toContain(url);
     });
   }
+});
+
+describe('manifest permissions', () => {
+  // The Workflows tab's Capture button injects into the active tab. `activeTab` grants
+  // neither the chrome.scripting namespace nor a host grant that survives a click on a
+  // button inside the side panel — only a click on the extension's action mints one.
+  it('grants scripting, without which chrome.scripting is undefined', () => {
+    expect(apiPermissions).toContain('scripting');
+  });
+
+  it('keeps <all_urls>, which is what actually authorizes the injection', () => {
+    expect(permissions).toContain('<all_urls>');
+  });
+
+  it('retains storage and sidePanel', () => {
+    expect(apiPermissions).toContain('storage');
+    expect(apiPermissions).toContain('sidePanel');
+  });
 });
