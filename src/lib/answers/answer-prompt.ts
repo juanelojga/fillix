@@ -19,6 +19,10 @@ const SHARED_RULES = [
   'Do not restate the question.',
   '"drew_on" lists the exact ## headings you used, copied character for character from the excerpts.',
   '"gaps" lists anything the question asked about that the excerpts did not support.',
+  // The excerpts can carry computed facts — the meeting-hours section states an overlap that
+  // `meeting-overlap.ts` worked out in integers. A model asked to check that subtraction will
+  // produce a different, confident number, and the applicant is the one who has to keep it.
+  'Times, dates and hour counts in the excerpts are already correct. Quote them as written and never recalculate them.',
   'If no excerpt is relevant, return an empty "text" and an empty "drew_on". A blank answer is the correct answer when there is nothing true to say.',
   'Respond with JSON only: {"text":"...","drew_on":["..."],"gaps":["..."]}',
 ];

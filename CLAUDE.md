@@ -27,7 +27,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Four tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows its sections as decoded text, and refuses any other page), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows its sections as decoded text, and refuses any other page), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
@@ -133,9 +133,10 @@ previous playbook resolves later and lands under the new one's label.
 
 **Profile and retrieval (`src/lib/profile/`)**
 
-The user's CV, project history and availability as one sectioned Markdown document, plus the
-vectors that let a drafting step find the right sections per question. Authored by hand in the
-Profile tab; no PDF parsing, no import.
+The user's CV and project history as one sectioned Markdown document, plus the vectors that
+let a drafting step find the right sections per question. Authored by hand in the Profile tab;
+no PDF parsing, no import. Schedule is the one thing it does **not** hold — see **Meeting
+availability** below.
 
 - `chunk.ts` — splits on `##` headings, because that is the contract the Profile tab states to
   the user and counts back to them: a heading is both the retrieval key and the citation an
@@ -176,8 +177,8 @@ Profile tab; no PDF parsing, no import.
   misleading), and an Ollama old enough to have neither embeddings endpoint (where pulling a
   model would not help).
 
-Storage is three keys, deliberately separate. `profile` is the prose, `profileConfig` the
-hand-named embed model, `profileIndex` the vectors — rewritten on different schedules and at
+Storage is four keys, deliberately separate. `profile` is the prose, `profileConfig` the
+hand-named embed model, `profileIndex` the vectors, `availability` the meeting hours — rewritten on different schedules and at
 wildly different sizes, so an edit never rewrites a quarter-megabyte of floats and a failed
 re-index leaves the prose intact. Embedding is an outbound request, so it runs in the worker
 (`PROFILE_INDEX`, `TEST_EMBED_MODEL`); the vectors then live in storage and the panel scores
@@ -191,6 +192,78 @@ load-bearing: `topChunks` also returns an empty list for an unusable index, and 
 result is indistinguishable from "your CV says nothing about this", which is a very different
 thing to tell someone applying for a job. A question the profile genuinely has nothing for is
 `{ ok: true, chunks: [] }`; every other case is a typed failure with wording attached.
+
+**Meeting availability (`src/lib/profile/availability*.ts`, `day-hours.ts`, `src/lib/answers/meeting-overlap.ts`)**
+
+When the applicant can take a call, Monday to Friday. Structured rather than prose, and the
+only part of the profile that is: schedule is the one question an application asks that has to
+be **compared** against something the job page states, and a sentence cannot be intersected
+with a time range.
+
+What is stored is **the text the user typed** per weekday (`9am-1pm, 3-6pm`), not the ranges
+parsed out of it. The parse is derived on every read, which costs nothing and buys two things:
+a day the parser cannot read survives a reload so it can be corrected, and the field always
+shows what was typed rather than a normalised rewrite of it under the cursor.
+
+- `day-hours.ts` — one weekday of typed hours → merged ranges plus the fragments it could not
+  read. A **sibling of `answers/time-range.ts`, and the split is the whole point**: that module
+  parses what a job board rendered, which is always explicit (`2:00 AM – 3:00 PM`); this one
+  parses what a person typed. Giving the board's value the benefit of the doubt would invent
+  precision it already has, and refusing a person's typing any would make the field unusable.
+  Two conventions live here and nowhere else: a named half-day governs a bare end (`3-6pm` is
+  an afternoon, not the fifteen-hour `03:00–18:00` nobody typed), and a bare end earlier than
+  the start is the same afternoon (`9-1` is a working day; `22-6` is left to wrap, because 22
+  has no afternoon to move to). Neither applies when it would disorder the range, so an
+  explicit `10pm-6am` still wraps. What is deliberately **not** guessed is `1-5` — both ends
+  bare and already in order — because shifting both would invent a working day out of two
+  digits. Nothing is ever approximated silently: every unreadable fragment comes back named as
+  typed, and the editor prints it back.
+- `availability.ts` — the shape, plus `dayRanges` and `describeRanges`. Also converts the
+  earlier two-window-per-day shape on read rather than dropping it; the hours were the user's.
+- `time-range.ts` (in `answers/`) — minutes from midnight, strict parsing of a _displayed_
+  range, and `intersect`/`mergeRanges`. It exports `parseWrittenTime`, which reports whether
+  the text named AM or PM, because what a bare `3` means is decided by the other end of the
+  range and that judgment is `day-hours.ts`'s, not its own. `Minutes` lives here, in a module
+  that imports nothing, so `profile/` and `answers/` both take it from a leaf.
+- `meeting-overlap.ts` — the intersection, in integers. Computed here rather than asked of the
+  model for the reason the whole `answers/` directory exists: a model asked to subtract two
+  clock times produces a confident number, and a wrong overlap is a promise the applicant then
+  has to keep. `typicalMinutes` is the **median** over the overlapping days only — one free
+  Friday morning should not describe the week.
+- `availability-text.ts` — the citable block. The `##` heading is not decoration:
+  `answer-prompt.ts` tells the model `drew_on` holds the exact `##` headings it used and
+  `draft-answer.ts` discards a non-empty answer that cites nothing, so an availability block
+  without a heading would produce a correct answer the grounding guard then throws away.
+  `Meeting availability`, deliberately not `Availability`, because the profile placeholder long
+  suggested a section of that name and two of one name make a citation ambiguous. Returns `''`
+  when no day reads — an empty section would be a claim of having no availability at all.
+- `availability-evidence.ts` (in `answers/`) — the composer, and the only module that knows
+  Toptal's `Client's Hours` label. **The overlap is dropped, and the hours kept, whenever the
+  comparison cannot be trusted**: no brief, no attribute, an unparseable value, or a chosen
+  timezone other than the browser's. That last one is why the label is worth a comment — a
+  posting reading `Client's Hours: 2:00 AM – 3:00 PM` beside `Time Zone: Madrid, 7 hrs ahead`
+  is a 9:00–22:00 Madrid day already converted into the _viewer's_ zone, which is the only
+  reason an overlap is computable without knowing where the client is. Intersecting it with
+  hours declared in a different zone would be wrong by exactly the offset between them.
+
+`AvailabilityEditor.svelte` is five text fields and nothing to enable first. It **echoes the
+parse back under every field**, and that is the safety net the free-text input rests on: the
+parser gives `9-1` the benefit of the doubt, so the only honest way to offer that is to show
+the reading where a wrong one is visible immediately rather than surfacing in an answer a
+recruiter has already read. `stores/availability.ts` has no draft copy and no Save button,
+unlike `stores/profile.ts`: every keystroke is the user's final word, so each one writes
+through to storage at once. Sharing the profile's Save button would put one control in charge
+of two things with different staleness rules. The zone is **seeded** from the browser on first
+hydrate and never overwritten after.
+
+These hours are **injected, not embedded**. `application.ts` appends the block to `evidence`
+rather than letting retrieval find it, so a schedule answer never depends on cosine similarity
+ranking the right section — and it is charged against `EVIDENCE_CHARS` rather than added on top.
+It goes **last**, because Ollama truncates an overflowing context from the start. The knock-on
+is the reason the editor says so on screen: editing an hour does **not** make the vector index
+stale, which is the opposite of how the Markdown box above it behaves. `SHARED_RULES` carries
+one line for this — times and hour counts in the excerpts are already correct and must not be
+recalculated — because the overlap arrives as a computed fact the model would otherwise re-derive.
 
 **Drafting (`src/lib/answers/`)**
 

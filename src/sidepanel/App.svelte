@@ -11,6 +11,7 @@
   import { hydrateNewsCache } from './stores/news';
   import { hydratePlaybookSelection } from './stores/playbook';
   import { hydrateProfile } from './stores/profile';
+  import { hydrateAvailability } from './stores/availability';
 
   let currentTab = $state('chat');
 
@@ -29,6 +30,7 @@
     // And again: the profile editor must not re-read storage over a half-written draft
     // every time the user switches tabs and back.
     void hydrateProfile();
+    void hydrateAvailability();
     return () => {
       chatPort.disconnect();
     };

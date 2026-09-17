@@ -2,6 +2,7 @@ import { derived, get, writable } from 'svelte/store';
 import type { AnswerDraft } from '../../lib/answers/draft-answer';
 import { buildJobContext } from '../../lib/answers/job-context';
 import { buildRetrievalQuery } from '../../lib/answers/answer-query';
+import { buildAvailabilityEvidence } from '../../lib/answers/availability-evidence';
 import { diagnoseDraftFailure, type DraftDiagnosis } from '../../lib/answers/draft-diagnostics';
 import {
   diagnoseRetrievalFailure,
@@ -20,6 +21,7 @@ import {
 import { TOPTAL_JOB_PAGE } from '../../lib/playbooks/toptal-job-url';
 import type { Message, MessageResponse } from '../../types';
 import { retrieveProfileContext } from './profile';
+import { availability, browserTimeZone } from './availability';
 import { runState } from './playbook';
 import { ollamaConfig } from './settings';
 
@@ -118,9 +120,14 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
   const state = get(runState);
   const brief = state.status === 'ready' ? state.brief : null;
 
+  // Built before retrieval, and charged against the same budget. It is injected rather than
+  // retrieved because a schedule question must never depend on cosine similarity finding the
+  // right section — and because the overlap in it is computed, not embedded.
+  const availabilityBlock = buildAvailabilityEvidence(get(availability), brief, browserTimeZone());
+
   const retrieved = await retrieveProfileContext(
     buildRetrievalQuery(field.question, brief),
-    EVIDENCE_CHARS,
+    EVIDENCE_CHARS - availabilityBlock.length,
   );
   if (!retrieved.ok) {
     setDraft(
@@ -136,7 +143,11 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
     kind: field.kind === 'pitch' ? 'pitch' : 'question',
     question: field.question,
     job: brief ? buildJobContext(brief) : '',
-    evidence: retrieved.chunks.map((c) => c.text).join('\n\n---\n\n'),
+    // Availability last: Ollama truncates an overflowing context from the start, which is
+    // why `buildAnswerPrompt` already puts evidence last. Within it, last is safest.
+    evidence: [...retrieved.chunks.map((c) => c.text), availabilityBlock]
+      .filter(Boolean)
+      .join('\n\n---\n\n'),
   };
 
   const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;

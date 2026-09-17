@@ -1,4 +1,5 @@
 <script lang="ts">
+  import AvailabilityEditor from '$components/AvailabilityEditor.svelte';
   import { Input } from '$components/ui/input';
   import { Textarea } from '$components/ui/textarea';
   import { diagnoseEmbedFailure } from '$lib/profile/embed-diagnostics';
@@ -149,7 +150,8 @@
     <!-- Not decoration: the retrieval step splits this document on its `##` headings, so how
          the user structures it decides what a drafted answer can cite. -->
     <p class="text-[11px] text-muted-foreground leading-relaxed">
-      Your CV, project history and availability, in Markdown. Give each area of experience its
+      Your CV and project history, in Markdown (your meeting hours are set below, not here).
+      Give each area of experience its
       own <code class="font-mono">##</code> heading — answers are drafted from whichever
       sections match the job, and each one is cited by its heading, so a heading that names a
       skill is worth more than one that names an employer.
@@ -162,7 +164,7 @@
       oninput={(e: Event) => editProfile((e.currentTarget as HTMLTextAreaElement).value)}
       rows={18}
       class="font-mono text-xs"
-      placeholder={'## Python and FastAPI\n\nEight years of…\n\n## Availability\n\nFull-time from…'}
+      placeholder={'## Python and FastAPI\n\nEight years of…\n\n## Payment systems\n\nBuilt…'}
     />
 
     <div class="flex items-center justify-between gap-2 text-[11px] text-muted-foreground">
@@ -180,6 +182,8 @@
         <p class="text-[10px] font-mono text-destructive break-words">{saveError}</p>
       </div>
     {/if}
+
+    <AvailabilityEditor />
 
     <section class="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3">
       <h3 class="text-xs font-semibold text-slate-800">Search index</h3>

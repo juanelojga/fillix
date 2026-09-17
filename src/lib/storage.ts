@@ -1,4 +1,5 @@
 import type { NewsItem, NewsSummary, OllamaConfig } from '../types';
+import { normalizeAvailability, type WeeklyAvailability } from './profile/availability';
 
 /** Models the user typed in by hand — never inferred from Ollama. */
 export async function getModelList(): Promise<string[]> {
@@ -201,4 +202,24 @@ export async function getProfileIndex(): Promise<ProfileIndex | null> {
 
 export async function setProfileIndex(profileIndex: ProfileIndex): Promise<void> {
   await chrome.storage.local.set({ profileIndex });
+}
+
+/**
+ * The applicant's meeting hours, Monday to Friday.
+ *
+ * A fourth profile-side key rather than a field on `profile` or `profileConfig`. The prose is
+ * content the user writes in long sittings and then indexes; this is rewritten on every
+ * checkbox click and is never embedded at all, so folding it into either would either make an
+ * hour change invalidate the vectors or make a saved document rewrite the hours.
+ *
+ * Validation lives in `normalizeAvailability` rather than inline here: a five-day record of
+ * two windows each is past the point where field-by-field checks read as a storage concern.
+ */
+export async function getAvailability(): Promise<WeeklyAvailability> {
+  const { availability } = await chrome.storage.local.get('availability');
+  return normalizeAvailability(availability);
+}
+
+export async function setAvailability(availability: WeeklyAvailability): Promise<void> {
+  await chrome.storage.local.set({ availability });
 }

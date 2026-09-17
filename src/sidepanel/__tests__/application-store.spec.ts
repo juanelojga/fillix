@@ -17,6 +17,8 @@ vi.stubGlobal('chrome', {
 
 const { runState } = await import('../stores/playbook');
 const { profile, embedModel, profileIndex } = await import('../stores/profile');
+const { availability, browserTimeZone } = await import('../stores/availability');
+const { defaultAvailability } = await import('../../lib/profile/availability');
 const { hashProfile } = await import('../../lib/profile/profile-hash');
 const {
   answerable,
@@ -101,6 +103,7 @@ beforeEach(() => {
   runState.set({ status: 'idle' });
   clearApplication();
   profileIsReady();
+  availability.set(defaultAvailability());
 });
 
 describe('fields follow the capture', () => {
@@ -381,5 +384,101 @@ describe('fillApproved', () => {
     await inFlight;
 
     expect(get(fillState)).toEqual({ status: 'idle' });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Meeting availability
+// ---------------------------------------------------------------------------
+
+/** Monday split across a morning and an afternoon, in the browser's own zone. */
+function availabilityIsSet() {
+  const week = defaultAvailability();
+  week.timeZone = browserTimeZone();
+  week.days.mon = '9-11, 3-6pm';
+  availability.set(week);
+}
+
+function readyWithClientHours(hours: string, capturedAt = 1000) {
+  runState.set({
+    status: 'ready',
+    capture: capture(capturedAt),
+    sections: [],
+    brief: {
+      description: '',
+      attributes: { "Client's Hours": hours },
+      skills: { required: [], optional: [] },
+    },
+  });
+}
+
+/** The `evidence` string of the last DRAFT_ANSWER that went to the worker. */
+function lastEvidence(): string {
+  const call = sendMessage.mock.calls.findLast((c) => c[0]?.type === 'DRAFT_ANSWER');
+  return call?.[0].evidence ?? '';
+}
+
+describe('meeting availability reaches the model', () => {
+  it('appends the hours as a citable section, after the retrieved excerpts', async () => {
+    availabilityIsSet();
+    ready();
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'DRAFT_ANSWER'
+        ? Promise.resolve(draftReply('Mornings work.'))
+        : Promise.resolve({ ok: true, queryVector: [1, 0] }),
+    );
+
+    await draftAll();
+
+    const evidence = lastEvidence();
+    // The heading is what `drew_on` has to echo for the grounding guard to accept the answer.
+    expect(evidence).toContain('## Meeting availability');
+    expect(evidence).toContain('Monday: 09:00–11:00 and 15:00–18:00');
+    // Last, because Ollama truncates an overflowing context from the start.
+    expect(evidence.indexOf('## Meeting availability')).toBeGreaterThan(evidence.indexOf(MARKDOWN));
+  });
+
+  it('states the computed overlap when the job names the client hours', async () => {
+    availabilityIsSet();
+    readyWithClientHours('2:00 AM – 3:00 PM');
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'DRAFT_ANSWER'
+        ? Promise.resolve(draftReply('Mornings work.'))
+        : Promise.resolve({ ok: true, queryVector: [1, 0] }),
+    );
+
+    await draftAll();
+
+    expect(lastEvidence()).toContain('Monday: 2 h (09:00–11:00)');
+  });
+
+  it('adds nothing at all while the editor is untouched', async () => {
+    ready();
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'DRAFT_ANSWER'
+        ? Promise.resolve(draftReply('Yes.'))
+        : Promise.resolve({ ok: true, queryVector: [1, 0] }),
+    );
+
+    await draftAll();
+
+    expect(lastEvidence()).not.toContain('Meeting availability');
+    // No stray separator from joining an empty string onto the excerpts.
+    expect(lastEvidence()).toBe(MARKDOWN);
+  });
+
+  it('charges the block against the evidence budget rather than adding to it', async () => {
+    availabilityIsSet();
+    ready();
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'DRAFT_ANSWER'
+        ? Promise.resolve(draftReply('Mornings work.'))
+        : Promise.resolve({ ok: true, queryVector: [1, 0] }),
+    );
+
+    await draftAll();
+
+    // 6 000 is the whole budget; the hours block has to come out of it, not on top.
+    expect(lastEvidence().length).toBeLessThanOrEqual(6_000);
   });
 });

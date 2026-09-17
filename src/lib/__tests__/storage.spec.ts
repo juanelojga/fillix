@@ -10,6 +10,8 @@ import {
   setModelList,
   getNewsConfig,
   setNewsConfig,
+  getAvailability,
+  setAvailability,
 } from '../storage';
 import type { ChatConfig, NewsConfig } from '../storage';
 import type { OllamaConfig } from '../../types';
@@ -186,5 +188,42 @@ describe('setNewsConfig', () => {
   it("persists '' so the News tab can go back to the active model", async () => {
     await setNewsConfig({ model: '' });
     expect(mockSet).toHaveBeenCalledWith({ newsConfig: { model: '' } });
+  });
+});
+
+describe('availability', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGet.mockResolvedValue({});
+  });
+
+  it('returns a normalized default week when nothing is stored', async () => {
+    mockGet.mockResolvedValue({});
+    const week = await getAvailability();
+    expect(Object.keys(week.days)).toEqual(['mon', 'tue', 'wed', 'thu', 'fri']);
+    expect(Object.values(week.days)).toEqual(['', '', '', '', '']);
+    expect(week.timeZone).toBe('');
+    expect(week.updatedAt).toBe(0);
+  });
+
+  // Validation is `normalizeAvailability`'s job, not a pile of inline checks here.
+  it('normalizes a shape an older build could have written', async () => {
+    mockGet.mockResolvedValue({
+      availability: {
+        timeZone: 'Europe/Madrid',
+        days: { mon: [{ enabled: true, start: '09:00', end: '13:00' }] },
+      },
+    });
+    const week = await getAvailability();
+    expect(week.timeZone).toBe('Europe/Madrid');
+    // The earlier two-window shape is converted, not dropped — the hours are the user's.
+    expect(week.days.mon).toBe('09:00-13:00');
+    expect(week.days.tue).toBe('');
+  });
+
+  it('writes under its own key, leaving the profile prose and vectors alone', async () => {
+    const week = await getAvailability();
+    await setAvailability(week);
+    expect(mockSet).toHaveBeenCalledWith({ availability: week });
   });
 });
