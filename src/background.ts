@@ -1,5 +1,5 @@
 import { inferFieldValue, testModel } from './lib/ollama';
-import { getOllamaConfig } from './lib/storage';
+import { getOllamaConfig, getProfile, getProfileConfig, setProfileIndex } from './lib/storage';
 import {
   migrateLegacyProviderKeys,
   removeRetiredObsidianKeys,
@@ -9,6 +9,11 @@ import { handleChatPort } from './lib/chat-runner';
 import { refreshNews } from './lib/news/aggregator';
 import { articleFailureMessage, resolveArticleText } from './lib/news/article-text';
 import { SUMMARY_TIMEOUT_MS, summarizeArticle } from './lib/news/summarizer';
+import { buildProfileIndex } from './lib/profile/profile-index';
+import { embedTexts, testEmbedModel } from './lib/ollama-embed';
+import { DRAFT_TIMEOUT_MS, draftAnswer } from './lib/answers/draft-answer';
+import { extractQuestionTimes } from './lib/answers/extract-question-times';
+import { EXTRACT_TIMEOUT_MS } from './lib/answers/question-times';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -89,6 +94,49 @@ async function handle(msg: Message): Promise<MessageResponse> {
         AbortSignal.timeout(SUMMARY_TIMEOUT_MS),
       );
       return { ok: true, summary };
+    }
+    case 'PROFILE_INDEX': {
+      const { embedModel } = await getProfileConfig();
+      if (!embedModel) throw new Error('No embedding model chosen — name one in the Profile tab.');
+      const { markdown } = await getProfile();
+      const index = await buildProfileIndex(config.baseUrl, embedModel, markdown);
+      await setProfileIndex(index);
+      // The vectors stay in storage; the panel only needs enough to word the status line.
+      return {
+        ok: true,
+        indexed: { chunks: index.chunks.length, dim: index.dim, builtAt: index.builtAt },
+      };
+    }
+    case 'PROFILE_QUERY': {
+      const { embedModel } = await getProfileConfig();
+      if (!embedModel) throw new Error('No embedding model chosen — name one in the Profile tab.');
+      // One string in, one vector out. Scoring it against the index happens in the panel,
+      // which already holds the vectors.
+      const [queryVector] = await embedTexts({ baseUrl: config.baseUrl, model: embedModel }, [
+        msg.query,
+      ]);
+      return { ok: true, queryVector };
+    }
+    case 'TEST_EMBED_MODEL': {
+      // Not testModel(): that POSTs /api/chat, which an embed-only model rejects outright.
+      const latencyMs = await testEmbedModel({ baseUrl: config.baseUrl, model: msg.model });
+      return { ok: true, latencyMs };
+    }
+    case 'EXTRACT_QUESTION_TIMES': {
+      const times = await extractQuestionTimes(
+        { ...config, model: msg.model ?? config.model },
+        msg.question,
+        AbortSignal.timeout(EXTRACT_TIMEOUT_MS),
+      );
+      return { ok: true, times };
+    }
+    case 'DRAFT_ANSWER': {
+      const draft = await draftAnswer(
+        { ...config, model: msg.model ?? config.model },
+        { kind: msg.kind, question: msg.question, job: msg.job, evidence: msg.evidence },
+        AbortSignal.timeout(DRAFT_TIMEOUT_MS),
+      );
+      return { ok: true, draft };
     }
     default: {
       const _: never = msg;

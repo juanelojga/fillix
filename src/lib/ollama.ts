@@ -113,7 +113,9 @@ export async function testModel(config: OllamaConfig, signal?: AbortSignal): Pro
   return Date.now() - started;
 }
 
-function extractOllamaError(body: string): string {
+/** Exported for `ollama-embed.ts`, which formats its HTTP failures the same way so
+ *  `model-test-diagnostics.ts`-style matching works against either client. */
+export function extractOllamaError(body: string): string {
   if (!body) return '';
   try {
     const parsed = JSON.parse(body) as { error?: string };
@@ -128,6 +130,12 @@ export async function generateStructured<T>(
   systemPrompt: string,
   userPrompt: string,
   signal?: AbortSignal,
+  /**
+   * Ollama generation options, passed through verbatim. Callers needing a larger context than
+   * the 2048 Ollama defaults to must say so here: it truncates from the *start* without
+   * reporting it, so an overflow silently eats the system prompt before anything else.
+   */
+  options?: Record<string, unknown>,
 ): Promise<T> {
   const res = await fetch(`${config.baseUrl}/api/generate`, {
     method: 'POST',
@@ -139,6 +147,8 @@ export async function generateStructured<T>(
       stream: false,
       format: 'json',
       think: false,
+      // Omitted entirely when absent, so existing callers send exactly what they sent before.
+      ...(options ? { options } : {}),
     }),
     signal,
   });
