@@ -6,16 +6,31 @@ import { get } from 'svelte/store';
 const sendMessage = vi.fn();
 const storageGet = vi.fn().mockResolvedValue({});
 const storageSet = vi.fn().mockResolvedValue(undefined);
+const tabsQuery = vi.fn();
+const executeScript = vi.fn();
 vi.stubGlobal('chrome', {
   runtime: { sendMessage },
   storage: { local: { get: storageGet, set: storageSet } },
+  tabs: { query: tabsQuery },
+  scripting: { executeScript },
 });
 
 const { runState } = await import('../stores/playbook');
 const { profile, embedModel, profileIndex } = await import('../stores/profile');
 const { hashProfile } = await import('../../lib/profile/profile-hash');
-const { answerable, draftedCount, drafts, fields, clearApplication, draftAll, editDraft, redraft } =
-  await import('../stores/application');
+const {
+  answerable,
+  draftedCount,
+  drafts,
+  fields,
+  fillable,
+  fillState,
+  clearApplication,
+  draftAll,
+  editDraft,
+  fillApproved,
+  redraft,
+} = await import('../stores/application');
 
 const MARKDOWN = '## Python\n\nEight years.';
 const Q1 = 'Do you know Python?';
@@ -74,6 +89,15 @@ function draftReply(text: string, drewOn: string[] = ['Python']) {
 
 beforeEach(() => {
   sendMessage.mockReset();
+  tabsQuery.mockReset().mockResolvedValue([
+    {
+      id: 7,
+      url: 'https://talent.toptal.com/portal/job/abc',
+      title: 'Job',
+      status: 'complete',
+    },
+  ]);
+  executeScript.mockReset().mockResolvedValue([{ result: [] }]);
   runState.set({ status: 'idle' });
   clearApplication();
   profileIsReady();
@@ -239,5 +263,123 @@ describe('editDraft', () => {
     editDraft(Q1, 'Mine.');
 
     expect(get(drafts)[Q1]).toBeUndefined();
+  });
+});
+
+function drafted(text: string) {
+  return {
+    status: 'drafted' as const,
+    draft: { text, drewOn: ['Python'], gaps: [] },
+    edited: text,
+  };
+}
+
+describe('what would be written', () => {
+  beforeEach(() => ready());
+
+  it('offers the user edit, not the model original', () => {
+    drafts.set({ [Q1]: { ...drafted('Drafted.'), edited: 'Mine.' } });
+
+    expect(get(fillable)).toEqual([
+      { question: Q1, locator: { by: 'name', value: 'q1' }, value: 'Mine.' },
+    ]);
+  });
+
+  // Clearing a box the user had already typed in would be a silent deletion of their work.
+  it('leaves a blank answer out rather than writing an empty string', () => {
+    drafts.set({ [Q1]: drafted(''), [Q2]: drafted('   ') });
+
+    expect(get(fillable)).toEqual([]);
+  });
+
+  it('never offers a question that has no locator', () => {
+    drafts.set({ 'How soon can you start?': drafted('Immediately.') });
+
+    expect(get(fillable)).toEqual([]);
+  });
+
+  it('offers nothing for a question that failed to draft', () => {
+    drafts.set({
+      [Q1]: {
+        status: 'failed',
+        diagnosis: { cause: 'unknown', summary: 's', hint: 'h', detail: 'd' },
+      },
+    });
+
+    expect(get(fillable)).toEqual([]);
+  });
+});
+
+describe('fillApproved', () => {
+  beforeEach(() => {
+    ready();
+    drafts.set({ [Q1]: drafted('An answer.') });
+  });
+
+  it('writes the approved answers and records the outcome per question', async () => {
+    const locator = { by: 'name', value: 'q1' };
+    executeScript.mockResolvedValue([{ result: [{ locator, ok: true }] }]);
+
+    await fillApproved();
+
+    const state = get(fillState);
+    expect(state.status).toBe('done');
+    expect(state.status === 'done' && state.outcomes[Q1]).toEqual({ locator, ok: true });
+    expect(executeScript.mock.calls[0][0].args[0]).toEqual([{ locator, value: 'An answer.' }]);
+  });
+
+  /**
+   * The user may have switched tabs between drafting and pressing Fill. Writing a pitch into
+   * whatever happens to be open now is the worst thing this feature could do.
+   */
+  it('refuses to write to a page that is not the job page any more', async () => {
+    tabsQuery.mockResolvedValue([
+      { id: 7, url: 'https://news.ycombinator.com', title: 'HN', status: 'complete' },
+    ]);
+
+    await fillApproved();
+
+    const state = get(fillState);
+    expect(state.status === 'refused' && state.diagnosis.summary).toMatch(
+      /does not read this page/,
+    );
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it('does nothing at all when no answer is ready', async () => {
+    drafts.set({});
+
+    await fillApproved();
+
+    expect(get(fillState)).toEqual({ status: 'idle' });
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  it('refuses a second run while one is in flight', async () => {
+    fillState.set({ status: 'filling' });
+
+    await fillApproved();
+
+    expect(executeScript).not.toHaveBeenCalled();
+  });
+
+  // A capture taken mid-write means the questions on screen are no longer the ones that were
+  // filled, so reporting against them would attach the result to the wrong form.
+  it('drops a result that lands after a newer capture', async () => {
+    let release: (v: unknown) => void = () => {};
+    const pending = new Promise((resolve) => {
+      release = resolve;
+    });
+    executeScript.mockImplementation(async () => {
+      await pending;
+      return [{ result: [{ locator: { by: 'name', value: 'q1' }, ok: true }] }];
+    });
+
+    const inFlight = fillApproved();
+    ready(2000);
+    release(null);
+    await inFlight;
+
+    expect(get(fillState)).toEqual({ status: 'idle' });
   });
 });

@@ -8,9 +8,16 @@ import {
   type RetrievalDiagnosis,
 } from '../../lib/profile/retrieval-diagnostics';
 import {
+  APPLICATION_FORM_ANCHOR,
   extractApplicationFields,
   type ApplicationField,
 } from '../../lib/playbooks/toptal-application-form';
+import { fillActiveTab, type FillOutcome } from '../../lib/capture/fill-active-tab';
+import {
+  diagnoseCaptureFailure,
+  type CaptureDiagnosis,
+} from '../../lib/capture/capture-diagnostics';
+import { TOPTAL_JOB_PAGE } from '../../lib/playbooks/toptal-job-url';
 import type { Message, MessageResponse } from '../../types';
 import { retrieveProfileContext } from './profile';
 import { runState } from './playbook';
@@ -43,6 +50,15 @@ export const drafts = writable<Record<string, DraftState>>({});
 
 export const draftingAll = writable(false);
 
+export type FillState =
+  | { status: 'idle' }
+  | { status: 'filling' }
+  /** Per question, so a miss is shown against the field it missed. */
+  | { status: 'done'; outcomes: Record<string, FillOutcome> }
+  | { status: 'refused'; diagnosis: CaptureDiagnosis };
+
+export const fillState = writable<FillState>({ status: 'idle' });
+
 /** Which capture the current fields and drafts belong to. 0 when there is none. */
 let capturedAt = 0;
 
@@ -70,6 +86,7 @@ runState.subscribe((state) => {
   capturedAt = state.capture.capturedAt;
   fields.set(extractApplicationFields(state.capture.html));
   drafts.set({});
+  fillState.set({ status: 'idle' });
 });
 
 export function clearApplication(): void {
@@ -77,6 +94,7 @@ export function clearApplication(): void {
   fields.set([]);
   drafts.set({});
   draftingAll.set(false);
+  fillState.set({ status: 'idle' });
 }
 
 export function editDraft(question: string, text: string): void {
@@ -181,4 +199,56 @@ export async function draftAll(): Promise<void> {
   } finally {
     draftingAll.set(false);
   }
+}
+
+/** What would be written: every approved, non-empty answer, against its locator. */
+export const fillable = derived([fields, drafts], ([$fields, $drafts]) =>
+  $fields.flatMap((field) => {
+    if (field.locator === null) return [];
+    const state = $drafts[field.question];
+    if (state?.status !== 'drafted') return [];
+    const value = state.edited.trim();
+    // A blank answer is left alone rather than written as an empty string: clearing a box the
+    // user had already typed in would be a silent deletion of their own work.
+    return value ? [{ question: field.question, locator: field.locator, value }] : [];
+  }),
+);
+
+/**
+ * Writes the approved answers into the page.
+ *
+ * Re-verifies the page requirement first, through the same pre-flight the capture uses: the
+ * user may have switched tabs since drafting, and writing a pitch into whatever happens to be
+ * open now is the worst thing this feature could do. Submit is never pressed.
+ */
+export async function fillApproved(): Promise<void> {
+  if (get(fillState).status === 'filling') return;
+
+  const requests = get(fillable);
+  if (requests.length === 0) return;
+
+  fillState.set({ status: 'filling' });
+  const generation = capturedAt;
+
+  const result = await fillActiveTab(
+    TOPTAL_JOB_PAGE,
+    requests.map(({ locator, value }) => ({ locator, value })),
+    APPLICATION_FORM_ANCHOR,
+  );
+
+  if (generation !== capturedAt) return;
+
+  if (!result.ok) {
+    fillState.set({ status: 'refused', diagnosis: diagnoseCaptureFailure(result) });
+    return;
+  }
+
+  // Zipped by position: fillActiveTab answers in the order it was asked.
+  const outcomes: Record<string, FillOutcome> = {};
+  result.outcomes.forEach((outcome, i) => {
+    const request = requests[i];
+    if (request) outcomes[request.question] = outcome;
+  });
+
+  fillState.set({ status: 'done', outcomes });
 }

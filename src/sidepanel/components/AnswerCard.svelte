@@ -2,16 +2,26 @@
   import { Textarea } from '$components/ui/textarea';
   import { describeLocator, isStableLocator } from '$lib/capture/field-locator';
   import type { ApplicationField } from '$lib/playbooks/toptal-application-form';
+  import { describeFillOutcome } from '$lib/capture/fill-outcome';
+  import type { FillOutcome } from '$lib/capture/fill-active-tab';
   import { editDraft, redraft, type DraftState } from '../stores/application';
 
   let {
     field,
     state,
     busy = false,
-  }: { field: ApplicationField; state: DraftState; busy?: boolean } = $props();
+    outcome = null,
+  }: {
+    field: ApplicationField;
+    state: DraftState;
+    busy?: boolean;
+    outcome?: FillOutcome | null;
+  } = $props();
 
   const drafted = $derived(state.status === 'drafted' ? state : null);
   const failed = $derived(state.status === 'failed' ? state.diagnosis : null);
+
+  const fillProblem = $derived(outcome && !outcome.ok ? describeFillOutcome(outcome) : '');
 
   /** A locator that points at a *place* rather than a control is worth saying out loud. */
   const shakyLocator = $derived(
@@ -84,6 +94,14 @@
         <p class="text-[10px] text-amber-700">
           Not in your profile: {drafted.draft.gaps.join(' · ')}
         </p>
+      {/if}
+
+      {#if outcome?.ok}
+        <p class="text-[10px] text-emerald-700">Written into the page.</p>
+      {/if}
+
+      {#if fillProblem}
+        <p class="text-[10px] text-destructive">{fillProblem}</p>
       {/if}
 
       {#if shakyLocator}

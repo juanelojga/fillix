@@ -86,6 +86,11 @@ describe('runPlaybook', () => {
     executeScript.mockReturnValue(gate.promise);
 
     const run = runPlaybook();
+    // Wait for the first press to actually reach the page. The capture awaits the tab lookup
+    // before it injects, so asserting on a fixed number of microtasks pins how many `await`s
+    // happen to precede the injection rather than the invariant this test is about.
+    await vi.waitFor(() => expect(executeScript).toHaveBeenCalled());
+
     await runPlaybook();
 
     expect(executeScript).toHaveBeenCalledTimes(1);

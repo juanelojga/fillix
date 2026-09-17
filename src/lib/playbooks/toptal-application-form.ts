@@ -26,6 +26,13 @@ export interface ApplicationField {
   prefilled: string;
 }
 
+/**
+ * The hook the locators were computed inside. An `ordinal` means "nth field within the form
+ * enclosing this", so the filler has to be handed the same anchor to count within the same
+ * form — otherwise it counts the whole document and lands somewhere else entirely.
+ */
+export const APPLICATION_FORM_ANCHOR = '[data-testid="matcherQuestions"]';
+
 const SELECT_FIELD = '[data-testid="matcherQuestionSelect"]';
 const TEXT_FIELD = '[data-testid="matcherQuestionInput"]';
 const PITCH_FIELD = '[data-testid="pitchThirdPersonLabel"]';
@@ -82,7 +89,7 @@ function questionText(wrapper: Element): string {
  */
 export function extractApplicationFields(html: string): ApplicationField[] {
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  const anchor = doc.querySelector('[data-testid="matcherQuestions"]');
+  const anchor = doc.querySelector(APPLICATION_FORM_ANCHOR);
   const form = anchor?.closest('form');
   if (!form) return [];
 

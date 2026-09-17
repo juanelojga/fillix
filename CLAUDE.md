@@ -89,8 +89,8 @@ hint in `capture-diagnostics.ts` tells the user to "press Capture again", and th
 only while a button by that name is on screen. The picker carries the meaning, the button
 carries the action.
 
-Inside `capture/`, `active-tab-html.ts` is the **only** module that
-touches `chrome.*`; `injectable-url.ts` (which URLs Chrome refuses), `html-budget.ts` (the cap
+Inside `capture/`, `injectable-tab.ts` and `active-tab-html.ts` are the only modules that
+touch `chrome.*`; `injectable-url.ts` (which URLs Chrome refuses), `html-budget.ts` (the cap
 and its wording), `capture-diagnostics.ts` (refusal → next step) and `readable-text.ts`
 (a DOM subtree → text) are pure.
 
@@ -234,6 +234,44 @@ checkable in one glance: _Drew on_ (the cited headings) and _Not in your profile
 gaps). A question with no locator is **named, never dropped** — it is on the page whether or not
 we can fill it, and a missing card reads as "Toptal did not ask this". `ApplicationDrafts.svelte`
 owns the "Draft answers" button, which is deliberately not called Capture.
+
+**Filling (`src/lib/capture/`)**
+
+`injectable-tab.ts` owns the pre-flight — active tab → the playbook's `PageRequirement` →
+`findInjectionBlock` → `status === 'complete'` — and the `CaptureFailure` / `PageRequirement`
+types with it. It was lifted out of `active-tab-html.ts` the moment a second caller appeared:
+reading a page and writing to it need the same checks in the same order, and the order is
+load-bearing, so a second copy would drift silently. `active-tab-html.ts` re-exports both types,
+since it is still the entry point callers import from.
+
+`fill-active-tab.ts` writes approved answers back. Like the capture it runs from the **panel**,
+and it re-runs the whole pre-flight rather than trusting the capture's: the user may have
+switched tabs between drafting and pressing Fill, and writing a pitch into whatever happens to be
+open now is the worst thing this feature could do.
+
+`writeFields` runs in the page and closes over nothing, like `readDocumentHtml`. Three details
+are load-bearing:
+
+- **It assigns through the prototype's `value` setter, never `el.value = text`.** React installs
+  a `_valueTracker` on controlled inputs; a direct assignment updates that tracker as a side
+  effect, so when the `input` event arrives React compares against it, sees no change and drops
+  the event — the box shows the text and the form submits empty. This is why `setFieldValue`
+  could not simply be copied across the injection boundary: the twin had to differ in substance,
+  not just in imports. (`forms.ts` still does the direct assignment, so the content script has
+  the same latent bug on React sites. Out of scope here.)
+- **It skips `aria-hidden` and `readonly` controls**, because the autosize measuring twin
+  carries the _same name_ — `getElementsByName` returns it too, and a value written there is
+  invisible to the user and to the form.
+- **An ordinal counts inside the form the anchor belongs to**, not document-wide, because that
+  is where the parser counted. The anchor selector is passed in by the playbook
+  (`APPLICATION_FORM_ANCHOR`), so the mechanism still knows nothing about Toptal.
+
+It can never press Submit: the only elements it writes to are text inputs and textareas, and a
+submit button is neither.
+
+`fill-outcome.ts` words a per-field miss in place. Whole-run refusals reuse
+`diagnoseCaptureFailure` unchanged, which stays honest because every hint it gives says "press
+Capture again" and that button is still on screen.
 
 **Tools (`src/lib/tools/`)**
 

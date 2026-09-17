@@ -144,4 +144,34 @@ describe('AnswerCard', () => {
     const state = (await import('svelte/store')).get(drafts)[QUESTION];
     expect(state.status === 'drafted' && state.edited).toBe('My own words.');
   });
+
+  it('confirms a field that was written into the page', () => {
+    render(AnswerCard, {
+      field: field(),
+      state: drafted(),
+      outcome: { locator: { by: 'name', value: 'q1' }, ok: true },
+    });
+
+    expect(screen.getByText('Written into the page.')).toBeInTheDocument();
+  });
+
+  // A partial fill must name which field it missed, beside that field — a run-level count
+  // alone leaves the user hunting for the one that did not land.
+  it('names a field the fill could not reach, in place', () => {
+    render(AnswerCard, {
+      field: field(),
+      state: drafted(),
+      outcome: { locator: { by: 'name', value: 'q1' }, ok: false, reason: 'not-found' },
+    });
+
+    expect(screen.getByText(/Couldn't find this field on the page/)).toBeInTheDocument();
+    expect(screen.queryByText('Written into the page.')).not.toBeInTheDocument();
+  });
+
+  it('says nothing about filling before anything has been filled', () => {
+    render(AnswerCard, { field: field(), state: drafted() });
+
+    expect(screen.queryByText('Written into the page.')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Couldn't find this field/)).not.toBeInTheDocument();
+  });
 });
