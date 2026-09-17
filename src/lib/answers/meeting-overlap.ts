@@ -38,8 +38,11 @@ export interface MeetingOverlap {
  * A single free Friday morning should not drag "a typical day" down, and a week of four solid
  * days plus one short one should not average into a number that describes none of them. The
  * mean is also the easier number to read as a commitment.
+ *
+ * Exported for `schedule-check.ts`, which summarises a recurring window the same way and for
+ * the same reason. A second copy would be a second place for that reasoning to drift.
  */
-function median(values: number[]): number {
+export function median(values: number[]): number {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
   const middle = Math.floor(sorted.length / 2);

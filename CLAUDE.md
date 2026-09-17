@@ -265,6 +265,79 @@ stale, which is the opposite of how the Markdown box above it behaves. `SHARED_R
 one line for this — times and hour counts in the excerpts are already correct and must not be
 recalculated — because the overlap arrives as a computed fact the model would otherwise re-derive.
 
+**Times inside the question (`src/lib/answers/zone-offset.ts`, `mentions-time.ts`, `question-times.ts`,
+`extract-question-times.ts`, `question-schedule.ts`, `local-window.ts`, `schedule-check.ts`,
+`schedule-text.ts`, `schedule-summary.ts`)**
+
+The block above answers "what are your hours". This answers the other half: a form that states
+times _in the question_ — three dated interview slots, or a client's business day in a named
+city — and asks whether they work. `Client's Hours` in the attributes grid is the only time a
+playbook parses; everything a question says is prose until it comes through here.
+
+**The model extracts; the code computes, and nothing crosses that line.** The extraction call is
+asked only to copy dates, clock times and zone names out of a sentence into fields — never to
+convert one, never to say which weekday a date falls on, never to rule on anything. Every
+verdict is integer arithmetic in `schedule-check.ts`, for the reason `meeting-overlap.ts`
+already states and this inherits: a model asked whether 5pm in Madrid suits someone in Guayaquil
+answers confidently, and a wrong answer is an interview the applicant does not show up to.
+
+That division is also why it generalises. A regex handles the phrasings we wrote rules for; a
+form that renders its slots as a table, or in Spanish, or as `Tue the 22nd, 5:30-7:30 CEST`, is
+the same extraction problem and a different regex problem. What keeps it honest is that nothing
+the model emits is believed on its own — `normalizeQuestionTimes` re-parses every field, and an
+entry that fails validation is demoted to `unreadable` under its own `source` rather than
+repaired into something plausible.
+
+- `mentions-time.ts` — the gate, and deliberately a loose one. The two errors are not
+  symmetric: a false positive costs one small generation that returns empty, a false negative
+  silently skips the check on a question that needed it and the answer still gets written.
+- `zone-offset.ts` — **the only module in this path entitled to convert anything**, which is why
+  `time-range.ts`'s claim that nothing there converts stays true. Everything goes through a real
+  instant: a wall clock plus a zone becomes a `Date`, and that `Date` is read back as a wall
+  clock in the applicant's zone. Both halves are asked of `Intl`, which owns the DST tables.
+  Subtracting two offsets instead would be wrong twice — across a DST boundary, and whenever the
+  converted time lands on a different calendar day than the one the question named.
+- `question-times.ts` — the prompt and the envelope its parser depends on, so it is TS and not
+  `src/prompts/`, by the rule above. A zone is copied verbatim when the text gives an offset and
+  given as an IANA id when it names a place: re-deriving `GMT+02:00` from `Europe/Madrid` would
+  invent a DST opinion the question did not express, and the two disagree for half the year.
+- `local-window.ts` — the conversion, split out of `schedule-check.ts` the moment a second
+  caller appeared, exactly as `injectable-tab.ts` was split out of `active-tab-html.ts`. A dated
+  slot and a recurring client day are different things to _report_ and identical things to
+  _convert_, and a second copy of the conversion would drift silently and be wrong by an hour
+  twice a year. A window is split at **local** midnight and each half checked against the day it
+  actually fell on, because 12:00–16:00 in Tokyo is 22:00 Monday to 02:00 Tuesday in Guayaquil
+  and no single weekday describes it. A weekend lands on `day: null` and matches nothing.
+- `schedule-check.ts` — the verdicts on top of it: the statuses, the per-day rollup, and which
+  mentions come back uncompared with a reason attached. Unlike `draft-answer.ts` there is **no guard that discards a response** —
+  there is nothing to guard against, since the failure this path produces is a _wrong time_ and
+  no property of the JSON reveals one. The defence is the re-validation and the card instead.
+- `question-schedule.ts` — the panel-side orchestrator, and **every failure in it returns null,
+  which is not an error**. The drafting path carries on with the weekly hours alone, exactly as
+  it does for an unparseable `Client's Hours`. It refuses before spending a generation when the
+  question names no time, when no hours are stored, and — the load-bearing one — when neither
+  the profile nor the browser names a zone, since there is then nothing to convert _into_.
+- `schedule-text.ts` / `schedule-summary.ts` — the same check for two readers. The first writes
+  prose inside the `## Meeting availability` heading, where completeness matters and length is
+  cheap; the second writes labels for someone scanning a narrow panel, where the only thing that
+  matters is that a wrong reading is obvious. Both pair the question's own words with the
+  converted result, so checking a verdict never means re-reading the answer.
+
+A zone the question did not state, or one this browser cannot place, is **named and not
+compared** — `availability-evidence.ts`'s existing rule, extended: saying "here are my hours" is
+always true, and "that slot works" has to be earned. Those mentions reach the model in the
+applicant's own voice ("I have not checked these…"), because silence is what lets a model fill
+the gap from its training.
+
+The check is appended **inside** the existing `## Meeting availability` block rather than under
+a heading of its own, and `buildAvailabilityEvidence` returns `''` untouched when no hours are
+stored. Both are the same constraint: `draft-answer.ts` discards a non-empty answer whose
+`drew_on` is empty, so an appended block with no heading above it would throw away a correct
+answer. Extraction is an outbound request and so belongs to the worker
+(`EXTRACT_QUESTION_TIMES`); everything after it is pure and stays in the panel, which already
+holds the availability — sending the hours to the worker so it could send a verdict back would
+put the one computation this feature exists to protect on the far side of a message boundary.
+
 **Drafting (`src/lib/answers/`)**
 
 Turns a captured job plus the profile into one answer per application question. Everything here

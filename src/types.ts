@@ -1,4 +1,5 @@
 import type { AnswerDraft } from './lib/answers/draft-answer';
+import type { QuestionTimes } from './lib/answers/question-times';
 
 export interface OllamaConfig {
   baseUrl: string;
@@ -89,6 +90,10 @@ export type Message =
   | { type: 'TEST_EMBED_MODEL'; model: string }
   // The panel retrieves (it holds the vectors) and sends the evidence; the worker owns the
   // outbound generate call, as it does for NEWS_SUMMARIZE.
+  // Reading the times out of one question. Separate from DRAFT_ANSWER because the panel has to
+  // *compute* against the result — convert the zones, intersect with the stored hours — before
+  // it knows what evidence to send, and that computation is pure and belongs on the panel side.
+  | { type: 'EXTRACT_QUESTION_TIMES'; question: string; model?: string }
   | {
       type: 'DRAFT_ANSWER';
       kind: 'question' | 'pitch';
@@ -101,7 +106,7 @@ export type Message =
 // Success arms are distinguished ONLY by payload key shape (narrowed with `'key' in r`).
 // Never reuse an existing key name with a different value type: it cross-wires silently
 // with no compiler diagnostic. Taken: value, latencyMs, news, degraded, article, summary,
-// indexed, queryVector, draft.
+// indexed, queryVector, draft, times.
 export type MessageResponse =
   | { ok: true; value: string }
   | { ok: true; latencyMs: number }
@@ -112,4 +117,6 @@ export type MessageResponse =
   | { ok: true; indexed: { chunks: number; dim: number; builtAt: number } }
   | { ok: true; queryVector: number[] }
   | { ok: true; draft: AnswerDraft }
+  // Only what the question said, never what it means: the verdict is computed in the panel.
+  | { ok: true; times: QuestionTimes }
   | { ok: false; error: string };

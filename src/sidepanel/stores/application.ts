@@ -3,6 +3,8 @@ import type { AnswerDraft } from '../../lib/answers/draft-answer';
 import { buildJobContext } from '../../lib/answers/job-context';
 import { buildRetrievalQuery } from '../../lib/answers/answer-query';
 import { buildAvailabilityEvidence } from '../../lib/answers/availability-evidence';
+import { checkQuestionSchedule } from '../../lib/answers/question-schedule';
+import type { ScheduleCheck } from '../../lib/answers/schedule-check';
 import { diagnoseDraftFailure, type DraftDiagnosis } from '../../lib/answers/draft-diagnostics';
 import {
   diagnoseRetrievalFailure,
@@ -41,7 +43,13 @@ import { ollamaConfig } from './settings';
 export type DraftState =
   | { status: 'idle' }
   | { status: 'drafting' }
-  | { status: 'drafted'; draft: AnswerDraft; edited: string }
+  /**
+   * `schedule` is what the question's own times came to against the stored hours, or null when
+   * it named none. Kept beside the draft rather than folded into it because the model did not
+   * produce it — it was computed before the model ran, and the card shows it as a separate,
+   * checkable fact rather than as part of what was written.
+   */
+  | { status: 'drafted'; draft: AnswerDraft; edited: string; schedule: ScheduleCheck | null }
   | { status: 'failed'; diagnosis: DraftDiagnosis | RetrievalDiagnosis };
 
 /** The questions on the captured form, in the order the page shows them. */
@@ -120,10 +128,23 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
   const state = get(runState);
   const brief = state.status === 'ready' ? state.brief : null;
 
-  // Built before retrieval, and charged against the same budget. It is injected rather than
-  // retrieved because a schedule question must never depend on cosine similarity finding the
-  // right section — and because the overlap in it is computed, not embedded.
-  const availabilityBlock = buildAvailabilityEvidence(get(availability), brief, browserTimeZone());
+  const hours = get(availability);
+
+  // Before retrieval and before the model: any times the question itself names are converted
+  // and intersected with the stored hours here, so the answer quotes an arithmetic result
+  // instead of performing one. Null whenever that cannot be trusted — see `question-schedule`.
+  const schedule = await checkQuestionSchedule(field.question, hours, browserTimeZone());
+
+  // Charged against the same budget as the retrieved sections. Injected rather than retrieved
+  // because a schedule question must never depend on cosine similarity finding the right
+  // section — and because everything in it is computed, not embedded.
+  const availabilityBlock = buildAvailabilityEvidence(
+    hours,
+    brief,
+    browserTimeZone(),
+    new Date(),
+    schedule,
+  );
 
   const retrieved = await retrieveProfileContext(
     buildRetrievalQuery(field.question, brief),
@@ -168,7 +189,7 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
 
   setDraft(
     field.question,
-    { status: 'drafted', draft: response.draft, edited: response.draft.text },
+    { status: 'drafted', draft: response.draft, edited: response.draft.text, schedule },
     generation,
   );
 }

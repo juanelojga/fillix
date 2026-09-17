@@ -4,6 +4,7 @@
   import type { ApplicationField } from '$lib/playbooks/toptal-application-form';
   import { describeFillOutcome } from '$lib/capture/fill-outcome';
   import type { FillOutcome } from '$lib/capture/fill-active-tab';
+  import { summarizeSchedule } from '$lib/answers/schedule-summary';
   import { editDraft, redraft, type DraftState } from '../stores/application';
 
   let {
@@ -22,6 +23,9 @@
   const failed = $derived(state.status === 'failed' ? state.diagnosis : null);
 
   const fillProblem = $derived(outcome && !outcome.ok ? describeFillOutcome(outcome) : '');
+
+  /** Computed before the model ran, so it is shown as a fact rather than as part of the answer. */
+  const schedule = $derived(drafted?.schedule ? summarizeSchedule(drafted.schedule) : null);
 
   /** A locator that points at a *place* rather than a control is worth saying out loud. */
   const shakyLocator = $derived(
@@ -87,6 +91,40 @@
       {:else}
         <p class="text-[10px] text-amber-700">
           Your profile had nothing for this one. Anything written here is yours, not drafted.
+        </p>
+      {/if}
+
+      {#if schedule && schedule.lines.length > 0}
+        <!-- The pairing is the check: the question's own words beside the converted time. A
+             wrong reading is visible here without reading the answer at all. -->
+        <div class="rounded-md border border-slate-200 bg-slate-50 px-2 py-1.5">
+          <p class="text-[10px] font-medium text-slate-700">Checked against your hours</p>
+          {#each schedule.lines as line (line.source)}
+            <p class="mt-0.5 text-[10px] text-slate-600 break-words">
+              <span class="text-slate-500">{line.source}</span>
+              <span class="mx-0.5">→</span>
+              <span>{line.local}</span>
+              <span
+                class={line.status === 'available'
+                  ? 'font-medium text-emerald-700'
+                  : line.status === 'partial'
+                    ? 'font-medium text-amber-700'
+                    : 'font-medium text-destructive'}
+              >
+                {line.status === 'available'
+                  ? 'free'
+                  : line.status === 'partial'
+                    ? 'partly free'
+                    : 'not free'}
+              </span>
+            </p>
+          {/each}
+        </div>
+      {/if}
+
+      {#if schedule && schedule.unchecked.length > 0}
+        <p class="text-[10px] text-amber-700">
+          Not checked: {schedule.unchecked.join(' · ')}
         </p>
       {/if}
 

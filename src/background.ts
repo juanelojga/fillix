@@ -12,6 +12,8 @@ import { SUMMARY_TIMEOUT_MS, summarizeArticle } from './lib/news/summarizer';
 import { buildProfileIndex } from './lib/profile/profile-index';
 import { embedTexts, testEmbedModel } from './lib/ollama-embed';
 import { DRAFT_TIMEOUT_MS, draftAnswer } from './lib/answers/draft-answer';
+import { extractQuestionTimes } from './lib/answers/extract-question-times';
+import { EXTRACT_TIMEOUT_MS } from './lib/answers/question-times';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -119,6 +121,14 @@ async function handle(msg: Message): Promise<MessageResponse> {
       // Not testModel(): that POSTs /api/chat, which an embed-only model rejects outright.
       const latencyMs = await testEmbedModel({ baseUrl: config.baseUrl, model: msg.model });
       return { ok: true, latencyMs };
+    }
+    case 'EXTRACT_QUESTION_TIMES': {
+      const times = await extractQuestionTimes(
+        { ...config, model: msg.model ?? config.model },
+        msg.question,
+        AbortSignal.timeout(EXTRACT_TIMEOUT_MS),
+      );
+      return { ok: true, times };
     }
     case 'DRAFT_ANSWER': {
       const draft = await draftAnswer(

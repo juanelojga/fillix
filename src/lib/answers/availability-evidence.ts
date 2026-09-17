@@ -2,6 +2,8 @@ import type { JobBrief } from '../playbooks/job-brief';
 import type { WeeklyAvailability } from '../profile/availability';
 import { renderAvailability } from '../profile/availability-text';
 import { computeMeetingOverlap } from './meeting-overlap';
+import type { ScheduleCheck } from './schedule-check';
+import { renderScheduleCheck } from './schedule-text';
 import { parseTimeRange } from './time-range';
 
 /**
@@ -39,16 +41,29 @@ export function buildAvailabilityEvidence(
   brief: JobBrief | null,
   browserTimeZone: string,
   now: Date = new Date(),
+  /**
+   * The times this particular question asked about, already checked. Null when the question
+   * mentioned none, or when the extraction step failed — in which case the weekly hours still
+   * go to the model, exactly as they do when the client-hours attribute cannot be read.
+   */
+  schedule: ScheduleCheck | null = null,
 ): string {
   const label = brief?.attributes[CLIENT_HOURS_LABEL]?.trim() ?? '';
   const zonesAgree = availability.timeZone !== '' && availability.timeZone === browserTimeZone;
   const clientHours = label && zonesAgree ? parseTimeRange(label) : null;
 
-  if (!clientHours) return renderAvailability(availability, null, now);
+  const base = clientHours
+    ? renderAvailability(
+        availability,
+        { clientHoursLabel: label, overlap: computeMeetingOverlap(availability, clientHours) },
+        now,
+      )
+    : renderAvailability(availability, null, now);
 
-  return renderAvailability(
-    availability,
-    { clientHoursLabel: label, overlap: computeMeetingOverlap(availability, clientHours) },
-    now,
-  );
+  // No hours stored means no heading, and an appended block with nothing to cite would be
+  // discarded by the grounding guard in `draft-answer.ts` — taking a correct answer with it.
+  // There is also nothing to have checked the question's times against.
+  if (!base || !schedule) return base;
+
+  return `${base}${renderScheduleCheck(availability, schedule)}`;
 }
