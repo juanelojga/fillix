@@ -66,6 +66,11 @@ export async function removeRetiredSearchKey(): Promise<void> {
  *
  * Note this deliberately leaves `chat` alone: a system-prompt override the user
  * typed is still honoured, it just falls back to the packaged default when blank.
+ *
+ * The removal is by exact key and must stay that way. `workflowsConfig` — the Workflows
+ * tab's current playbook preference — sits one suffix away from the retired `workflows`,
+ * so turning this into a prefix purge would silently delete a live setting on every
+ * startup.
  */
 export async function removeRetiredObsidianKeys(): Promise<void> {
   const stored = await chrome.storage.local.get(RETIRED_OBSIDIAN_KEYS);

@@ -83,3 +83,25 @@ export async function getNewsCache(): Promise<NewsCache | null> {
 export async function setNewsCache(news: NewsCache): Promise<void> {
   await chrome.storage.local.set({ news });
 }
+
+/**
+ * Which playbook the Workflows tab runs. '' means "never chosen" and resolves to the
+ * registry's default — the same ''-is-fallback convention as ChatConfig.systemPrompt.
+ *
+ * The key is `workflowsConfig`, and the `Config` suffix is not decoration: the bare
+ * `workflows` key is one of the Obsidian-era names that `legacy-migration.ts` purges on
+ * every install and startup, so a preference stored there would vanish on the next
+ * browser restart with nothing logged anywhere.
+ */
+export type WorkflowsConfig = { playbook: string };
+
+export async function getWorkflowsConfig(): Promise<WorkflowsConfig> {
+  const { workflowsConfig } = await chrome.storage.local.get('workflowsConfig');
+  return {
+    playbook: (workflowsConfig as Partial<WorkflowsConfig> | undefined)?.playbook ?? '',
+  };
+}
+
+export async function setWorkflowsConfig(workflowsConfig: WorkflowsConfig): Promise<void> {
+  await chrome.storage.local.set({ workflowsConfig });
+}

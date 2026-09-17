@@ -167,6 +167,19 @@ describe('removeRetiredObsidianKeys', () => {
     expect(store.workflows).toBeUndefined();
   });
 
+  // `workflowsConfig` is the Workflows tab's live playbook preference and sits one
+  // suffix away from the retired `workflows`. If this purge ever became prefix-based
+  // it would delete the setting on every startup, silently.
+  it('leaves the workflowsConfig preference alone', async () => {
+    store.workflows = [{ id: 'workflows/job.md', name: 'Job' }];
+    store.workflowsConfig = { playbook: 'toptal' };
+
+    await removeRetiredObsidianKeys();
+
+    expect(store.workflows).toBeUndefined();
+    expect(store.workflowsConfig).toEqual({ playbook: 'toptal' });
+  });
+
   // The obsidian key held a local REST API key: the credential must not
   // outlive the feature that needed it.
   it('leaves no trace of the stored API key', async () => {

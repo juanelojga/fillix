@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import WorkflowsTab from './WorkflowsTab.svelte';
-import { captureState, clearCapture } from '../stores/capture';
+import { runState, clearRun, selectedPlaybookId } from '../stores/playbook';
+import { resolvePlaybook } from '$lib/playbooks/registry';
 import type { PageCapture } from '$lib/capture/html-budget';
 
 function capture(overrides: Partial<PageCapture> = {}): PageCapture {
@@ -16,14 +17,17 @@ function capture(overrides: Partial<PageCapture> = {}): PageCapture {
 }
 
 beforeEach(() => {
-  clearCapture();
+  selectedPlaybookId.set('toptal');
+  clearRun();
   vi.restoreAllMocks();
 });
 
 describe('WorkflowsTab', () => {
+  // The verb stays "Capture" whichever playbook is selected: every hint in
+  // capture-diagnostics.ts tells the user to "press Capture again".
   it('offers a worded Capture button', () => {
     render(WorkflowsTab);
-    expect(screen.getByRole('button', { name: /Capture/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Capture$/ })).toBeInTheDocument();
   });
 
   // Pins the on-demand requirement: the tab must not read the user's page just because
@@ -38,25 +42,32 @@ describe('WorkflowsTab', () => {
     expect(inject).not.toHaveBeenCalled();
   });
 
-  it('explains what Capture will do before anything is captured', () => {
+  it('names the selected playbook in the header', () => {
+    render(WorkflowsTab);
+    expect(screen.getByRole('button', { name: /playbook: toptal/i })).toBeInTheDocument();
+  });
+
+  // The empty state is the playbook's own description, not the tab's: the tab has no
+  // idea what any given playbook reads.
+  it('explains what the selected playbook will do before anything is captured', () => {
     render(WorkflowsTab);
 
     expect(screen.getByText('Nothing captured yet — press Capture')).toBeInTheDocument();
     expect(screen.getByText('No page captured yet.')).toBeInTheDocument();
-    expect(screen.getByText(/raw HTML of the tab you are looking at/)).toBeInTheDocument();
+    expect(screen.getByText(resolvePlaybook('toptal').description)).toBeInTheDocument();
   });
 
   it('reads the active tab when Capture is pressed', async () => {
     const tabs = vi.spyOn(chrome.tabs, 'query');
     render(WorkflowsTab);
 
-    await fireEvent.click(screen.getByRole('button', { name: /Capture/ }));
+    await fireEvent.click(screen.getByRole('button', { name: /^Capture$/ }));
 
     expect(tabs).toHaveBeenCalledWith({ active: true, currentWindow: true });
   });
 
   it('disables and rewords the button while capturing', () => {
-    captureState.set({ status: 'capturing' });
+    runState.set({ status: 'running' });
     render(WorkflowsTab);
 
     const button = screen.getByRole('button', { name: /Capturing/ });
@@ -66,7 +77,7 @@ describe('WorkflowsTab', () => {
   });
 
   it('renders the captured markup as text', () => {
-    captureState.set({ status: 'ready', capture: capture() });
+    runState.set({ status: 'ready', capture: capture() });
     const { container } = render(WorkflowsTab);
 
     expect(container.querySelector('pre')?.textContent).toContain('<h1>Hello</h1>');
@@ -76,7 +87,7 @@ describe('WorkflowsTab', () => {
   // A worded badge alone is not enough — the hint says what to do and the detail says
   // which page Chrome refused.
   it('shows the summary, the next step and the raw detail on failure', () => {
-    captureState.set({
+    runState.set({
       status: 'failed',
       failure: {
         ok: false,
@@ -93,7 +104,7 @@ describe('WorkflowsTab', () => {
   });
 
   it('keeps one persistent live region so state changes are announced', () => {
-    captureState.set({ status: 'capturing' });
+    runState.set({ status: 'running' });
     render(WorkflowsTab);
 
     expect(screen.getByRole('status')).toHaveTextContent('Reading the active tab.');
@@ -105,7 +116,7 @@ describe('WorkflowsTab', () => {
    * recreates this component.
    */
   it('survives an unmount and remount with the capture intact', () => {
-    captureState.set({ status: 'ready', capture: capture() });
+    runState.set({ status: 'ready', capture: capture() });
 
     const first = render(WorkflowsTab);
     expect(first.container.querySelector('pre')?.textContent).toContain('Hello');

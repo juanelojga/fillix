@@ -62,10 +62,12 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(tab('NewsTab.spec.ts'))).toBe(true);
     });
 
-    it('WorkflowsTab.spec.ts exists and covers the Capture button', () => {
+    it('WorkflowsTab.spec.ts exists and covers the Capture button and the playbook picker', () => {
       expect(existsSync(tab('WorkflowsTab.spec.ts'))).toBe(true);
       const src = readFileSync(tab('WorkflowsTab.spec.ts'), 'utf-8');
       expect(src).toContain('Capture');
+      // The button is one of two controls now — the picker chooses what it runs.
+      expect(src).toContain('playbook');
     });
   });
 
@@ -86,6 +88,12 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(comp('NewsModelPicker.spec.ts'))).toBe(true);
       const src = readFileSync(comp('NewsModelPicker.spec.ts'), 'utf-8');
       expect(src).toContain('newsConfig');
+    });
+
+    it('PlaybookPicker.spec.ts exists and pins the workflowsConfig-key write', () => {
+      expect(existsSync(comp('PlaybookPicker.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('PlaybookPicker.spec.ts'), 'utf-8');
+      expect(src).toContain('workflowsConfig');
     });
   });
 

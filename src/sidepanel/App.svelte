@@ -8,6 +8,7 @@
   import { createReconnectingPort } from './reconnecting-port';
   import { loadSettings } from './stores/settings';
   import { hydrateNewsCache } from './stores/news';
+  import { hydratePlaybookSelection } from './stores/playbook';
 
   let currentTab = $state('chat');
 
@@ -21,6 +22,8 @@
     // Storage read only, never the network — News fetches on the button, not on mount.
     // Lives here rather than in NewsTab, whose onMount runs on every tab switch back.
     void hydrateNewsCache();
+    // Same reason as above: WorkflowsTab's onMount runs on every switch back to the tab.
+    void hydratePlaybookSelection();
     return () => {
       chatPort.disconnect();
     };
