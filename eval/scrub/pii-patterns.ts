@@ -3,7 +3,7 @@
  *
  * Identity strings — a name, an employer, a job id — are per-fixture and arrive separately.
  * These are the shapes that are personal or secret whatever they spell, and they exist so
- * `fixtures.eval.ts` can assert a committed file is clean without being told what to look for.
+ * `golden.eval.ts` can assert a committed file is clean without being told what to look for.
  * A rule that only ever ran at authoring time would prove nothing about the file in git.
  */
 
@@ -54,8 +54,14 @@ export const PII_PATTERNS: PiiPattern[] = [
  * placeholder written into a fixture is recognisable as one rather than merely hoped to be.
  * Without this the scrubber refuses its own output: `alex.rivera@example.com` is email-shaped,
  * so a fixed-point check on raw shape alone can never pass.
+ *
+ * An ISO date is here for the same reason and is worth naming: `2026-09-17` is ten characters
+ * of digits and hyphens, which is precisely the `phone` shape. Every golden case carries a
+ * frozen `now` and every job a `capturedAt`, so without this rule the golden set reports one
+ * phone number per date and the real finding — if there ever is one — is lost in the count.
  */
-const RESERVED = /@example\.(?:com|org|net)$|\.example\b|\.invalid\b|^\+10000000000$|^0{8}-/;
+const RESERVED =
+  /@example\.(?:com|org|net)$|\.example\b|\.invalid\b|^\+10000000000$|^0{8}-|^\d{4}-\d{2}-\d{2}$/;
 
 function matchesOf(text: string, pattern: RegExp): string[] {
   const found = text.match(new RegExp(pattern.source, pattern.flags)) ?? [];
@@ -64,7 +70,7 @@ function matchesOf(text: string, pattern: RegExp): string[] {
 
 /**
  * What still looks personal after scrubbing. Empty is the only acceptable result for a
- * committed fixture, and `fixtures.eval.ts` asserts it on every run — not just at authoring
+ * committed fixture, and `golden.eval.ts` asserts it on every run — not just at authoring
  * time, when the file that gets committed is not yet the file that was checked.
  */
 export function findPii(text: string): { name: string; hits: number }[] {

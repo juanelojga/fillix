@@ -1,5 +1,5 @@
 import { describe, it } from 'vitest';
-import { readFileSync, readdirSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { extractJobSections } from '../src/lib/playbooks/toptal-job-sections';
 import { buildJobBrief } from '../src/lib/playbooks/toptal-job-brief';
@@ -9,12 +9,24 @@ import { missingRequiredSkills } from '../src/lib/playbooks/job-brief';
 /**
  * Not a test — a survey. Prints what each raw capture in `cases/incoming/` actually parses to,
  * so the fixture set can be judged for archetype coverage before anything is scrubbed or
- * hand-labelled. Deleted once `fixtures.eval.ts` takes over.
+ * hand-labelled.
+ *
+ * Kept rather than deleted now that `golden.eval.ts` guards the committed set: that file grades
+ * `golden.json`, which is derived text, and this one is the only thing still reading the raw
+ * markup. When Toptal renames a hook, the golden set stays green on stale questions and only
+ * this survey shows it — so it is the parser's early warning, and it no-ops on a fresh clone
+ * where `incoming/` does not exist.
  */
 const DIR = path.resolve('eval/cases/incoming');
 
 describe('capture survey', () => {
   it('parses every incoming capture', () => {
+    // `incoming/` is gitignored, so on any machine but the one that captured them this is
+    // simply empty. A skip is the honest outcome; ENOENT would read as a broken harness.
+    if (!existsSync(DIR)) {
+      console.log('  no eval/cases/incoming — nothing to survey');
+      return;
+    }
     for (const file of readdirSync(DIR)
       .filter((f) => f.endsWith('.html'))
       .sort()) {

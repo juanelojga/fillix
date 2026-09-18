@@ -13,6 +13,8 @@ Fillix is a Manifest V3 Chrome extension with two core capabilities: **tool-augm
 - `pnpm build` — produce a production bundle in `dist/` (it does **not** typecheck; that is `pnpm typecheck`)
 - `pnpm typecheck` — `tsc --noEmit`
 - `pnpm test` — run tests with vitest
+- `pnpm eval` — grade answer drafting against the committed golden set. Needs a live Ollama, so it is deliberately **not** part of `pnpm test` and CI runs neither.
+- `pnpm eval:derive` — rebuild `eval/cases/golden.json` from the raw captures in `eval/cases/incoming/`
 
 ## Architecture
 
@@ -540,6 +542,68 @@ rather than a preference stay in TS next to their caller — `TOOL_SYSTEM_PROMPT
 prompt in `ollama.ts` — because changing them changes how the code parses the reply.
 
 `src/types.ts` is the cross-context message contract. It defines `OllamaConfig` (`baseUrl`, `model`) and the `PortMessage` union used for streaming — including `tool-call` and `tool-result` variants that carry tool name and args/result. When adding a new message kind, update `Message` **and** `MessageResponse`, and add a `case` in `background.ts`'s `handle` — TypeScript's exhaustiveness check will flag the rest.
+
+**Evals (`eval/`)**
+
+Outside `src/`, because `src/**/*.ts` is the coverage `include` and because the two vitest
+configs share no glob — `pnpm test` can never pick up a file that talks to a live Ollama, and
+`pnpm eval` can never pick up a unit spec.
+
+The whole drafting design exists to stop one failure: a fluent, confident claim of experience
+the applicant does not have. The unit specs test the **guard** (`normalizeAnswerDraft`,
+`statesNoExperience`, the diagnostics); nothing in them tests the **model**. `eval/` is what
+makes changing the system prompt, the evidence budget or the model a measurable change instead
+of one the suite stays green through either way.
+
+`eval/cases/golden.json` is the committed golden set: `jobs[]` and `cases[]` cross-referenced by
+`jobId` so a description is written once and shared by its questions. It is **derived, not
+authored** — `pnpm eval:derive` runs the production parsers over `eval/cases/incoming/*.html`
+(gitignored; Toptal deletes the form on Submit, so the captures are perishable twice over) and
+merges the result into the existing file, carrying every hand-authored `archetype`, `expect` and
+`notes` across by case id. That merge is load-bearing: a derivation that reset the labels would
+be run once and never again. The inversion is the point — the JSON outlives the HTML, so a
+posting deleted tomorrow still grades a model next year.
+
+No client is pseudonymized because Toptal never names one — verified across all eight captures:
+the Company Information block carries only a country, a founding year, a team size and an
+industry, and every description says "our client". Technologies and vendors are kept **verbatim**,
+since they are exactly what grounding is graded on. What is scrubbed is the applicant's identity,
+through the gitignored `eval/scrub/identities.local.json`.
+
+`eval/scrub/pii-scan.ts` walks a parsed value rather than its serialization, and that is not
+pedantry: the patterns allow whitespace and punctuation as separators, and pretty-printed JSON
+supplies both between every field, so a `phone` match straddles two unrelated keys. Scanning
+`JSON.stringify(set)` reported fifty-two phone numbers, every one of them a frozen ISO date.
+
+`eval/golden.eval.ts` is the fast loop — no Ollama, about a second — and it exists because a
+golden set whose checks are unmeetable reports a bad _file_ in the same shape as a bad _model_.
+So it makes the silent traps loud: a `mustCiteAny` heading that is not in the profile (nothing
+can ever return it), a `scheduleUsed: true` on a question `mentionsTime()` would refuse, a
+denial whose `maxChars` exceeds what `statesNoExperience` accepts, and the three overlap
+preconditions that otherwise give hours-only evidence while the expectation waits for an overlap
+nobody computed.
+
+`eval/lib/draft-case.ts` reuses `assembleAnswerEvidence` rather than reimplementing
+`draftOne` — the budget, the availability block's position and the `'\n\n---\n\n'` separator
+live there, and a copy of those twenty lines is exactly the drift that would grade a pipeline
+the extension does not run. Its `QuestionTimesSource` round-trips through
+`JSON.parse(JSON.stringify(times))` on purpose, reproducing the port rather than shortcutting it.
+
+**`mustNotClaim` is deliberately not auto-seeded from `missingRequiredSkills`.** Toptal's
+`onProfile` flag describes its own profile's skill list and disagrees with the CV in ten places
+across the eight captures — it marks FastAPI and A/B Testing missing while the CV has a section
+for each. `golden.eval.ts` prints every disagreement rather than asserting on it. It is also why
+`mustNotClaim` (judged) and `mustNotMention` (substring) are separate fields: one real capture
+asks _"is there any required skill you are missing?"_, where naming the skill is the correct
+answer, and no substring check can tell that from claiming it.
+
+`cites-retrieved` in `eval/lib/grade-draft.ts` is the check production **structurally cannot**
+run — the guard only tests that `drew_on` is non-empty, so an answer citing a section it was
+never shown passes in the extension today. `citation-format` is split off from it because a
+model that quotes the paragraph it used has not hallucinated, it has formatted a true citation
+badly, and the two do not have the same fix.
+
+See `eval/README.md` for how to run it, the environment overrides, and what each check means.
 
 ## Build tooling
 
