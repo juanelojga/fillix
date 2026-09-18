@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildRetrievalQuery } from '../answer-query';
+import { buildPitchQuery, buildRetrievalQuery } from '../answer-query';
 import type { JobBrief } from '../../playbooks/job-brief';
 
 function brief(overrides: Partial<JobBrief> = {}): JobBrief {
@@ -69,5 +69,48 @@ describe('buildRetrievalQuery', () => {
     });
 
     expect(buildRetrievalQuery('q', many).match(/Skill\d+/g)).toHaveLength(25);
+  });
+});
+
+describe('buildPitchQuery', () => {
+  /**
+   * A pitch has no question to embed — its field label is a UI string, and embedding it
+   * retrieves whichever section reads most like a form field. What it needs is "which of my
+   * sections make the best case for this job", so the query is the job itself.
+   */
+  it('retrieves on the job rather than on any question', () => {
+    const query = buildPitchQuery(brief({ description: 'Build robot mission planning tools.' }));
+
+    expect(query).toContain('Build robot mission planning tools.');
+    expect(query).toContain('Python');
+    expect(query).toContain('FastAPI');
+  });
+
+  // Same reason a question includes them: they are the likeliest to retrieve a gaps section.
+  it('includes the skills the profile does not claim', () => {
+    expect(buildPitchQuery(brief())).toContain('Payment APIs');
+  });
+
+  it('does not repeat a skill listed in both groups', () => {
+    expect(buildPitchQuery(brief())?.match(/Python/g)).toHaveLength(1);
+  });
+
+  // A long posting turns into boilerplate well before the end, and the tail drowns the subject.
+  it('takes only the opening of a long description', () => {
+    const query = buildPitchQuery(brief({ description: `${'a'.repeat(600)}NEEDLE` }));
+
+    expect(query).not.toContain('NEEDLE');
+  });
+
+  it('works from the skills alone when the posting gave no description', () => {
+    expect(buildPitchQuery(brief())).toContain('Python');
+  });
+
+  /**
+   * '' rather than a guess. `topChunks` already returns [] for an empty query vector, and
+   * `retrieveProfileContext` words that as a refusal rather than as an empty profile.
+   */
+  it('gives nothing when there is no brief to retrieve on', () => {
+    expect(buildPitchQuery(null)).toBe('');
   });
 });

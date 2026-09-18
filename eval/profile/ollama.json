@@ -1,0 +1,5 @@
+{
+  "baseUrl": "http://localhost:11434",
+  "model": "gemma4:12b",
+  "embedModel": "nomic-embed-text"
+}

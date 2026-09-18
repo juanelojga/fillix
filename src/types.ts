@@ -100,6 +100,8 @@ export type Message =
       question: string;
       job: string;
       evidence: string;
+      /** Who a 'pitch' is written about. Resolved in the panel, which holds the profile. */
+      applicantName?: string;
       model?: string;
     };
 

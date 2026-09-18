@@ -198,6 +198,94 @@ describe('draftAnswer', () => {
     expect(system).toContain('paragraphs');
   });
 
+  /**
+   * Toptal's box says "Write your third-person pitch here" and the checkbox beside it says the
+   * text goes to a recruiter who forwards it to the client. First person is the wrong voice on
+   * the one field where the voice is stated on screen.
+   */
+  it('writes the pitch in the third person, under the name it was given', async () => {
+    await draftAnswer(
+      CONFIG,
+      { ...INPUT, kind: 'pitch', applicantName: 'Juan Almeida' },
+      AbortSignal.timeout(1000),
+    );
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    expect(system).toContain('THIRD person');
+    expect(system).toContain('Juan Almeida');
+    expect(system).not.toContain('Write in the first person');
+  });
+
+  /**
+   * Said twice, and last. Later rules dominate earlier ones for small models, and of everything
+   * in this prompt the voice is both the least natural instruction to follow — every other
+   * prompt here asks for "I" — and the most obvious when it comes out wrong.
+   */
+  it('repeats the voice rule at the end, where a small model still reads it', async () => {
+    await draftAnswer(
+      CONFIG,
+      { ...INPUT, kind: 'pitch', applicantName: 'Juan Almeida' },
+      AbortSignal.timeout(1000),
+    );
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    const lines = system.split('\n');
+    expect(lines[lines.length - 1]).toMatch(/third person throughout/i);
+  });
+
+  // A guessed name in front of a recruiter is worse than a neutral one, so '' is an answer.
+  it('falls back to a neutral subject when the profile names nobody', async () => {
+    await draftAnswer(CONFIG, { ...INPUT, kind: 'pitch' }, AbortSignal.timeout(1000));
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    expect(system).toContain('The applicant');
+  });
+
+  /**
+   * The denial rule is first-person and question-shaped. "The applicant has no experience with
+   * this" is not something to write into a pitch box, and a third-person denial would not match
+   * the first-person NEGATION in states-no-experience.ts anyway. An empty answer is the one to
+   * ask for: it passes the grounding guard untouched and renders as "nothing for this one".
+   */
+  it('asks the pitch for an empty answer rather than a denial', async () => {
+    await draftAnswer(CONFIG, { ...INPUT, kind: 'pitch' }, AbortSignal.timeout(1000));
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    expect(system).toContain('empty "text"');
+    expect(system).not.toContain("I don't have experience with X");
+    expect(system).not.toContain('Never return an empty "text"');
+  });
+
+  // Splitting the voice rule out of SHARED_RULES must not have moved anything for questions.
+  it('leaves the question prompt in the first person, with its denial rule intact', async () => {
+    await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000));
+
+    const { system } = JSON.parse(fetchMock.mock.calls[0][1].body) as { system: string };
+    expect(system).toContain('Write in the first person');
+    expect(system).toContain("I don't have experience with X");
+    expect(system).toContain('Never return an empty "text"');
+    expect(system).not.toContain('THIRD person');
+  });
+
+  /**
+   * The pitch field's own label is a UI string ("Third-person pitch"), not an instruction. What
+   * the page actually asks for is encoded in the prompt, because that prose sits behind no
+   * data-testid and depending on unhooked prose is the failure this whole change exists to fix.
+   */
+  it('gives the pitch a brief instead of echoing its field label', async () => {
+    await draftAnswer(
+      CONFIG,
+      { ...INPUT, kind: 'pitch', question: 'Third-person pitch' },
+      AbortSignal.timeout(1000),
+    );
+
+    const { prompt } = JSON.parse(fetchMock.mock.calls[0][1].body) as { prompt: string };
+    expect(prompt).toContain('best candidate');
+    expect(prompt).not.toContain('Third-person pitch');
+    // Evidence still last: Ollama truncates an overflowing context from the start.
+    expect(prompt.indexOf('best candidate')).toBeLessThan(prompt.indexOf('Eight years.'));
+  });
+
   it('lets the grounding guard reach the caller as a failure', async () => {
     fetchMock.mockResolvedValue(reply({ text: 'I am a Square expert.', drew_on: [] }));
 

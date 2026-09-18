@@ -25,6 +25,59 @@ describe('EXTRACT_SYSTEM_PROMPT', () => {
 });
 
 describe('normalizeQuestionTimes', () => {
+  /**
+   * The worker normalises before it replies and the panel normalises again on arrival, so this
+   * function's own output is one of its real inputs. When it was not, every extracted time was
+   * discarded as unreadable — see the parseDate comment.
+   */
+  it('is idempotent — its own output normalises to itself', () => {
+    const wire = {
+      slots: [
+        {
+          source: 'Sep 21 5pm-6pm',
+          date: '2026-09-21',
+          start: '17:00',
+          end: '18:00',
+          zone: 'GMT+02:00',
+        },
+      ],
+      recurring: [
+        {
+          source: '9am-5pm Madrid',
+          start: '09:00',
+          end: '17:00',
+          zone: 'Europe/Madrid',
+          days: ['mon', 'tue'],
+        },
+      ],
+      unreadable: ['sometime next week'],
+    };
+    const once = normalizeQuestionTimes(wire);
+    const twice = normalizeQuestionTimes(JSON.parse(JSON.stringify(once)));
+    expect(twice).toEqual(once);
+    expect(twice.unreadable).toEqual(['sometime next week']);
+  });
+
+  it('still refuses a number that is not a valid minute-of-day', () => {
+    const out = normalizeQuestionTimes({
+      slots: [{ source: 'bad', date: { year: 2026, month: 9, day: 21 }, start: 1440, end: 60 }],
+      recurring: [],
+      unreadable: [],
+    });
+    expect(out.slots).toEqual([]);
+    expect(out.unreadable).toEqual(['bad']);
+  });
+
+  it('still refuses an impossible date object', () => {
+    const out = normalizeQuestionTimes({
+      slots: [{ source: 'feb30', date: { year: 2026, month: 2, day: 30 }, start: 60, end: 120 }],
+      recurring: [],
+      unreadable: [],
+    });
+    expect(out.slots).toEqual([]);
+    expect(out.unreadable).toEqual(['feb30']);
+  });
+
   it('reads a well-formed dated slot', () => {
     const times = normalizeQuestionTimes({
       slots: [

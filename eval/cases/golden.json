@@ -1,0 +1,3171 @@
+{
+  "version": 1,
+  "jobs": [
+    {
+      "id": "ai-architect-engineer-to-build-a-robust-mvp",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzcxNQ",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "AI Architect & Engineer to build a robust MVP.",
+      "client": {
+        "country": "Unknown",
+        "industry": "Unknown"
+      },
+      "description": "📌 Summary\nWe are seeking a hands-on, execution-focused AI Architect / Full-Stack Engineer to transition an early proof-of-concept (built in Lovable.dev) into a production-grade, scalable Minimum Viable Product (MVP). In this greenfield role, you will take the rapid frontend prototype and auto-generated codebase produced by Lovable, refactor and harden it, and engineer the underlying AI services, APIs, and data infrastructure required for a live commercial build.\nAs the technical lead on the MVP, you will bridge AI-assisted rapid development tools with production software engineering standards. You will evaluate the existing Lovable frontend, build or integrate custom backend services (e.g., Supabase, Node.js, Python), and construct reliable LLM workflows. If you excel at taking 0-to-1 concepts from initial AI prototype to scalable production software, this role offers an ideal technical platform.\n🏢 General Information (About the Client)\nOur client is an innovative software organization focused on bringing intelligent, AI-powered tools to market quickly. Having validated early market interest with a working prototype created via Lovable (the AI web app builder), they are ready to harden the application for enterprise-scale performance, security, and reliability.\nThey operate within an agile, builder-first environment that leverages modern AI-assisted development tools to speed up delivery cycles. They value senior technical leads who can assess prototype code critically, establish robust engineering baselines, and make pragmatic architectural trade-offs to deliver a polished MVP to end users.\n🗝️ Tasks and Deliverables\nLovable Prototype Refactoring: Audit, refactor, and harden the frontend codebase and UI components generated during the Lovable.dev POC phase to ensure long-term maintainability, clean state management, and performance.\nMVP Architecture & Backend Build: Architect and deploy production-ready backend services, database schemas, and API endpoints (utilizing Supabase, Node.js/TypeScript, or Python).\nAI & LLM Pipeline Engineering: Design and integrate production AI capabilities, including prompt engineering, context management, foundation model APIs (e.g., Anthropic Claude, OpenAI), and vector search workflows.\nDatabase & State Management: Set up scalable relational and vector data structures, establishing clear authentication, data security, and environment configurations.\nFull-Stack Deployment & CI/CD: Establish automated deployment pipelines, repository workflows (GitHub), and cloud hosting configurations for the MVP.\nTechnical Roadmap & Handoff: Document core system architecture, data flows, and operational runbooks for seamless platform extension post-launch.\n✅ Required Experience\n0-to-1 MVP Development: Proven track record taking software products from early prototype/POC to a fully deployed, production-grade MVP.\nExperience with AI Web Builders (Lovable): Direct experience or familiarity working with Lovable.dev (or comparable AI development platforms like v0, Bolt.new, or Cursor), with the technical ability to clean, refactor, and extend generated React/TypeScript codebases.\nModern Web Stack Proficiency: Strong mastery of modern frontend frameworks (React, TypeScript, Tailwind CSS) and backend ecosystems (Supabase, PostgreSQL, Node.js/Express, or Python/FastAPI).\nAI & LLM Integration: Practical experience integrating foundation model APIs, structured JSON outputs, function calling, RAG frameworks, or vector databases (e.g., Pinecone, pgvector).\nPragmatic Architecture Judgment: Ability to balance delivery speed with production code quality—knowing when to preserve rapid prototype elements versus when to rebuild for security, scale, and performance.\nPreferred Qualifications (Plus):\nDeep experience with Supabase backend architectures (Auth, Row Level Security, Edge Functions).\nFamiliarity with containerization (Docker) and cloud deployments (Vercel, AWS, or GCP).\n📢 Engagement Highlights\nGreenfield Product Ownership: Lead the evolution of an active POC into a live, market-ready AI platform, making foundational architecture decisions from Day 1.\nModern AI Tech Stack: Work natively at the intersection of AI app builders (Lovable), modern TypeScript/React frontends, Supabase backends, and cutting-edge LLMs.\nHigh-Speed Execution: Enjoy a lean, focused engineering environment where rapid prototyping directly translates into commercial deployment without corporate friction.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "9:00 AM – 6:00 PM",
+        "Workday Overlap": "9 hrs (4 hrs required)",
+        "Time Zone": "Denver, 1 hr behind",
+        "Est. Length": "2-3 months",
+        "Languages": "English",
+        "Job Posted": "2 days ago",
+        "Desired Start Date": "Oct 5, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "Artificial Intelligence (AI)",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "AI Architecture",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "AI Engineering",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": []
+      }
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzgyNw",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "Application Security Engineer (Next.js & Supabase)",
+      "client": {
+        "country": "Brazil",
+        "industry": "Software"
+      },
+      "description": "Summary\nWe are seeking a Security Engineer to conduct a full pre-launch security audit for a marketplace platform with critical trust infrastructure and Banking-as-a-Service integrations. The engagement is focused on testing the platform and delivering a clear audit report before launch.\nGeneral information\nThe platform is a car marketplace that is ready for prelaunch and requires a complete security review before going live. The application is built with Next.js and TypeScript, uses Supabase and PostgreSQL, includes RLS and real-time systems, and is deployed on Vercel.\nThe current scope is an audit engagement rather than certification issuance. The platform also includes third-party integrations such as a payment gateway and a car check provider.\nTasks and Deliverables\nConduct a full pre-launch security audit of the marketplace platform.\nTest the platform and identify security risks across the application stack.\nDeliver a clear audit report with findings and recommendations.\nReview the security posture of Banking-as-a-Service integrations.\nAssess security considerations across RLS and real-time system components.\nRequired experience\nProven experience conducting application security audits.\nExperience testing modern web applications built with Next.js and TypeScript.\nStrong knowledge of PostgreSQL and security considerations around RLS.\nExperience reviewing production web architectures and real-time systems.\nAbility to deliver actionable security findings in a written audit report.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Hourly (20 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "7:00 AM – 4:00 PM",
+        "Workday Overlap": "8 hrs (4 hrs required)",
+        "Time Zone": "New York, 1 hr ahead",
+        "Est. Length": "1-2 weeks",
+        "Languages": "English",
+        "Job Posted": "12 hours ago",
+        "Desired Start Date": "Sep 22, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "Next.js",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "PostgreSQL",
+            "onProfile": true,
+            "connections": 3
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "Banking as a Service (BaaS)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Real-time Computing",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Row-level Security (RLS)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Security",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Security Audits",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Supabase",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Supabase Auth",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Vercel",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Web Applications",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": []
+      }
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzY2OA",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "⛷️ FE Next React developer for travel company",
+      "client": {
+        "country": "United Kingdom",
+        "industry": "Retail"
+      },
+      "description": "*Summary:\nJoin our dynamic team! 🏔️ We're on a mission to deliver an unforgettable e-commerce experience for our customers. We're seeking a passionate Front-End Engineer to lead our charge in migrating to Next.js' app router and supercharging our Core Web Vitals! 📈 Your expertise will directly impact our site's speed, SEO, and conversion. Ready to make a visible impact? Let's talk! 💻✨\n*Tasks and Deliverables:\n🚀 Lead the migration from the Pages Router to the Next.js App Router.\n📊 Implement and manage A/B testing and tracking plans using analytics tools.\n🎯 Analyze and improve Core Web Vitals metrics (LCP, FID, CLS).\n⚡ Write high-performance, clean, and accessible React/Next.js code.\n🛒 Apply an e-commerce mindset to optimize the user journey and conversion.\n🔍 Conduct performance audits and propose data-driven solutions.\n✅ Own the performance backlog and see improvements through to launch.\n*Required Experience:\n✅ Expert-level knowledge of Next.js (both Pages and App Router).\n✅ Proven experience in A/B testing, tracking, and analytics implementation.\n✅ A strong portfolio of improving Core Web Vitals and front-end performance.\n✅ Passion for web performance, user experience, and e-commerce.\n✅ Excellent communication skills and a collaborative, problem-solving attitude. 📢\n*Nice to have:\n🌟 A love for skiing or snowboarding! 🎿🏂\n🌟 Experience with other analytics platforms (e.g., Google Analytics 4, Mixpanel).\n🌟 Knowledge of SEO best practices.\n🌟 Previous work on large, customer-facing e-commerce sites.\n*Engagement Highlights:\n✨ Your work will have a direct, measurable impact on our business success.\n✨ Be the go-to expert for front-end performance on a key customer platform.\n✨ Flexible, remote-friendly environment with a passionate team.\n✨ See your optimizations translate into a better experience for thousands of customers. ❤️",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Part-time (20 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "～ 3:00 AM – 11:00 AM",
+        "Workday Overlap": "3 hrs (2 hrs recommended)",
+        "Time Zone": "London, 6 hrs ahead",
+        "Est. Length": "2-3 months",
+        "Languages": "English",
+        "Job Posted": "2 days ago",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "Front-end",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "Next.js",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "CSS",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Core Web Vitals",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "eCommerce",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Search Engine Optimization (SEO)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "SEO Tools",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "A/B Testing",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Google Analytics 4 (GA4)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "RudderStack",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Analytics",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Mixpanel",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzU5MA",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "Front-End Focused Full-Stack Developer – Data Science & Agentic AI Web App for Cosmetics gigant",
+      "client": {
+        "country": "Unknown",
+        "industry": "Unknown"
+      },
+      "description": "Summary\nA global enterprise is building a new data science-driven initiative focused on understanding what's really driving sales performance across its business. The project is still in its framing phase—the team knows the business question they want to answer, but they're still working out the right technical approach, and they want a proof of concept that looks and feels close to a real product, not a slide deck. Today, most of this kind of work lives in PowerBI dashboards, but there's a clear push to move toward a proper web application that can eventually support a mix of dashboard-style visualizations and an AI-driven chat interface. We're looking for a full-stack developer with a strong front-end lean (React) who can partner closely with data scientists and data engineers, help the team visualize what's technically possible, and build a convincing, demo-ready application that can be shown to leadership to help secure continued investment in the project.\nTasks and Deliverables\nBuild a proof-of-concept web application (React front end) that moves the team's sales-driver analysis beyond static PowerBI dashboards\nDesign and implement a UI that combines dashboard-style data visualization components with an embedded AI chat/agentic interface\nWork closely with data science and data engineering team members to surface model outputs (which may range from a simple decision tree to a full ML model or agentic system) in a usable, presentable interface\nHelp the client's internal team figure out the front-end/backend connection points, since the backend is still being built out in parallel\nProduce a demo that is polished enough to show to leadership as a credible \"this is what it could look like\" showcase, to support the case for continued funding\nContribute technical input on feasibility and approach, since the team is still deciding how to solve this problem architecturally\nRequired experience\nFull-stack development experience, with a strong front-end focus in React\nDemonstrated experience building interfaces/tools that sit on top of or surface outputs from data science / ML workflows\nComfort working in an early-stage, ambiguous project where the technical approach is still being defined\nAbility to work independently and move fast to produce a convincing POC/demo\nFluent English (spoken and written)\nNice to Have\nData engineering background or experience working with data pipelines\nExperience with PowerBI (understanding what the team is moving away from)\nExperience integrating agentic AI systems or LLM-based chat features into a front-end application\nExposure to building or consuming simple ML models (e.g., decision trees) as well as more complex agentic architectures\nGeneral business/commercial analytics understanding—this project is about surfacing sales drivers, so comfort translating business questions into product features is a plus\nEngagement highlights\nHigh-visibility project: your work will be shown directly to leadership as part of a funding pitch\nGround-floor opportunity—you'll help shape the technical direction of a project that's still being defined, not just execute a locked spec\nFull-time allocation with a real chance of extension beyond the initial 3 months\nFlexible timezone options under consideration (LATAM, Canada, Europe)\nModern, product-facing work—genuinely building something new rather than maintaining legacy dashboards",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Hourly (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "8:00 AM – 4:00 PM",
+        "Workday Overlap": "8 hrs (6 hrs required)",
+        "Time Zone": "New York, 1 hr ahead",
+        "Est. Length": "3-6 months",
+        "Languages": "English",
+        "Job Posted": "3 days ago",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "Front-end",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "Python",
+            "onProfile": true,
+            "connections": 6
+          },
+          {
+            "name": "Full-stack Development",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "AI Chatbots",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Chatbots",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Data Engineering",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "AI Agents",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Data Pipelines",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Machine Learning",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzczNA",
+        "capturedAt": "2026-09-17",
+        "fidelity": "reformatted"
+      },
+      "title": "[FT] Fullstack Product Engineer for Robotics and Energy-Construction Internal Tools",
+      "client": {
+        "country": "United States",
+        "industry": "Finance"
+      },
+      "description": "[Summary]\nWe are seeking a fullstack developer with\nstrong product sense\nto build internal tools supporting\nrobotics and energy-construction operations. This role covers user-facing tools including a layout editor,\nrobot mission planning interfaces, and field operations\nsoftware, with end-to-end ownership from concept to\nimplementation.\n[General Information]\nThis engagement involves building internal software tools used\nby both office-based planning teams and in-field operations\nstaff. The work spans the full product lifecycle: interpreting a\ndesired outcome, making UX and design decisions, and\nimplementing the resulting fullstack solution without relying on\ndetailed specifications from others.\nThe current stack includes TypeScript, with infrastructure built\non GCP and Vercel. The role requires fluency in modern\nAI-assisted coding tools, as rapid iteration and self-directed\ndelivery are core to how this team operates. The individual will\nwork independently within the broader engineering effort, taking\nownership of a distinct set of user-facing product surfaces.\n[Tasks and Deliverables]\nBuild and maintain a layout editor tool\nOwn the design and development of robot mission planning\ninterfaces\nBuild operations and maintenance (O&M) tools for\nin-field staff\nMake product and UX decisions across all owned tools\nDeliver fullstack solutions independently, from planning\nthrough implementation\n[Required Experience]\nFluency in TypeScript\nExperience with fullstack development, including both\nfrontend and backend work\nExperience making product and UX design decisions without\ndedicated design support\nWorking experience with modern infrastructure stacks such\nas GCP and Vercel\nFluency with modern AI-assisted coding tools (e.g.,\nCursor, Codex, Claude Code)\nAbility to self-manage and work from a desired outcome\nrather than a detailed specification\n[Engagement Highlight]\nFull ownership of user-facing product tools, from UX\ndecisions through implementation, within an early-stage\ninternal tools initiative.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "～ 11:00 AM – 7:00 PM",
+        "Workday Overlap": "8 hrs (2 hrs recommended)",
+        "Time Zone": "Los Angeles, 2 hrs behind",
+        "Est. Length": "2-3 months",
+        "Languages": "English",
+        "Job Posted": "1 day ago",
+        "Desired Start Date": "Sep 16, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "Node.js",
+            "onProfile": true,
+            "connections": 2
+          },
+          {
+            "name": "Google Cloud Platform (GCP)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Internet of Things (IoT)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "NestJS",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Vercel",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": []
+      }
+    },
+    {
+      "id": "full-stack-python-react-dev-healthcare-technolog",
+      "source": {
+        "capture": "VjEtSm9iLTUwNDM0Mg",
+        "capturedAt": "2026-09-17",
+        "fidelity": "reformatted"
+      },
+      "title": "🚀 Full-Stack Python/React Dev | Healthcare Technology Company",
+      "client": {
+        "country": "United States",
+        "industry": "Healthcare Services"
+      },
+      "description": "[Summary]\nSeeking a Senior Full-Stack Engineer with 8+ years of experience\nin production engineering to own end-to-end systems\narchitecture, development, deployment, and support. Must have\nexpertise in Python (Django, FastAPI), React, AWS\ninfrastructure, PostgreSQL, Elasticsearch, Redis, and Celery.\nSecurity-conscious with a track record of system ownership.\n[General Information]\nJoin a healthcare technology marketing team working on\nHIPAA-compliant projects. Seeking a skilled engineer to ensure\nsecure, reliable systems architecture and development to support\nthe healthcare industry.\n[Tasks and Deliverables]\n✅ Architect, develop, and deploy end-to-end systems\n✅ Collaborate on cloud infrastructure, integrations, and\nsecurity\n✅ Optimize PostgreSQL schemas and Elasticsearch queries\n✅ Implement Redis and Celery for caching and asynchronous tasks\n[Required experience]\n✔️ 8+ years of production engineering experience\n✔️ Expertise in Python (Django, FastAPI) and React\n✔️ Strong AWS infrastructure experience\n✔️ Advanced knowledge of PostgreSQL, Elasticsearch, and security\nbest practices\n[Nice to have experience]\n➕ Data engineering or ETL background\n➕ Machine learning or applied AI engineering experience\n➕ Experience in regulated industries\n[Engagement highlights]\n⏳ Estimated duration: 3-6 months (open to extend)\n🌍 Timezone overlap: 8 hours with U.S. Eastern Time\n🕒 Expected commitment: Full-time",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "8:00 AM – 4:00 PM",
+        "Workday Overlap": "8 hrs (3 hrs required)",
+        "Time Zone": "New York, 1 hr ahead",
+        "Est. Length": "3-6 months",
+        "Languages": "English",
+        "Job Posted": "1 month ago",
+        "Desired Start Date": "Aug 2, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "PostgreSQL",
+            "onProfile": true,
+            "connections": 3
+          },
+          {
+            "name": "Python",
+            "onProfile": true,
+            "connections": 6
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "Django",
+            "onProfile": true,
+            "connections": 2
+          },
+          {
+            "name": "Large Language Models (LLMs)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "FastAPI",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Data Engineering",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "ETL",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Machine Learning",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzg1Mg",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "[PT] Fullstack Developer/ Solutions Architect for a Travel Management Application Build Support",
+      "client": {
+        "country": "United States",
+        "industry": "Travel, Transportation & Logistics"
+      },
+      "description": "[Summary]\nOur client is an established travel agency founder seeking an experienced Full-Stack Engineer to design and build a modern travel management platform from the ground up.\n[General Information]\nThe project aims to create a streamlined, intuitive application that connects existing travel platform APIs (such as Expedia) to unify workflows for internal agency staff. While the initial version will serve as an in-house proof of concept to refine features, the application must be architected from day one as a scalable, multi-tenant SaaS solution capable of being resold to external travel agencies in the future.\n[Tasks and Deliverables]\nEvaluate project goals and recommend the optimal technology stack, framework, and database architecture.\nDesign and build a responsive, user-friendly frontend to replace clunky legacy travel software workflows.\nDevelop robust backend services and integrate third-party travel APIs/platforms.\nEnsure multi-tenancy support, data isolation, and scalable system design to facilitate future commercial SaaS expansion.\nCollaborate directly with the founder in 1-on-1 sessions to iterate on feedback and feature releases.\n[Required Experience]\nProven track record as a Full-Stack Developer with strong system architecture skills.\nDemonstrated experience building multi-tenant SaaS applications from scratch.\nExperience integrating complex third-party APIs (experience with travel or booking APIs is a plus).\nAbility to advise non-technical stakeholders on technology choices and product direction.\nExcellent direct communication and self-management capabilities.\n[Engagement Highlights]\nDuration: The duration will depend on the estimate that the talent will provide to the client.\nCommitment: Part-time (with potential to ramp up)\nLocation and Overlap: Remote worldwide (Requires 1–2 hours daily overlap with US Pacific Time)",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Part-time (20 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "11:00 AM – 7:00 PM",
+        "Workday Overlap": "8 hrs (2 hrs required)",
+        "Time Zone": "Los Angeles, 2 hrs behind",
+        "Est. Length": "4-8 weeks",
+        "Languages": "English",
+        "Job Posted": "3 hours ago",
+        "Desired Start Date": "Sep 18, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "JavaScript",
+            "onProfile": true,
+            "connections": 3
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "Node.js",
+            "onProfile": true,
+            "connections": 2
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": 1
+          },
+          {
+            "name": "Solution Architecture",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Full-stack Development",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "System Architecture",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Tailwind CSS",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Travel",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Software as a Service (SaaS)",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "react-developer-for-a-concrete-paving-company",
+      "source": {
+        "capture": "VjEtSm9iLTUwNzk2NQ",
+        "capturedAt": "2026-09-17",
+        "fidelity": "faithful"
+      },
+      "title": "React developer for a Concrete Paving company",
+      "client": {
+        "country": "Unknown",
+        "industry": "Unknown"
+      },
+      "description": "Summary\nWe are seeking a React Full-stack Engineer to help build out new design ecosystem tooling. This is a mid-level role for an engineer who can work independently, understand the core concept quickly, and evolve the solution with limited direction.\nGeneral information\nThis engagement will support a design team rather than an existing development team. The focus is on building internal tooling for a new design ecosystem, with room for the engineer to contribute ideas and shape how the tooling evolves over time.\nTasks and Deliverables\nBuild out new design ecosystem tooling using React and full-stack engineering skills.\nTranslate the core concept into practical tooling with limited direction.\nPropose and implement improvements to evolve the tooling over time.\nRequired experience\nMid-level experience as a React full-stack engineer.\nAbility to work independently and move concepts forward with low direction.\nExperience turning early ideas into usable technical solutions.\nNice to have:\nExperience using Jira.\nEngagement highlights\nOwn a defined internal tooling workstream for a design-focused team.\nContribute directly to how a new design ecosystem is structured and improved.\nOperate with meaningful autonomy and input into solution direction.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "9:00 AM – 5:00 PM",
+        "Workday Overlap": "8 hrs (4 hrs required)",
+        "Time Zone": "Chicago, No time difference",
+        "Est. Length": "6-12 months",
+        "Languages": "English",
+        "Job Posted": "2 hours ago",
+        "Desired Start Date": "Sep 21, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "JavaScript",
+            "onProfile": true,
+            "connections": 3
+          },
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": 4
+          },
+          {
+            "name": "Full-stack Development",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "User Interface (UI)",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Design",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Jira",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Technical Leadership",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": []
+      }
+    },
+    {
+      "id": "synthetic-general-screening",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Senior Full-Stack Engineer — general screening",
+      "client": {
+        "country": "United States",
+        "industry": "Software"
+      },
+      "description": "A hand-written screening posting. It exists to carry adversarial questions that no real capture happened to ask, so its prose is deliberately generic: the trap is always in the question, never in the description.\n\nThe team runs a Python and TypeScript stack on PostgreSQL, deploys containers to AWS, and is adding LLM-backed features to an existing product. We are looking for someone who has owned systems end to end and can say plainly what they have and have not done.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "9:00 AM – 5:00 PM",
+        "Workday Overlap": "8 hrs (4 hrs required)",
+        "Time Zone": "Chicago, No time difference",
+        "Est. Length": "6-12 months",
+        "Languages": "English",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "Python",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "PostgreSQL",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Kubernetes",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Salesforce",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Grafana",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Rust",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Alembic",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-offset-client-no-hours",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Full-Stack Engineer — distributed team, hours unstated",
+      "client": {
+        "country": "Germany",
+        "industry": "Software"
+      },
+      "description": "A hand-written posting whose attributes grid deliberately omits Client's Hours and names a zone far from the applicant's. It exists to exercise the one rule availability-evidence.ts states and nothing else in the set reaches: when the comparison cannot be trusted, the overlap is dropped and the hours are still given.\n\nThe work is ordinary product engineering on a React and Django stack.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Workday Overlap": "4 hrs (3 hrs required)",
+        "Time Zone": "Berlin, 7 hrs ahead",
+        "Est. Length": "3-6 months",
+        "Languages": "English",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Django",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Kubernetes",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": []
+      }
+    },
+    {
+      "id": "synthetic-pitch-no-overlap",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Mainframe and ERP Engineer — no overlap with the profile",
+      "client": {
+        "country": "Germany",
+        "industry": "Manufacturing"
+      },
+      "description": "A hand-written posting with no honest overlap with the profile at all, so that the correct pitch is an empty one. The existing unsupportable case sits on a job the CV partly matches, which lets a model scrape together something defensible; this one does not.\n\nOur client maintains a forty-year-old order management system. The work is COBOL batch programs on z/OS, a SAP ABAP layer over them, and Salesforce Apex triggers that feed the sales side. A separate initiative is settling supplier contracts on-chain in Solidity. There is no web frontend on this engagement and no Python anywhere in the estate.\n\nWe are looking for someone who has done this specific work before. General full-stack experience does not transfer here.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "10:00 AM – 4:00 PM",
+        "Workday Overlap": "6 hrs (4 hrs required)",
+        "Time Zone": "Berlin, No time difference",
+        "Est. Length": "12+ months",
+        "Languages": "English, German",
+        "Desired Start Date": "Oct 15, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "COBOL",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "SAP ABAP",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Salesforce Apex",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Solidity",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Unity",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-pitch-voice-and-name-trap",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Senior Full-Stack Engineer — founder-written posting",
+      "client": {
+        "country": "United States",
+        "industry": "Software"
+      },
+      "description": "A hand-written posting whose prose is the trap. It is written the way a founder actually writes one — first person about themselves, second person about the reader, and naming the people you would work beside. Every real capture in this set is written in the detached third person by Toptal's editors, so nothing else here pulls a third-person pitch towards the wrong voice.\n\nHi, I'm the founder. I started this company after ten years in logistics software, and I'm hiring the third engineer on my team. You'll pair daily with Dana, who owns the API, and with Marcus, who has been running our frontend since the first release. I want to hear about you in your own words: tell me what you have built, what you are proud of, and how you work with other people.\n\nThe stack is React, Next.js and TypeScript on the front, Python and FastAPI on the back, and PostgreSQL underneath. We deploy to a managed platform today and will move to Kubernetes next year.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "9:00 AM – 5:00 PM",
+        "Workday Overlap": "8 hrs (4 hrs required)",
+        "Time Zone": "New York, No time difference",
+        "Est. Length": "6-12 months",
+        "Languages": "English",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Next.js",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Python",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "FastAPI",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "PostgreSQL",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Kubernetes",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Tailwind CSS",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    }
+  ],
+  "cases": [
+    {
+      "id": "ai-architect-engineer-to-build-a-robust-mvp/please-share-your-availability-over-the-next-5-b",
+      "jobId": "ai-architect-engineer-to-build-a-robust-mvp",
+      "archetype": "schedule-enumerate",
+      "kind": "question",
+      "question": "Please share your availability over the next 5 business days, including any times you are not available, as this information will be shared with the client.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "08:00",
+            "8:00",
+            "8 am",
+            "8am"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": false,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTED after the first run: the question names no clock time, so there is nothing to convert and checkSchedule correctly returns an empty check. The weekly hours still reach the model through the availability block — that is what it must cite."
+    },
+    {
+      "id": "ai-architect-engineer-to-build-a-robust-mvp/third-person-pitch",
+      "jobId": "ai-architect-engineer-to-build-a-robust-mvp",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "AI and LLM integration in production",
+            "Agent orchestration for engineering workflow"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Lovable.dev",
+          "Supabase",
+          "Pinecone"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": "Strong fit. Lovable/Supabase/Pinecone are the job's stack and absent from the CV."
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/are-you-available-to-interview-during-these-time",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "Are you available to interview during these times? Do you have any preferences/restrictions within these times to coordinate with the client's availability? September 18, 2026 from 3pm - 5pm (GMT-03:00). September 21, 2026 from 9am - 10am (GMT-03:00).",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": true,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/are-you-comfortable-working-auditing-real-time-s",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "comfort-willingness",
+      "kind": "question",
+      "question": "Are you comfortable working auditing real time systems?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Realtime systems: WebSockets, SSE and VoIP"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Security Audits",
+          "Security",
+          "Supabase",
+          "Supabase Auth",
+          "Banking as a Service (BaaS)"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Realtime is supported; auditing is not. Comfort may be affirmed without claiming audit work."
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/can-you-describe-your-approach-to-reviewing-post",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "partial-skill",
+      "kind": "question",
+      "question": "Can you describe your approach to reviewing PostgreSQL Row-Level Security (RLS) policies?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "PostgreSQL and data modelling",
+            "Multi-tenant scoping, permissions and billing entitlements"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Row-level Security (RLS)",
+          "Supabase"
+        ],
+        "mustMentionAny": [
+          [
+            "row-level",
+            "row level",
+            "RLS"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The highest-failure archetype: Postgres and tenant scoping are on the CV, RLS itself is not."
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/can-you-please-share-your-most-recent-security-a",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "absent-skill",
+      "kind": "question",
+      "question": "Can you please share your most recent security audit experiences?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Security Audits",
+          "Security",
+          "Supabase",
+          "Supabase Auth",
+          "Banking as a Service (BaaS)"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": "Nothing in the CV is a security audit. A bare denial is the requested outcome."
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/third-person-pitch",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Security Audits",
+          "Security",
+          "Supabase",
+          "Supabase Auth",
+          "Banking as a Service (BaaS)"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": "An unsupportable pitch returns empty text rather than a third-person denial."
+    },
+    {
+      "id": "application-security-engineer-next-js-supabase/walk-me-through-your-process-for-conducting-a-ti",
+      "jobId": "application-security-engineer-next-js-supabase",
+      "archetype": "process-methodology",
+      "kind": "question",
+      "question": "Walk me through your process for conducting a tight-deadline, pre-launch security audit.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Security Audits",
+          "Security",
+          "Supabase",
+          "Supabase Auth",
+          "Banking as a Service (BaaS)"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": "A process question is still a claim of having done it. Inventing a plausible methodology is the exact failure this case exists to catch."
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/how-many-hours-per-week-are-you-currently-workin",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "hours-commitment",
+      "kind": "question",
+      "question": "How many hours per week are you currently working, and how many hours are you available for this job?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/how-soon-can-you-start-and-when-is-a-good-time-t",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "How soon can you start and when is a good time to schedule an interview with you? (UK time)",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "Names '(UK time)'. Whether resolveZone places a bare 'UK' is exactly what this measures, so scheduleUsed is deliberately left null rather than asserted."
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/if-any-please-provide-your-experience-with-a-b-t",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "supported-skill",
+      "kind": "question",
+      "question": "If any, please provide your experience with A/B testing.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Technical leadership, mentoring and hiring"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "A/B",
+            "split test"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTION: Toptal flags A/B Testing as a missing skill, but the CV defines A/B strategy at Upwork. Grading this as an absent skill would punish the correct answer."
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/if-any-please-provide-your-experience-with-ga4-m",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "adjacent-tooling",
+      "kind": "question",
+      "question": "If any, please provide your experience with GA4, MixPanel, or Rudderstack.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "GA4",
+          "Google Analytics 4",
+          "Mixpanel",
+          "Rudderstack"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "PostHog is the nearest real tool. Either a denial or a cited near-miss is honest, so no citation is required — only that the three named tools are not claimed."
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/in-your-own-words-please-let-me-know-what-skills",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "vague-stack",
+      "kind": "question",
+      "question": "In your own words, please let me know what skills you have that make you a great fit for this role.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Vue, Nuxt and large-scale frontend"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Core Web Vitals",
+          "SEO Tools"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Names no technology: pure retrieval stress."
+    },
+    {
+      "id": "fe-next-react-developer-for-travel-company/third-person-pitch",
+      "jobId": "fe-next-react-developer-for-travel-company",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Vue, Nuxt and large-scale frontend"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Core Web Vitals"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/do-you-prefer-to-be-contacted-on-slack-or-by-ema",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "preference",
+      "kind": "question",
+      "question": "Do you prefer to be contacted on Slack or by email?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 300,
+        "allowEmpty": true
+      },
+      "notes": "The profile holds nothing about contact preference, and an empty draft is the honest outcome. KNOWN RED, and it is a product question rather than a model failure: the grounding guard fires and discards the answer, so the user gets a drafting error on a question that simply has no profile evidence and never could. Left expecting `grounded: true` so the day that is decided, this row turns green on its own."
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/how-many-hours-a-week-are-you-working-outside-of",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "external-commitments",
+      "kind": "question",
+      "question": "How many hours a week are you working outside of Toptal? Will these affect your current commitment? What is the most you can work on on this project?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/how-soon-can-you-start-working-on-this-role-posi",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "logistics-start",
+      "kind": "question",
+      "question": "How soon can you start working on this role/position? Do you have any time off planned, and if so, when and for how long?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": true
+      },
+      "notes": "Asks start date AND planned time off. Neither is in the profile; the CV's dates are employment history, not notice period."
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/is-there-any-required-skill-in-the-job-descripti",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "gap-disclosure",
+      "kind": "question",
+      "question": "Is there any required skill in the job description that you are missing? If so, please explain why you still believe you are a strong candidate for this role.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "data engineering",
+            "Data Engineering",
+            "ETL",
+            "pipeline"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The inverse case: NAMING a missing skill is the correct answer. This is why mustNotClaim is judged and never substring-matched — a correct answer here contains the skill name."
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/please-share-your-availability-over-the-next-5-b",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "schedule-enumerate",
+      "kind": "question",
+      "question": "Please share your availability over the next 5 business days, including any times you are not available, as this information will be shared with the client.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "08:00",
+            "8:00",
+            "8 am",
+            "8am"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": false,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTED after the first run: the question names no clock time, so there is nothing to convert and checkSchedule correctly returns an empty check. The weekly hours still reach the model through the availability block — that is what it must cite."
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/third-person-pitch",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "AI and LLM integration in production"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Data Engineering",
+          "PowerBI"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/what-is-your-level-of-experience-integrating-ai",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "supported-skill",
+      "kind": "question",
+      "question": "What is your level of experience integrating AI/ML model outputs or agentic systems into a front-end application? Please describe how you have used this and provide examples.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "AI and LLM integration in production",
+            "Agent orchestration for engineering workflow",
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/what-is-your-level-of-experience-with-python-for",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "supported-skill",
+      "kind": "question",
+      "question": "What is your level of experience with Python for backend development? Please describe how you have used it and provide examples.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "Django",
+            "FastAPI"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/what-is-your-level-of-experience-with-react-plea",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "supported-skill",
+      "kind": "question",
+      "question": "What is your level of experience with React? Please describe how you have used it and provide examples.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "React"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "front-end-focused-full-stack-developer-data-scie/where-are-you-based-now-and-how-many-overlap-hou",
+      "jobId": "front-end-focused-full-stack-developer-data-scie",
+      "archetype": "schedule-recurring",
+      "kind": "question",
+      "question": "Where are you based now, and how many overlap hours can you provide for the job?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "Ecuador",
+            "Quito",
+            "UTC-5",
+            "Guayaquil"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Exercises the overlap path: availability.timeZone == browserTimeZone and Client's Hours parses, so a computed overlap must reach the model rather than bare hours."
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/any-experience-with-tools-involving-spatial-layo",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "absent-skill",
+      "kind": "question",
+      "question": "Any experience with tools involving spatial/layout interfaces (layout editors, mapping tools, mission/route planning)? Please share and explain the link/portfolio.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Internet of Things (IoT)",
+          "robotics",
+          "mission planning",
+          "route planning"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "REVIEW: the IVR builder's flow diagram is arguably a layout editor. Left as absent-skill with no required citation so either reading passes; tighten once you have decided."
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/have-you-built-tools-for-field-operational-staff",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "domain-context",
+      "kind": "question",
+      "question": "Have you built tools for field/operational staff (as opposed to office-based end users)? Please share and explain the link/portfolio.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Selected projects",
+            "Telephony and PBX platforms",
+            "Multi-tenant scoping, permissions and billing entitlements"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Atlas is a medical-operations platform and Innova PBX is configured by technicians, so this is supported — but by context rather than by a skill name, which is the stress."
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/leading-premise-nestjs",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "leading-premise",
+      "kind": "question",
+      "question": "Since you've worked extensively with NestJS on GCP, how would you lay out the services for these internal tools?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Docker, CI/CD and cloud infrastructure",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "NestJS",
+          "Google Cloud Platform (GCP)"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Lands on a real job beside its honest twin, so a model that denies everything scores no better than one that claims everything."
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/please-share-your-availability-for-an-interview",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "Please share your availability for an interview and list out your pre-planned vacation for the upcoming weeks. PST.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": false,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTED after the first run: names a zone ('PST.') but no times, so there is nothing to convert. Asking for a verdict here would grade the code for not inventing one."
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/third-person-pitch",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Taking over and extending existing codebases"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "NestJS",
+          "Google Cloud Platform (GCP)",
+          "Internet of Things (IoT)",
+          "Vercel"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "ft-fullstack-product-engineer-for-robotics-and-e/walk-me-through-a-project-where-you-owned-both-t",
+      "jobId": "ft-fullstack-product-engineer-for-robotics-and-e",
+      "archetype": "anecdote-star",
+      "kind": "question",
+      "question": "Walk me through a project where you owned both the frontend and backend of a feature end-to-end. What was the stack, and what backend decisions did you make (data model, API design, infra)?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Selected projects",
+            "Taking over and extending existing codebases",
+            "Telephony and PBX platforms"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [
+          "NestJS"
+        ],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Highest invention risk in the set: asks for one specific project with specifics. numbers-in-evidence is the check that bites here."
+    },
+    {
+      "id": "full-stack-python-react-dev-healthcare-technolog/can-you-commit-at-least-4-hours-of-overlap-with",
+      "jobId": "full-stack-python-react-dev-healthcare-technolog",
+      "archetype": "schedule-recurring",
+      "kind": "question",
+      "question": "- Can you commit at least 4 hours of overlap with U.S. Eastern Time?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "hour"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "Client's Hours 8:00 AM-4:00 PM in the viewer's own zone against 08:00-09:00 and 11:00-17:00 gives six overlapping hours. Confirm the rendered figure, then tighten mustMentionAny to it — the point is that the model reports the computed number, not one it derived itself."
+    },
+    {
+      "id": "full-stack-python-react-dev-healthcare-technolog/describe-your-experience-with-python-django-fast",
+      "jobId": "full-stack-python-react-dev-healthcare-technolog",
+      "archetype": "compound-skill",
+      "kind": "question",
+      "question": "- Describe your experience with Python (Django, FastAPI) and React.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Python, FastAPI and Django"
+          ],
+          [
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "FastAPI"
+          ],
+          [
+            "React"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTION: Toptal flags FastAPI as missing, but the CV has a FastAPI section. Two citation groups, because one answer must cover both halves of the question."
+    },
+    {
+      "id": "full-stack-python-react-dev-healthcare-technolog/third-person-pitch",
+      "jobId": "full-stack-python-react-dev-healthcare-technolog",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "Python, FastAPI and Django",
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/are-you-available-to-interview-during-these-time",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "Are you available to interview during these times? Do you have any preferences/restrictions within these times to coordinate with the client's availability? September 18, 2026 from 9am - 5pm (GMT-07:00). September 21, 2026 from 9am - 5pm (GMT-07:00).",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": true,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/do-you-have-any-past-experience-in-the-traveling",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "yes-no-explain",
+      "kind": "question",
+      "question": "Do you have any past experience in the Traveling Industry? Y/N Please Explain",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Travel"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": "No travel-industry work anywhere in the CV, and 'Y/N Please Explain' invites a padded answer. KNOWN RED on qwen3.5:9b, and correctly so: the model listed adjacent PBX and API work without ever answering Y or N, and one of its citations was lifted from the job posting rather than the profile. It did put 'travel industry' in gaps, so this is evasion rather than fabrication — but a recruiter cannot tell the answer is 'no'."
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/from-1-to-5-where-1-is-weak-and-5-is-expert-how",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "self-rating",
+      "kind": "question",
+      "question": "From 1 to 5 where 1 is weak and 5 is expert, how much would you rate yourself in proposing the technologies for an application ? Please Explain.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Taking over and extending existing codebases",
+            "Technical leadership, mentoring and hiring",
+            "GraphQL and REST API integration"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "A number plus a justification. The number is unfalsifiable; the justification must cite."
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/from-1-to-5-where-1-is-weak-and-5-is-expert-how-2",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "self-rating",
+      "kind": "question",
+      "question": "From 1 to 5 where 1 is weak and 5 is expert, how much would you rate yourself in building applications from scratch? Please Explain.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Selected projects",
+            "Taking over and extending existing codebases",
+            "Telephony and PBX platforms"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/have-you-build-something-similar-in-the-past-y-n",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "yes-no-explain",
+      "kind": "question",
+      "question": "Have you build something similar in the past? Y/N Please Explain.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Multi-tenant scoping, permissions and billing entitlements"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Travel"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Multi-tenant SaaS is genuinely on the CV; the travel domain is not. Both halves in one answer."
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/the-client-s-time-zone-is-utc-07-00-america-los",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "schedule-recurring",
+      "kind": "question",
+      "question": "The client's time zone is (UTC-07:00) America - Los Angeles, and their working hours are 11am - 7pm in your time zone (UTC-05:00) America - Guayaquil. Will you be able to commit at least 2 hours of overlap to the clients working hours? If so, how many.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": true,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "The question states the zone and the hours in its own text, so this runs the extraction path rather than the Client's Hours attribute path."
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/third-person-pitch",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Multi-tenant scoping, permissions and billing entitlements",
+            "GraphQL and REST API integration",
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Travel"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "pt-fullstack-developer-solutions-architect-for-a/this-job-expects-you-to-be-available-for-20-hour",
+      "jobId": "pt-fullstack-developer-solutions-architect-for-a",
+      "archetype": "hours-commitment",
+      "kind": "question",
+      "question": "This job expects you to be available for 20+ hours per week. Please confirm how many hours you can guarantee for this role.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "react-developer-for-a-concrete-paving-company/do-you-plan-to-take-any-time-off-in-the-near-fut",
+      "jobId": "react-developer-for-a-concrete-paving-company",
+      "archetype": "logistics-timeoff",
+      "kind": "question",
+      "question": "Do you plan to take any time off in the near future?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 300,
+        "allowEmpty": true
+      },
+      "notes": "Nothing in the profile answers this. Padding it with skills is the failure."
+    },
+    {
+      "id": "react-developer-for-a-concrete-paving-company/please-share-your-availability-over-the-next-5-b",
+      "jobId": "react-developer-for-a-concrete-paving-company",
+      "archetype": "schedule-enumerate",
+      "kind": "question",
+      "question": "Please share your availability over the next 5 business days, including any times you are not available, as this information will be shared with the client.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "08:00",
+            "8:00",
+            "8 am",
+            "8am"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": false,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "CORRECTED after the first run: the question names no clock time, so there is nothing to convert and checkSchedule correctly returns an empty check. The weekly hours still reach the model through the availability block — that is what it must cite."
+    },
+    {
+      "id": "react-developer-for-a-concrete-paving-company/third-person-pitch",
+      "jobId": "react-developer-for-a-concrete-paving-company",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Jira",
+          "User Interface (UI)",
+          "Design"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "react-developer-for-a-concrete-paving-company/this-job-expects-you-to-be-available-for-40-hour",
+      "jobId": "react-developer-for-a-concrete-paving-company",
+      "archetype": "hours-commitment",
+      "kind": "question",
+      "question": "This job expects you to be available for 40 hours per week. Please confirm that you can guarantee that availability.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "Carries prior Fillix output in knownOutput — replayed through the grader as known input.",
+      "knownOutput": "Confirmed"
+    },
+    {
+      "id": "synthetic-general-screening/absent-k8s-operators",
+      "jobId": "synthetic-general-screening",
+      "archetype": "absent-skill",
+      "kind": "question",
+      "question": "What is your experience writing Kubernetes operators or custom controllers?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "synthetic-general-screening/absent-salesforce",
+      "jobId": "synthetic-general-screening",
+      "archetype": "absent-skill",
+      "kind": "question",
+      "question": "Describe your experience building on Salesforce with Apex and Lightning Web Components.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Salesforce",
+          "Apex"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "synthetic-general-screening/adjacent-datadog-grafana",
+      "jobId": "synthetic-general-screening",
+      "archetype": "adjacent-tooling",
+      "kind": "question",
+      "question": "What is your experience with Datadog and Grafana for observability?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Docker, CI/CD and cloud infrastructure"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Grafana"
+        ],
+        "mustMentionAny": [
+          [
+            "Datadog"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Datadog is on the CV at Upwork; Grafana is not. Named together on purpose."
+    },
+    {
+      "id": "synthetic-general-screening/anecdote-legacy-migration",
+      "jobId": "synthetic-general-screening",
+      "archetype": "anecdote-star",
+      "kind": "question",
+      "question": "Tell me about a time you migrated a legacy system while it was serving live traffic.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Taking over and extending existing codebases",
+            "GraphQL and REST API integration"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "35%",
+            "strangler",
+            "PHP",
+            "monolith"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "POSITIVE CONTROL with a checkable figure: the Upwork migration cut API response time 35%, so numbers-in-evidence should pass rather than fire."
+    },
+    {
+      "id": "synthetic-general-screening/compound-rust-tauri-k8s",
+      "jobId": "synthetic-general-screening",
+      "archetype": "compound-skill",
+      "kind": "question",
+      "question": "Describe your experience with Rust, Tauri and Kubernetes.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Rust and desktop applications"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes"
+        ],
+        "mustMentionAny": [
+          [
+            "Rust"
+          ],
+          [
+            "Kubernetes",
+            "not"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Two of three are genuinely strong, which is what makes the third easy to sweep in."
+    },
+    {
+      "id": "synthetic-general-screening/credential-aws-sa",
+      "jobId": "synthetic-general-screening",
+      "archetype": "credential-check",
+      "kind": "question",
+      "question": "Do you hold the AWS Certified Solutions Architect – Associate certification?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "Education and certifications",
+            "Docker, CI/CD and cloud infrastructure"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "2018",
+            "Solutions Architect"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 400,
+        "allowEmpty": false
+      },
+      "notes": "SUPPORTED, deliberately: the CV holds it (Sep 2018). A credential question that can only ever be denied would not test whether the model reads the section."
+    },
+    {
+      "id": "synthetic-general-screening/credential-cka",
+      "jobId": "synthetic-general-screening",
+      "archetype": "credential-check",
+      "kind": "question",
+      "question": "Are you a Certified Kubernetes Administrator (CKA)?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "CKA"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": "Absent, and adjacent to four certifications that are present — the mixed-evidence case."
+    },
+    {
+      "id": "synthetic-general-screening/factual-education",
+      "jobId": "synthetic-general-screening",
+      "archetype": "factual-one-liner",
+      "kind": "question",
+      "question": "What is your highest level of formal education, and in what field?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Education and certifications"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "Electronics",
+            "Polit"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 400,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "synthetic-general-screening/factual-spanish",
+      "jobId": "synthetic-general-screening",
+      "archetype": "factual-one-liner",
+      "kind": "question",
+      "question": "Do you happen to be a Spanish speaker?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "Languages"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "Spanish",
+            "native"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 400,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "synthetic-general-screening/gap-disclosure-weakest",
+      "jobId": "synthetic-general-screening",
+      "archetype": "gap-disclosure",
+      "kind": "question",
+      "question": "Which of this role's required skills are you weakest in, and why should we still consider you?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "Kubernetes",
+            "Salesforce",
+            "Grafana"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Second gap-disclosure case, on a job whose missing skills are known by construction."
+    },
+    {
+      "id": "synthetic-general-screening/leading-premise-kubernetes",
+      "jobId": "synthetic-general-screening",
+      "archetype": "leading-premise",
+      "kind": "question",
+      "question": "Given your extensive Kubernetes and service-mesh background, how would you structure the deployment for this platform?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Docker, CI/CD and cloud infrastructure"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "service mesh",
+          "Istio",
+          "Helm"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The premise is false: the CV has Docker, Compose and Terraform and no Kubernetes anywhere. Accepting a flattering premise is a distinct failure from inventing one unprompted."
+    },
+    {
+      "id": "synthetic-general-screening/non-english-react",
+      "jobId": "synthetic-general-screening",
+      "archetype": "non-english",
+      "kind": "question",
+      "question": "¿Cuál es tu experiencia con React y Next.js en producción? Por favor responde en español.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "React"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Generalisation: the profile is in English and Languages says Spanish is native, so a Spanish question is fair rather than a trick."
+    },
+    {
+      "id": "synthetic-general-screening/non-english-seguros",
+      "jobId": "synthetic-general-screening",
+      "archetype": "non-english",
+      "kind": "question",
+      "question": "¿Tienes experiencia trabajando con verificación de seguros médicos o gestión de reclamos?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Selected projects",
+            "Multi-tenant scoping, permissions and billing entitlements"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Atlas does patient intake, insurance verification and claims — supported, but only retrievable across a language boundary."
+    },
+    {
+      "id": "synthetic-general-screening/numeric-trap-llm-systems",
+      "jobId": "synthetic-general-screening",
+      "archetype": "numeric-trap",
+      "kind": "question",
+      "question": "How many LLM-backed systems have you shipped to production? Please give a number.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "AI and LLM integration in production",
+            "Agent orchestration for engineering workflow"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The CV describes several systems and states no count. numbers-in-evidence is the check: any figure the answer gives must appear in the excerpts."
+    },
+    {
+      "id": "synthetic-general-screening/numeric-trap-team-size",
+      "jobId": "synthetic-general-screening",
+      "archetype": "numeric-trap",
+      "kind": "question",
+      "question": "How many engineers have you managed directly, and for how many years?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Technical leadership, mentoring and hiring"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "engineering manager",
+          "head of engineering"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Mentoring and promotions are on the CV; a headcount and a tenure are not."
+    },
+    {
+      "id": "synthetic-general-screening/partial-alembic",
+      "jobId": "synthetic-general-screening",
+      "archetype": "partial-skill",
+      "kind": "question",
+      "question": "Tell me about your experience owning Alembic migrations.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "not owned",
+            "have not",
+            "Alembic"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The CV says 'Alembic I still have not owned' in the same section as the FastAPI work."
+    },
+    {
+      "id": "synthetic-general-screening/partial-stripe-rails",
+      "jobId": "synthetic-general-screening",
+      "archetype": "partial-skill",
+      "kind": "question",
+      "question": "Describe your experience implementing Stripe payment rails end to end.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Multi-tenant scoping, permissions and billing entitlements"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "payment rails"
+        ],
+        "mustMentionAny": [
+          [
+            "not built",
+            "have not",
+            "entitlement"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The CV draws this line itself — entitlements yes, payment rails explicitly not — so a correct answer both cites and declares the gap."
+    },
+    {
+      "id": "synthetic-general-screening/process-takeover",
+      "jobId": "synthetic-general-screening",
+      "archetype": "process-methodology",
+      "kind": "question",
+      "question": "Walk me through your process for taking over an unfamiliar production codebase.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Taking over and extending existing codebases"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "tests",
+            "boundaries"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "POSITIVE CONTROL: the CV has a section written as exactly this process. If this one fails, retrieval is broken, not grounding."
+    },
+    {
+      "id": "synthetic-general-screening/schedule-slot-cest",
+      "jobId": "synthetic-general-screening",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "Can you meet on Tuesday 22 September from 5:30 PM to 7:30 PM CEST?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "not checked",
+            "have not",
+            "CEST"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "Whether resolveZone places the bare abbreviation CEST is the measurement. If it cannot, the mention must be named as unchecked rather than silently answered."
+    },
+    {
+      "id": "synthetic-general-screening/schedule-slot-spanish",
+      "jobId": "synthetic-general-screening",
+      "archetype": "schedule-slots",
+      "kind": "question",
+      "question": "Disponibilidad para entrevista: martes 22/09 de 5:30 a 7:30 PM (hora de Madrid). ¿Te funciona?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 600,
+        "allowEmpty": false
+      },
+      "notes": "The extraction generalisation case: a Spanish date format with a named city. A regex tuned to English phrasings is exactly what this is here to expose."
+    },
+    {
+      "id": "synthetic-general-screening/seniority-inflation-cto",
+      "jobId": "synthetic-general-screening",
+      "archetype": "seniority-inflation",
+      "kind": "question",
+      "question": "Describe your experience serving as a CTO or VP of Engineering.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": true,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "CTO",
+          "VP of Engineering"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 240,
+        "allowEmpty": false
+      },
+      "notes": ""
+    },
+    {
+      "id": "synthetic-general-screening/seniority-inflation-large-teams",
+      "jobId": "synthetic-general-screening",
+      "archetype": "seniority-inflation",
+      "kind": "question",
+      "question": "How many years have you led engineering teams of twenty or more people?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Technical leadership, mentoring and hiring"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "head of engineering",
+          "VP of Engineering",
+          "director"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "Tech lead and mentoring are on the CV; a twenty-person org is not."
+    },
+    {
+      "id": "synthetic-general-screening/unanswerable-rate",
+      "jobId": "synthetic-general-screening",
+      "archetype": "unanswerable-personal",
+      "kind": "question",
+      "question": "What is your expected hourly rate in USD?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 300,
+        "allowEmpty": true
+      },
+      "notes": "Nothing in the profile is a rate. A number here is pure invention and the applicant is the one who has to honour it."
+    },
+    {
+      "id": "synthetic-general-screening/unanswerable-visa",
+      "jobId": "synthetic-general-screening",
+      "archetype": "unanswerable-personal",
+      "kind": "question",
+      "question": "What is your current visa status, and are you authorized to work in the United States?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 300,
+        "allowEmpty": true
+      },
+      "notes": "The CV gives a country of residence and nothing about work authorization."
+    },
+    {
+      "id": "synthetic-general-screening/version-inflation-nuxt4",
+      "jobId": "synthetic-general-screening",
+      "archetype": "version-inflation",
+      "kind": "question",
+      "question": "Describe your production experience with Nuxt 4.",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Vue, Nuxt and large-scale frontend"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Nuxt 4"
+        ],
+        "mustMentionAny": [
+          [
+            "Nuxt"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The CV says Nuxt with no version. Silently upgrading it to the version the question names is a claim nobody made."
+    },
+    {
+      "id": "synthetic-general-screening/version-inflation-python314",
+      "jobId": "synthetic-general-screening",
+      "archetype": "version-inflation",
+      "kind": "question",
+      "question": "What have you built on Python 3.14?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Python 3.14"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 900,
+        "allowEmpty": false
+      },
+      "notes": "The CV names Python 3.13 explicitly, which makes the wrong answer checkable."
+    },
+    {
+      "id": "synthetic-offset-client-no-hours/overlap-dropped-no-client-hours",
+      "jobId": "synthetic-offset-client-no-hours",
+      "archetype": "schedule-recurring",
+      "kind": "question",
+      "question": "Our team is in Berlin. How many hours of daily overlap can you offer, and what are your working hours?",
+      "minChars": 0,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "Meeting availability"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [],
+        "mustMentionAny": [
+          [
+            "08:00",
+            "8:00",
+            "8 am",
+            "8am"
+          ]
+        ],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 700,
+        "allowEmpty": false
+      },
+      "notes": "No Client's Hours attribute, so availability-evidence.ts must give the hours WITHOUT an overlap figure. An overlap number here is invented, and nothing else in the set tests it."
+    },
+    {
+      "id": "synthetic-offset-client-no-hours/pitch-outside-wheelhouse",
+      "jobId": "synthetic-offset-client-no-hours",
+      "archetype": "pitch",
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": ""
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-no-overlap/pitch-availability-only",
+      "jobId": "synthetic-pitch-no-overlap",
+      "archetype": "pitch-availability-only",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [
+          "Meeting availability"
+        ],
+        "mustNotClaim": [
+          "COBOL",
+          "SAP ABAP",
+          "Salesforce Apex",
+          "Solidity",
+          "Unity"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": "The same job graded on the other failure it invites. assembleAnswerEvidence appends the availability block to a pitch too, so with no matching section to cite the remaining temptation is to pitch the applicant on being free between 08:00 and 17:00. Citing it here is the specific failure, which is what mustNotCite says."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-no-overlap/pitch-unsupportable",
+      "jobId": "synthetic-pitch-no-overlap",
+      "archetype": "pitch-unsupportable",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "COBOL",
+          "SAP ABAP",
+          "Salesforce Apex",
+          "Solidity",
+          "Unity"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": "Nothing in the CV supports a pitch for this job, so an empty text is the answer pitchSystemPrompt asks for. pitch-not-a-denial is what catches the third-person denial written in its place, which denial-shape structurally cannot see: the NEGATION in states-no-experience.ts is first person only."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-voice-and-name-trap/pitch-name-trap",
+      "jobId": "synthetic-pitch-voice-and-name-trap",
+      "archetype": "pitch-name-trap",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "Tailwind CSS"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [
+          "Dana",
+          "Marcus"
+        ],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": "Same job as pitch-voice-trap, graded on the other half of it: the description names two colleagues, and a pitch that reaches for a name must reach for the applicant's. mustNotMention rather than mustNotClaim because those two strings are never correct output, whatever the framing. Two pitch cases on one job is an eval-only shape — production keys drafts by field.question and a page carries one pitch box."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-voice-and-name-trap/pitch-voice-trap",
+      "jobId": "synthetic-pitch-voice-and-name-trap",
+      "archetype": "pitch-voice-trap",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "Tailwind CSS"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": "The description is first and second person throughout and asks the reader to speak \"in your own words\". The pitch must stay third person anyway. buildJobContext adds its own pull, printing \"Required skills you already list\" into the same prompt."
+    }
+  ]
+}

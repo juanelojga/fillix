@@ -133,7 +133,13 @@ async function handle(msg: Message): Promise<MessageResponse> {
     case 'DRAFT_ANSWER': {
       const draft = await draftAnswer(
         { ...config, model: msg.model ?? config.model },
-        { kind: msg.kind, question: msg.question, job: msg.job, evidence: msg.evidence },
+        {
+          kind: msg.kind,
+          question: msg.question,
+          job: msg.job,
+          evidence: msg.evidence,
+          applicantName: msg.applicantName,
+        },
         AbortSignal.timeout(DRAFT_TIMEOUT_MS),
       );
       return { ok: true, draft };

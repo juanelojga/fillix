@@ -27,6 +27,22 @@
   /** Computed before the model ran, so it is shown as a fact rather than as part of the answer. */
   const schedule = $derived(drafted?.schedule ? summarizeSchedule(drafted.schedule) : null);
 
+  /**
+   * Toptal refuses a pitch under its stated minimum. Said here rather than asked of the model:
+   * the prompt deliberately carries no length target, because a model given one pads an answer
+   * it cannot support — which is the fabrication `answer-prompt.ts` exists to stop. A grounded
+   * pitch clears the floor on its own, so this only ever fires on one the user must finish.
+   *
+   * Silent on an empty box: that case already says "Your profile had nothing for this one",
+   * and two warnings over one blank field is noise.
+   */
+  const shortAnswer = $derived.by(() => {
+    if (!drafted || field.minChars === 0) return '';
+    const length = drafted.edited.trim().length;
+    if (length === 0 || length >= field.minChars) return '';
+    return `Toptal needs ${field.minChars}+ characters — this is ${length}. Add to it before filling.`;
+  });
+
   /** A locator that points at a *place* rather than a control is worth saying out loud. */
   const shakyLocator = $derived(
     field.locator !== null && !isStableLocator(field.locator) ? describeLocator(field.locator) : '',
@@ -147,6 +163,10 @@
 
       {#if fillProblem}
         <p class="text-[10px] text-destructive">{fillProblem}</p>
+      {/if}
+
+      {#if shortAnswer}
+        <p class="text-[10px] text-amber-700">{shortAnswer}</p>
       {/if}
 
       {#if shakyLocator}

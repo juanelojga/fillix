@@ -37,5 +37,11 @@ export default tseslint.config(
     files: ['src/background.ts'],
     rules: { 'no-console': 'off' },
   },
+  {
+    // The eval harness runs in Node, not a page, and its whole output is a printed scorecard.
+    files: ['eval/**/*.ts'],
+    languageOptions: { globals: { ...globals.node } },
+    rules: { 'no-console': 'off' },
+  },
   prettier,
 );

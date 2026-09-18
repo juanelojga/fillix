@@ -513,3 +513,91 @@ describe('meeting availability reaches the model', () => {
     expect(lastEvidence().length).toBeLessThanOrEqual(6_000);
   });
 });
+
+/**
+ * The pitch was invisible for as long as `extractApplicationFields` looked for a hook Toptal
+ * had renamed — every piece downstream of it already worked. These pin the wiring end to end.
+ */
+const PITCH_FORM = FORM.replace(
+  '</form>',
+  `<div data-testid="pitchInput">
+      <label for="pitch"><span>Write your third-person pitch here</span></label>
+      <textarea id="pitch" name="pitch"></textarea>
+    </div>
+    <div><p>Write minimum 180 characters</p></div>
+  </form>`,
+);
+
+function readyWithPitch(capturedAt = 2000) {
+  runState.set({
+    status: 'ready',
+    capture: { ...capture(capturedAt), html: PITCH_FORM },
+    sections: [],
+    brief: null,
+  });
+}
+
+/** The last DRAFT_ANSWER that went to the worker, whole. */
+function lastDraftCall(): Record<string, unknown> {
+  const call = sendMessage.mock.calls.findLast((c) => c[0]?.type === 'DRAFT_ANSWER');
+  return (call?.[0] ?? {}) as Record<string, unknown>;
+}
+
+describe('the pitch reaches the worker as a pitch', () => {
+  beforeEach(() => {
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'DRAFT_ANSWER'
+        ? Promise.resolve(draftReply('A pitch.'))
+        : Promise.resolve({ ok: true, queryVector: [1, 0] }),
+    );
+  });
+
+  it('offers the pitch as its own answerable field', () => {
+    readyWithPitch();
+
+    const pitch = get(fields).find((f) => f.kind === 'pitch');
+    expect(pitch?.question).toBe('Third-person pitch');
+    expect(pitch?.locator).toEqual({ by: 'name', value: 'pitch' });
+    expect(pitch?.minChars).toBe(180);
+  });
+
+  // The prompt that picks the voice and the empty-answer rule turns on this one field.
+  it('asks for a pitch rather than an answer', async () => {
+    readyWithPitch();
+
+    await draftAll();
+
+    expect(lastDraftCall().kind).toBe('pitch');
+  });
+
+  /**
+   * Resolved in the panel, which holds the profile document — the worker never sees it. Sent
+   * for every field; only the pitch prompt reads it.
+   */
+  it('carries the name the pitch is written under', async () => {
+    const named = `# Juan Almeida\n\n${MARKDOWN}`;
+    profile.set({ markdown: named, updatedAt: 1 });
+    profileIndex.set({
+      hash: hashProfile(named, 'nomic'),
+      chars: named.length,
+      model: 'nomic',
+      dim: 2,
+      builtAt: 1,
+      chunks: [{ id: 'python-0', heading: 'Python', ordinal: 0, text: MARKDOWN, vector: [1, 0] }],
+    });
+    readyWithPitch();
+
+    await draftAll();
+
+    expect(lastDraftCall().applicantName).toBe('Juan Almeida');
+  });
+
+  // '' is a supported answer — the prompt says "The applicant" instead of guessing a name.
+  it('carries an empty name when the profile names nobody', async () => {
+    readyWithPitch();
+
+    await draftAll();
+
+    expect(lastDraftCall().applicantName).toBe('');
+  });
+});

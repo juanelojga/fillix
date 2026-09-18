@@ -6,3 +6,11 @@ dist/
 .env
 .env.local
 .claude/settings.local.json
+eval/.cache/
+eval/reports/
+# The captures themselves are perishable and private; the protocol for collecting one is
+# neither, so the README is tracked. Ignoring the directory itself would make that
+# impossible — git cannot re-include a file under an excluded directory.
+eval/cases/incoming/*
+!eval/cases/incoming/README.md
+eval/scrub/identities.local.json

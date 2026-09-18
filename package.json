@@ -12,12 +12,15 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "typecheck": "svelte-check --tsconfig tsconfig.json && tsc --noEmit",
+    "typecheck": "svelte-check --tsconfig tsconfig.json && tsc --noEmit && tsc -p eval --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "eval": "vitest run --config eval/vitest.config.ts",
+    "eval:derive": "vitest run --config eval/derive/vitest.config.ts",
+    "eval:scrub-profile": "node --experimental-strip-types eval/scrub/scrub-profile.ts",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "prepare": "husky"

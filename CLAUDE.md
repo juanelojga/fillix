@@ -13,6 +13,8 @@ Fillix is a Manifest V3 Chrome extension with two core capabilities: **tool-augm
 - `pnpm build` — produce a production bundle in `dist/` (it does **not** typecheck; that is `pnpm typecheck`)
 - `pnpm typecheck` — `tsc --noEmit`
 - `pnpm test` — run tests with vitest
+- `pnpm eval` — grade answer drafting against the committed golden set. Needs a live Ollama, so it is deliberately **not** part of `pnpm test` and CI runs neither.
+- `pnpm eval:derive` — rebuild `eval/cases/golden.json` from the raw captures in `eval/cases/incoming/`
 
 ## Architecture
 
@@ -145,6 +147,15 @@ availability** below.
   scores against "Do you know Python?" on nothing at all. A section over `MAX_CHUNK_CHARS`
   splits on blank lines, never mid-paragraph, and a single over-long paragraph is emitted whole
   rather than cut.
+- `applicant-name.ts` — who the third-person pitch is written about. Reads the preamble before
+  the first `##`, which `chunk.ts` already documents as "usually the name and contact line", so
+  it adds nothing for the user to maintain. Only the first non-blank line is a candidate: if
+  that is not the name, nothing below it is either, and walking on would find the contact line
+  or the summary's first sentence. Rejects a line with a `:` or over ~60 characters and returns
+  `''`, which is a **supported answer** — `pitchSystemPrompt` says "The applicant" instead,
+  because a wrong name in front of a recruiter is worse than a neutral one. The name is
+  **injected, not embedded**: it reaches the prompt on `DRAFT_ANSWER` so that whether the pitch
+  knows who it is about never depends on cosine similarity ranking the section carrying it.
 - `profile-hash.ts` — FNV-1a 32-bit, **not** `crypto.subtle`: the digest APIs are async, and
   making staleness a promise would push `await` into the store, the tab's derived state and the
   status line. Not a security boundary; the worst a collision costs is one stale index. The
@@ -349,6 +360,12 @@ aloud to a client.
   alone: "What is your experience with their stack?" names no technology, so on its own it
   retrieves whichever section is phrased most like a question. The job's skills are appended,
   **including the unclaimed ones**, because those are the likeliest to retrieve a gaps section.
+  `buildPitchQuery` is the pitch's version and takes no question at all: the pitch field's label
+  is a UI string, so embedding it would retrieve whichever section reads most like a form field.
+  It retrieves on the job — the description's opening plus the same vocabulary — because what a
+  pitch needs is "which of my sections make the best case for this role". `answer-evidence.ts`
+  picks between the two on `kind`, which is why `EvidenceRequest.kind` is required and not
+  defaulted: a caller that forgets would silently ground a pitch in the wrong half of the CV.
 - `job-context.ts` — the job, budgeted. The description is the only part that runs to thousands
   of characters, so it is what gets truncated; the attributes and the skill split are tiny and
   are what the answers turn on. Unclaimed required skills are named under an explicit "never
@@ -358,6 +375,21 @@ aloud to a client.
   its parser depends on. Evidence goes **last** in the user prompt, and that ordering is
   load-bearing — Ollama truncates an overflowing context from the _start_, so whatever leads is
   what gets silently dropped, and the applicant's own words must be the thing that survives.
+  `SHARED_RULES` carries **grounding only**. Voice and the shape of an unsupported answer are
+  deliberately per-prompt, because the two disagree about both, and keeping either shared is
+  what made the pitch inherit the wrong voice for as long as it did. A question is first person
+  and, when nothing supports it, gets the bare one-sentence denial. `pitchSystemPrompt(name)` is
+  **third person** — Toptal's box says "Write your third-person pitch here" and the checkbox
+  beside it says a recruiter forwards the text to the client, so it is the one field where the
+  voice is stated on screen. The name comes from `profile/applicant-name.ts`; `''` becomes "The
+  applicant", never a guess. An unsupportable pitch returns an **empty** `text` rather than a
+  denial: an empty answer already passes the grounding guard and already renders as "your
+  profile had nothing for this one", while "The applicant has no experience with this" is not
+  something to write into a pitch box — and being third person it would not match the
+  first-person `NEGATION` in `states-no-experience.ts` and would be discarded anyway. The pitch's
+  user prompt carries `PITCH_BRIEF` in the slot a question's text occupies, encoded here rather
+  than scraped: Toptal prints that brief above the box behind no `data-testid`, and depending on
+  unhooked prose is the exact failure this design keeps hitting.
 - `draft-answer.ts` — `generateStructured` then `normalizeAnswerDraft`, the `news/summarizer.ts`
   shape. Passes `num_ctx: 8192` explicitly, because Ollama defaults to 2048 and truncates
   silently. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
@@ -395,7 +427,11 @@ gaps). A `noExperience` draft gets a third branch that says the answer **cites n
 merely that the question touched a gap — that wording is the only thing standing between the
 user and a short uncited sentence that reads like a denial while still claiming something, and
 for the same reason the footer under the list promises a citation _or_ a stated gap, never a
-citation on every answer. A question with no locator is **named, never dropped** — it is on the page whether or not
+citation on every answer. It also warns when a draft falls under `field.minChars` — Toptal
+refuses a pitch under 180 characters. That is said **here and never asked of the model**: the
+prompt carries no length target, because a model given one pads an answer it cannot support,
+which is the fabrication `answer-prompt.ts` exists to stop. A grounded pitch clears the floor on
+its own, so the warning only ever fires on one the user has to finish. A question with no locator is **named, never dropped** — it is on the page whether or not
 we can fill it, and a missing card reads as "Toptal did not ask this". `ApplicationDrafts.svelte`
 owns the "Draft answers" button, which is deliberately not called Capture.
 
@@ -432,6 +468,28 @@ are load-bearing:
 
 It can never press Submit: the only elements it writes to are text inputs and textareas, and a
 submit button is neither.
+
+`toptal-application-form.ts` walks the captured form into `ApplicationField`s. Which element
+**is** the pitch lives next door in `toptal-pitch-field.ts`, split out by the reason that split
+`toptal-job-url.ts` from `toptal-job-sections.ts` — and split because it has already changed
+underneath us once. Toptal renamed the hook from `pitchThirdPersonLabel` to `pitchInput`,
+relabelled the box from "Relevant experience (optional)" to "Write your third-person pitch here",
+renamed the control from `comment` to `pitch` and gave it a stated minimum length. The old
+selector matched nothing, so the pitch simply never appeared and **nothing said why** — every
+piece downstream of it already worked. Both hooks are now matched, because nothing here can know
+which build an account is served.
+
+Three things follow from that failure. `PITCH_QUESTION` is a stable label (`Third-person pitch`),
+deliberately **not** the page's wording: it is the `drafts` map key and the `{#each}` key, so it
+must not move when Toptal rewords a label — which is precisely what Toptal did. `pitchMinChars`
+reads the number the page prints ("Write minimum 180 characters") rather than assuming it, and
+falls back to the known floor rather than to 0, because warning with a stale number beats not
+warning. And `findFallbackPitch` finds the box by **shape** when neither hook matches — a
+fillable textarea inside the form but outside `matcherQuestions` is structurally the pitch. It
+returns every candidate rather than the first, because the caller has to tell three cases apart:
+none (plenty of applications genuinely have no pitch box, and warning there is a false alarm),
+one (that is it), and several (guessing would write a pitch into the wrong box, so the field is
+named as unfillable through the existing `locator: null` card and the user writes it by hand).
 
 `fill-outcome.ts` words a per-field miss in place. Whole-run refusals reuse
 `diagnoseCaptureFailure` unchanged, which stays honest because every hint it gives says "press
@@ -485,6 +543,68 @@ prompt in `ollama.ts` — because changing them changes how the code parses the 
 
 `src/types.ts` is the cross-context message contract. It defines `OllamaConfig` (`baseUrl`, `model`) and the `PortMessage` union used for streaming — including `tool-call` and `tool-result` variants that carry tool name and args/result. When adding a new message kind, update `Message` **and** `MessageResponse`, and add a `case` in `background.ts`'s `handle` — TypeScript's exhaustiveness check will flag the rest.
 
+**Evals (`eval/`)**
+
+Outside `src/`, because `src/**/*.ts` is the coverage `include` and because the two vitest
+configs share no glob — `pnpm test` can never pick up a file that talks to a live Ollama, and
+`pnpm eval` can never pick up a unit spec.
+
+The whole drafting design exists to stop one failure: a fluent, confident claim of experience
+the applicant does not have. The unit specs test the **guard** (`normalizeAnswerDraft`,
+`statesNoExperience`, the diagnostics); nothing in them tests the **model**. `eval/` is what
+makes changing the system prompt, the evidence budget or the model a measurable change instead
+of one the suite stays green through either way.
+
+`eval/cases/golden.json` is the committed golden set: `jobs[]` and `cases[]` cross-referenced by
+`jobId` so a description is written once and shared by its questions. It is **derived, not
+authored** — `pnpm eval:derive` runs the production parsers over `eval/cases/incoming/*.html`
+(gitignored; Toptal deletes the form on Submit, so the captures are perishable twice over) and
+merges the result into the existing file, carrying every hand-authored `archetype`, `expect` and
+`notes` across by case id. That merge is load-bearing: a derivation that reset the labels would
+be run once and never again. The inversion is the point — the JSON outlives the HTML, so a
+posting deleted tomorrow still grades a model next year.
+
+No client is pseudonymized because Toptal never names one — verified across all eight captures:
+the Company Information block carries only a country, a founding year, a team size and an
+industry, and every description says "our client". Technologies and vendors are kept **verbatim**,
+since they are exactly what grounding is graded on. What is scrubbed is the applicant's identity,
+through the gitignored `eval/scrub/identities.local.json`.
+
+`eval/scrub/pii-scan.ts` walks a parsed value rather than its serialization, and that is not
+pedantry: the patterns allow whitespace and punctuation as separators, and pretty-printed JSON
+supplies both between every field, so a `phone` match straddles two unrelated keys. Scanning
+`JSON.stringify(set)` reported fifty-two phone numbers, every one of them a frozen ISO date.
+
+`eval/golden.eval.ts` is the fast loop — no Ollama, about a second — and it exists because a
+golden set whose checks are unmeetable reports a bad _file_ in the same shape as a bad _model_.
+So it makes the silent traps loud: a `mustCiteAny` heading that is not in the profile (nothing
+can ever return it), a `scheduleUsed: true` on a question `mentionsTime()` would refuse, a
+denial whose `maxChars` exceeds what `statesNoExperience` accepts, and the three overlap
+preconditions that otherwise give hours-only evidence while the expectation waits for an overlap
+nobody computed.
+
+`eval/lib/draft-case.ts` reuses `assembleAnswerEvidence` rather than reimplementing
+`draftOne` — the budget, the availability block's position and the `'\n\n---\n\n'` separator
+live there, and a copy of those twenty lines is exactly the drift that would grade a pipeline
+the extension does not run. Its `QuestionTimesSource` round-trips through
+`JSON.parse(JSON.stringify(times))` on purpose, reproducing the port rather than shortcutting it.
+
+**`mustNotClaim` is deliberately not auto-seeded from `missingRequiredSkills`.** Toptal's
+`onProfile` flag describes its own profile's skill list and disagrees with the CV in ten places
+across the eight captures — it marks FastAPI and A/B Testing missing while the CV has a section
+for each. `golden.eval.ts` prints every disagreement rather than asserting on it. It is also why
+`mustNotClaim` (judged) and `mustNotMention` (substring) are separate fields: one real capture
+asks _"is there any required skill you are missing?"_, where naming the skill is the correct
+answer, and no substring check can tell that from claiming it.
+
+`cites-retrieved` in `eval/lib/grade-draft.ts` is the check production **structurally cannot**
+run — the guard only tests that `drew_on` is non-empty, so an answer citing a section it was
+never shown passes in the extension today. `citation-format` is split off from it because a
+model that quotes the paragraph it used has not hallucinated, it has formatted a true citation
+badly, and the two do not have the same fix.
+
+See `eval/README.md` for how to run it, the environment overrides, and what each check means.
+
 ## Build tooling
 
 `@crxjs/vite-plugin` reads `manifest.config.ts` (typed via `defineManifest`) and wires HMR for all extension contexts. To add a script/page (e.g. options page), add it to `manifest.config.ts`; crxjs handles the Vite input entries automatically.
@@ -511,7 +631,7 @@ Pointing the Ollama base URL somewhere other than `http://localhost:11434` requi
 
 Ollama is the only backend. Worth stating explicitly when the user reports "nothing happens":
 
-1. `ollama serve` running, with at least one model pulled (default in `storage.ts` is `llama3.2`).
+1. `ollama serve` running, with at least one model pulled (default in `storage.ts` is `gemma4:12b`, chosen by the eval — see `eval/README.md`; a 3B model invents citations).
 2. `OLLAMA_ORIGINS=chrome-extension://*` in the environment Ollama runs under — otherwise the preflight/origin check rejects the extension's requests. On macOS this is `launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"` then restart the Ollama app.
 
 3. The model name in Settings must match `ollama list` exactly (tag included, e.g. `qwen3:8b`). Nothing validates it on entry — hitting **Test** next to the model is what surfaces `model "…" not found`.

@@ -2,14 +2,19 @@
 // extractApplicationFields parses with DOMParser, which node does not have. The panel does.
 import { describe, it, expect } from 'vitest';
 import { extractApplicationFields } from '../toptal-application-form';
+import { PITCH_MIN_CHARS } from '../toptal-pitch-field';
 
 /**
  * Cut from a real capture of https://talent.toptal.com/portal/job/…/confirm, trimmed to the
- * hooks and attributes the parser reads. The two details worth keeping verbatim:
- *   - every matcherQuestionInput holds TWO textareas, the second an aria-hidden readonly
- *     measuring twin carrying identical classes;
+ * hooks and attributes the parser reads. The details worth keeping verbatim:
  *   - the first question is a dropdown, not a text box: a readonly text input plus a hidden
- *     input that carries the real value.
+ *     input that carries the real value;
+ *   - the pitch sits outside the `matcherQuestions` block but inside the same form;
+ *   - "Write minimum 180 characters" is printed beside the pitch box, not inside it;
+ *   - a shared aria-hidden autosize twin lives at the end of the document, outside the form.
+ *
+ * `LEGACY_FORM` below is the shape Toptal shipped before renaming the pitch hook. Both are
+ * tested because nothing here can know which build a given account is served.
  */
 const Q = (suffix: string) =>
   `matcherQuestionsAnswers[VjEtSm9iUG9zaXRpb25RdWVzdGlvbi02NjMyNT${suffix}]`;
@@ -18,15 +23,29 @@ function textQuestion(name: string, label: string, value = ''): string {
   return `
     <div data-testid="matcherQuestionInput">
       <label for="${name}"><span class="text-[0.875rem]">${label}</span></label>
-      <div class="base-Input-root">
+      <div class="relative inline-flex">
         <textarea autocomplete="none" id="${name}" name="${name}" type="text">${value}</textarea>
-        <textarea aria-hidden="true" readonly tabindex="-1"></textarea>
       </div>
     </div>`;
 }
 
-const FORM = `
-<html><body><form>
+const PITCH_BLOCK = `
+  <div class="mt-6">
+    <div class="mb-4"><div data-testid="list-heading">Write a paragraph about what makes you the best candidate for this job.</div></div>
+    <div data-testid="pitchInput">
+      <div data-testid="pitchFieldHeader">
+        <label for="pitch"><span><span class="inline-flex">Write your third-person pitch here<div data-testid="infoIcon"><svg viewBox="0 0 16 16"><path d="M8 16"></path></svg></div></span></span></label>
+        <button type="button" data-testid="seePastPitchesButton"><span>See Past Pitches</span></button>
+      </div>
+      <div class="relative inline-flex">
+        <textarea aria-label="Write your third-person pitch here" autocomplete="none" id="pitch" name="pitch" type="text"></textarea>
+      </div>
+    </div>
+    <div class="mt-2"><p>Write minimum 180 characters</p></div>
+  </div>`;
+
+function page(body: string): string {
+  return `<html><body><form>
   <div data-testid="matcherQuestions">
     <div data-testid="matcherQuestionSelect">
       <label for="${Q('c')}2q43dwn"><span class="text-[0.875rem]">How soon can you start working on this role/position?</span></label>
@@ -36,14 +55,23 @@ const FORM = `
     ${textQuestion(Q('g'), 'Are you available to interview during these times?')}
     ${textQuestion(Q('h'), 'Do you happen to be a Spanish speaker?')}
   </div>
+  ${body}
+  <input id="understand" name="understand" type="checkbox">
+  <button type="submit" data-testid="submitApplication">Submit Application</button>
+</form>
+<textarea aria-hidden="true" readonly tabindex="-1"></textarea>
+</body></html>`;
+}
+
+const FORM = page(PITCH_BLOCK);
+
+/** The pre-rename shape: a different hook, a different label, a textarea named `comment`. */
+const LEGACY_FORM = page(`
   <div data-testid="pitchThirdPersonLabel">
     <label for="comment"><span><span class="inline-flex">Relevant experience<div data-testid="infoIcon"><svg viewBox="0 0 16 16"><path d="M8 16"></path></svg></div></span> (optional)</span></label>
     <textarea id="comment" name="comment" placeholder="Type here..."></textarea>
     <textarea aria-hidden="true" readonly tabindex="-1"></textarea>
-  </div>
-  <input id="understand" name="understand" type="checkbox">
-  <button type="submit" data-testid="submitApplication">Submit Application</button>
-</form></body></html>`;
+  </div>`);
 
 describe('extractApplicationFields', () => {
   it('finds every answerable field, in the order the page shows them', () => {
@@ -66,15 +94,85 @@ describe('extractApplicationFields', () => {
   it('locates the pitch by its own name, which is not a question id at all', () => {
     const [, , , pitch] = extractApplicationFields(FORM);
 
-    expect(pitch.locator).toEqual({ by: 'name', value: 'comment' });
+    expect(pitch.locator).toEqual({ by: 'name', value: 'pitch' });
   });
 
-  // The label reads "Relevant experience (optional)" and wraps an info icon. Neither the
-  // parenthetical nor the icon is the question.
-  it('names the pitch field without the label furniture', () => {
+  /**
+   * Not "Write your third-person pitch here". This string is the drafts map key and the
+   * {#each} key in the panel, so it must not move when Toptal rewords a label — which is
+   * exactly what Toptal did to the old "Relevant experience" wording.
+   */
+  it('names the pitch by a stable label rather than by the page wording', () => {
     const [, , , pitch] = extractApplicationFields(FORM);
 
-    expect(pitch.question).toBe('Relevant experience');
+    expect(pitch.question).toBe('Third-person pitch');
+  });
+
+  // Toptal refuses a shorter pitch, so the panel has to warn before the user tries to submit.
+  it('reads the minimum length the page prints beside the pitch box', () => {
+    const [, , , pitch] = extractApplicationFields(FORM);
+
+    expect(pitch.minChars).toBe(180);
+  });
+
+  it('falls back to the known minimum when the page does not print one', () => {
+    const [, , , pitch] = extractApplicationFields(
+      FORM.replace('<p>Write minimum 180 characters</p>', ''),
+    );
+
+    expect(pitch.minChars).toBe(PITCH_MIN_CHARS);
+  });
+
+  // A question has no stated floor, and warning about one would be inventing a rule.
+  it('states no minimum for anything but the pitch', () => {
+    const fields = extractApplicationFields(FORM);
+
+    expect(fields.filter((f) => f.kind !== 'pitch').map((f) => f.minChars)).toEqual([0, 0, 0]);
+  });
+
+  // The hook Toptal shipped before the rename. Kept because we cannot know which build an
+  // account is served, and a dead selector is what made the pitch invisible in the first place.
+  it('still finds the pitch behind the pre-rename hook', () => {
+    const [, , , pitch] = extractApplicationFields(LEGACY_FORM);
+
+    expect(pitch.kind).toBe('pitch');
+    expect(pitch.locator).toEqual({ by: 'name', value: 'comment' });
+    expect(pitch.question).toBe('Third-person pitch');
+  });
+
+  /**
+   * The next rename must not make the pitch vanish silently again. A fillable textarea inside
+   * the form but outside the numbered questions is, structurally, the pitch.
+   */
+  it('recovers the pitch by shape when neither hook matches', () => {
+    const [, , , pitch] = extractApplicationFields(
+      page('<div><label for="x">Your pitch</label><textarea id="x" name="x"></textarea></div>'),
+    );
+
+    expect(pitch.kind).toBe('pitch');
+    expect(pitch.locator).toEqual({ by: 'name', value: 'x' });
+    expect(pitch.unfillableReason).toBe('');
+  });
+
+  // Guessing between two would risk writing a pitch into the wrong box, which is the worst
+  // thing this feature could do — so it is named as unfillable and the user writes it.
+  it('refuses in words when more than one box could be the pitch', () => {
+    const fields = extractApplicationFields(
+      page('<div><textarea name="a"></textarea><textarea name="b"></textarea></div>'),
+    );
+    const pitch = fields.find((f) => f.kind === 'pitch');
+
+    expect(pitch?.locator).toBeNull();
+    expect(pitch?.unfillableReason).toMatch(/could not be identified/);
+  });
+
+  // Plenty of Toptal applications have no pitch box. Warning there would be a false alarm
+  // about a page behaving exactly as it should.
+  it('says nothing when the form simply has no pitch box', () => {
+    const fields = extractApplicationFields(page(''));
+
+    expect(fields.some((f) => f.kind === 'pitch')).toBe(false);
+    expect(fields).toHaveLength(3);
   });
 
   // The dropdown is a readonly input plus a hidden field, driven by React state. Writing to
@@ -87,19 +185,17 @@ describe('extractApplicationFields', () => {
     expect(choice.prefilled).toBe('Immediately');
   });
 
-  // The autosize twin is a sibling with the same classes, so a naive querySelector('textarea')
-  // can pick it — and a value written there is invisible to the user and to the form.
+  // The autosize twin carries the same classes as the real control — and on the legacy markup
+  // it is a sibling, so a naive querySelector('textarea') picks it. A value written there is
+  // invisible to the user and to the form.
   it('never locates the aria-hidden measuring twin', () => {
-    const fields = extractApplicationFields(FORM);
+    for (const html of [FORM, LEGACY_FORM]) {
+      const fields = extractApplicationFields(html);
+      const located = fields.filter((f) => f.locator).map((f) => JSON.stringify(f.locator));
 
-    for (const field of fields) {
-      if (field.locator?.by === 'name') {
-        expect(field.locator.value).not.toBe('');
-      }
+      expect(new Set(located).size).toBe(located.length);
+      expect(located).toHaveLength(3);
     }
-    // Two real textareas plus the pitch: three locators, no duplicates.
-    const located = fields.filter((f) => f.locator).map((f) => JSON.stringify(f.locator));
-    expect(new Set(located).size).toBe(located.length);
   });
 
   it('carries a prefilled answer through', () => {

@@ -1,5 +1,11 @@
 import { readableText } from '../capture/readable-text';
 import type { FieldLocator } from '../capture/field-locator';
+import {
+  PITCH_QUESTION,
+  PITCH_SELECTORS,
+  findFallbackPitch,
+  pitchMinChars,
+} from './toptal-pitch-field';
 
 /**
  * The Job Interest Request form, as answerable fields.
@@ -24,6 +30,12 @@ export interface ApplicationField {
    * `<textarea>`'s *initial* content, so anything typed and not submitted is absent here.
    */
   prefilled: string;
+  /**
+   * The shortest value the page will accept, or 0 when it states none. Carried on the field
+   * rather than read in the card, because it is Toptal's rule and `AnswerCard.svelte` should
+   * not know which site it is rendering.
+   */
+  minChars: number;
 }
 
 /**
@@ -35,10 +47,6 @@ export const APPLICATION_FORM_ANCHOR = '[data-testid="matcherQuestions"]';
 
 const SELECT_FIELD = '[data-testid="matcherQuestionSelect"]';
 const TEXT_FIELD = '[data-testid="matcherQuestionInput"]';
-const PITCH_FIELD = '[data-testid="pitchThirdPersonLabel"]';
-
-/** The label carries the prose "(optional)" and an info icon; neither is the question. */
-const PITCH_QUESTION = 'Relevant experience';
 
 const CHOICE_REASON =
   'Toptal renders this one as a dropdown backed by a hidden field, not a text box — ' +
@@ -46,6 +54,15 @@ const CHOICE_REASON =
 
 const NO_CONTROL_REASON =
   'The question is on the page but its text box is not — Toptal may have changed its markup.';
+
+/**
+ * Said out loud rather than guessed at. Several unclaimed text boxes means the hook moved
+ * *and* the shape is ambiguous, and writing a pitch into the wrong one is the worst thing
+ * this feature could do — so the field is named as unfillable and the user fills it by hand.
+ */
+const AMBIGUOUS_PITCH_REASON =
+  "The pitch box could not be identified — Toptal's markup has changed and more than one " +
+  'text box here could be it. Write this one yourself.';
 
 /**
  * The control to write into, skipping the two that must never be written.
@@ -96,11 +113,11 @@ export function extractApplicationFields(html: string): ApplicationField[] {
   const fields: ApplicationField[] = [];
   // One ordered walk, so the ordinal fallback counts the same fields the user sees, in the
   // order they see them.
-  const wrappers = form.querySelectorAll(`${SELECT_FIELD}, ${TEXT_FIELD}, ${PITCH_FIELD}`);
+  const wrappers = form.querySelectorAll(`${SELECT_FIELD}, ${TEXT_FIELD}, ${PITCH_SELECTORS}`);
 
   let ordinal = 0;
   for (const wrapper of Array.from(wrappers)) {
-    const isPitch = wrapper.matches(PITCH_FIELD);
+    const isPitch = wrapper.matches(PITCH_SELECTORS);
 
     if (wrapper.matches(SELECT_FIELD)) {
       const hidden = wrapper.querySelector('input[type="hidden"]');
@@ -110,6 +127,7 @@ export function extractApplicationFields(html: string): ApplicationField[] {
         locator: null,
         unfillableReason: CHOICE_REASON,
         prefilled: hidden?.getAttribute('value') ?? '',
+        minChars: 0,
       });
       continue;
     }
@@ -122,6 +140,7 @@ export function extractApplicationFields(html: string): ApplicationField[] {
         locator: null,
         unfillableReason: NO_CONTROL_REASON,
         prefilled: '',
+        minChars: 0,
       });
       continue;
     }
@@ -132,9 +151,47 @@ export function extractApplicationFields(html: string): ApplicationField[] {
       locator: locate(control, ordinal),
       unfillableReason: '',
       prefilled: control.textContent ?? '',
+      minChars: isPitch ? pitchMinChars(wrapper) : 0,
     });
     ordinal += 1;
   }
 
+  if (!fields.some((f) => f.kind === 'pitch')) {
+    const recovered = recoverPitch(form, ordinal);
+    if (recovered) fields.push(recovered);
+  }
+
   return fields;
+}
+
+/**
+ * The pitch when neither hook matched, found by its shape instead.
+ *
+ * Null rather than a placeholder when there is no candidate: plenty of Toptal applications
+ * genuinely have no pitch box, and a warning there would be a false alarm about a page that is
+ * behaving normally. Only the ambiguous case — several unclaimed boxes — is worth saying, and
+ * it is said through the same `locator: null` card an unanswerable question already uses.
+ */
+function recoverPitch(form: Element, ordinal: number): ApplicationField | null {
+  const candidates = findFallbackPitch(form);
+  if (candidates.length === 0) return null;
+
+  const base = {
+    question: PITCH_QUESTION,
+    kind: 'pitch' as const,
+    prefilled: '',
+  };
+
+  if (candidates.length > 1) {
+    return { ...base, locator: null, unfillableReason: AMBIGUOUS_PITCH_REASON, minChars: 0 };
+  }
+
+  const control = candidates[0];
+  return {
+    ...base,
+    locator: locate(control, ordinal),
+    unfillableReason: '',
+    prefilled: control.textContent ?? '',
+    minChars: pitchMinChars(control),
+  };
 }
