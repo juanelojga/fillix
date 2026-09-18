@@ -1,0 +1,15 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    // `node` is added here and NOT to the root config on purpose: the extension's own typecheck
+    // should keep failing on a Node global, and this is the only place one is legitimate.
+    // `chrome` stays because the harness imports modules that name the namespace in type
+    // positions — `no-chrome.ts` is what guarantees none of them is ever *called*.
+    "types": ["node", "chrome", "vite/client"],
+    "noEmit": true,
+    // The scrub CLIs run under `node --experimental-strip-types`, whose ESM resolver requires
+    // explicit specifiers. Allowed here only; the extension's own sources stay extensionless.
+    "allowImportingTsExtensions": true
+  },
+  "include": ["."]
+}

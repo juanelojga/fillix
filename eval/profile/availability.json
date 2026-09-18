@@ -1,0 +1,11 @@
+{
+  "timeZone": "America/Guayaquil",
+  "days": {
+    "mon": "8am-9am, 11am-5pm",
+    "tue": "8am-9am, 11am-5pm",
+    "wed": "8am-9am, 11am-5pm",
+    "thu": "8am-9am, 11am-5pm",
+    "fri": "8am-9am, 11am-5pm"
+  },
+  "updatedAt": 1789000000000
+}

@@ -1,8 +1,17 @@
 import { hasAnyHours, type WeeklyAvailability } from '../profile/availability';
-import type { Message, MessageResponse } from '../../types';
 import { mentionsTime } from './mentions-time';
+import { requestQuestionTimes } from './question-times-port';
 import { normalizeQuestionTimes } from './question-times';
 import { checkSchedule, isEmptyCheck, type ScheduleCheck } from './schedule-check';
+
+/**
+ * Where one question's raw extraction comes from: the port in the panel, Ollama in the eval.
+ *
+ * Deliberately a `Record`, not a `QuestionTimes` — see `question-times-port.ts`. Annotated
+ * structurally rather than imported from there, so the transport module can depend on this one
+ * without a cycle.
+ */
+export type QuestionTimesSource = (question: string) => Promise<Record<string, unknown> | null>;
 
 /**
  * One question → what its times come to against the applicant's hours, or null.
@@ -23,6 +32,7 @@ export async function checkQuestionSchedule(
   availability: WeeklyAvailability,
   browserTimeZone: string,
   now: Date = new Date(),
+  source: QuestionTimesSource = requestQuestionTimes,
 ): Promise<ScheduleCheck | null> {
   // Three cheap refusals before spending a generation. The last is the load-bearing one: with
   // no zone there is nothing to convert *into*, and a comparison would silently assume one.
@@ -32,23 +42,13 @@ export async function checkQuestionSchedule(
   const timeZone = availability.timeZone || browserTimeZone;
   if (!timeZone) return null;
 
-  const msg: Message = { type: 'EXTRACT_QUESTION_TIMES', question };
-
-  let response: MessageResponse | undefined;
-  try {
-    response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;
-  } catch {
-    // A suspended worker or a closed panel. Not worth a diagnosis of its own: the answer is
-    // still drafted, just without the check.
-    return null;
-  }
-
-  if (!response?.ok || !('times' in response)) return null;
+  const raw = await source(question);
+  if (!raw) return null;
 
   // Re-normalised on this side of the port as well. `MessageResponse` is a compile-time claim
   // about a value that arrived as JSON, and this is the last point before the numbers are
   // treated as the applicant's stated availability.
-  const times = normalizeQuestionTimes(response.times as unknown as Record<string, unknown>);
+  const times = normalizeQuestionTimes(raw);
   const check = checkSchedule(availability, times, timeZone, now);
 
   // A question that mentioned scheduling but named no actual time — "are you available to start

@@ -15,7 +15,7 @@ export interface Minutes {
   end: number;
 }
 
-const MINUTES_PER_DAY = 24 * 60;
+export const MINUTES_PER_DAY = 24 * 60;
 
 /** `09:00` → 540. Null for anything that is not a well-formed 24-hour clock time. */
 export function parseClock(value: string): number | null {
@@ -88,6 +88,19 @@ function parseTime(raw: string): number | null {
 const SEPARATOR = /\s*(?:–|—|-|\bto\b)\s*/i;
 
 /**
+ * A leading "approximately" marker on a rendered range — Toptal writes `～ 3:00 AM – 11:00 AM`
+ * with a fullwidth tilde when the client's hours are not firm.
+ *
+ * Stripped rather than refused, and the distinction matters: this module exists to parse what a
+ * board *displayed*, and the clock times either side of the marker are as explicit as any other
+ * posting's. Rejecting the range would invent no precision but would discard precision already
+ * there — a quarter of real postings, silently losing their overlap and falling back to hours
+ * alone. The marker qualifies how firm the hours are, which is the reader's judgment to make,
+ * not a reason to be unable to compute the intersection at all.
+ */
+const APPROXIMATELY = /^[～~∼≈]\s*/;
+
+/**
  * `2:00 AM – 3:00 PM` → `[{ start: 120, end: 900 }]`.
  *
  * Returns an **array** because a range that crosses midnight is two segments of one day:
@@ -98,7 +111,7 @@ const SEPARATOR = /\s*(?:–|—|-|\bto\b)\s*/i;
  * own hours instead of an overlap it could not compute, which is the honest outcome.
  */
 export function parseTimeRange(value: string): Minutes[] | null {
-  const parts = value.trim().split(SEPARATOR);
+  const parts = value.trim().replace(APPROXIMATELY, '').split(SEPARATOR);
   if (parts.length !== 2) return null;
 
   const start = parseTime(parts[0]);

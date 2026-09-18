@@ -40,6 +40,29 @@ afterEach(() => {
 });
 
 describe('checkQuestionSchedule', () => {
+  /**
+   * The shape the worker *actually* sends.
+   *
+   * `background.ts` returns the value of `extractQuestionTimes`, which has already been through
+   * `normalizeQuestionTimes` — so `date` is a `CalendarDate` and `start`/`end` are minutes, not
+   * the wire strings every other case in this file stubs. `JSON.parse(JSON.stringify(...))` is
+   * the port's structured clone.
+   */
+  it('reads the payload the worker really returns, not the wire shape', async () => {
+    const { normalizeQuestionTimes } = await import('../question-times');
+    const asWorkerSends = JSON.parse(JSON.stringify(normalizeQuestionTimes(EXTRACTED))) as Record<
+      string,
+      unknown
+    >;
+
+    sendMessage = vi.fn(async () => ({ ok: true, times: asWorkerSends }));
+    vi.stubGlobal('chrome', { runtime: { id: 'test', sendMessage } });
+
+    const check = await checkQuestionSchedule(QUESTION, sampleWeek(), ZONE, NOW);
+    expect(check?.unchecked).toEqual([]);
+    expect(check?.slots[0].status).toBe('available');
+  });
+
   it('extracts, converts and rules on the question’s own times', async () => {
     const check = await checkQuestionSchedule(QUESTION, sampleWeek(), ZONE, NOW);
     expect(check?.slots[0].status).toBe('available');

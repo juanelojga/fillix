@@ -46,6 +46,24 @@ describe('parseTimeRange', () => {
     expect(parseTimeRange('2:00 AM – 3:00 PM')).toEqual([{ start: 120, end: 900 }]);
   });
 
+  // Toptal renders a fullwidth tilde when the client's hours are not firm. Two of eight real
+  // captures do this, and refusing them cost the overlap on a quarter of postings.
+  it('strips a leading approximately marker and reads the range behind it', () => {
+    expect(parseTimeRange('～ 3:00 AM – 11:00 AM')).toEqual([{ start: 180, end: 660 }]);
+    expect(parseTimeRange('～ 11:00 AM – 7:00 PM')).toEqual([{ start: 660, end: 1140 }]);
+  });
+
+  it('accepts the ASCII and mathematical spellings of that marker too', () => {
+    expect(parseTimeRange('~ 9:00 AM – 5:00 PM')).toEqual([{ start: 540, end: 1020 }]);
+    expect(parseTimeRange('≈9:00 AM – 5:00 PM')).toEqual([{ start: 540, end: 1020 }]);
+  });
+
+  // The marker is only ever a prefix on the whole range. A stray tilde where a time belongs is
+  // still unreadable, and must not be silently dropped into a guess.
+  it('does not strip a marker from the second half of a range', () => {
+    expect(parseTimeRange('9:00 AM – ~5:00 PM')).toBeNull();
+  });
+
   it('accepts a hyphen, an em dash and the word "to"', () => {
     expect(parseTimeRange('9:00 AM - 5:00 PM')).toEqual([{ start: 540, end: 1020 }]);
     expect(parseTimeRange('9:00 AM — 5:00 PM')).toEqual([{ start: 540, end: 1020 }]);

@@ -2,3 +2,6 @@ dist/
 node_modules/
 .vite/
 pnpm-lock.yaml
+eval/cases/
+eval/.cache/
+eval/reports/

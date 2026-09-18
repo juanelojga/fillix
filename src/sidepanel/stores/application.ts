@@ -1,8 +1,6 @@
 import { derived, get, writable } from 'svelte/store';
 import type { AnswerDraft } from '../../lib/answers/draft-answer';
-import { buildJobContext } from '../../lib/answers/job-context';
-import { buildRetrievalQuery } from '../../lib/answers/answer-query';
-import { buildAvailabilityEvidence } from '../../lib/answers/availability-evidence';
+import { assembleAnswerEvidence } from '../../lib/answers/answer-evidence';
 import { checkQuestionSchedule } from '../../lib/answers/question-schedule';
 import type { ScheduleCheck } from '../../lib/answers/schedule-check';
 import { diagnoseDraftFailure, type DraftDiagnosis } from '../../lib/answers/draft-diagnostics';
@@ -128,32 +126,23 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
   const state = get(runState);
   const brief = state.status === 'ready' ? state.brief : null;
 
-  const hours = get(availability);
-
-  // Before retrieval and before the model: any times the question itself names are converted
-  // and intersected with the stored hours here, so the answer quotes an arithmetic result
-  // instead of performing one. Null whenever that cannot be trusted — see `question-schedule`.
-  const schedule = await checkQuestionSchedule(field.question, hours, browserTimeZone());
-
-  // Charged against the same budget as the retrieved sections. Injected rather than retrieved
-  // because a schedule question must never depend on cosine similarity finding the right
-  // section — and because everything in it is computed, not embedded.
-  const availabilityBlock = buildAvailabilityEvidence(
-    hours,
-    brief,
-    browserTimeZone(),
-    new Date(),
-    schedule,
+  // What the model is shown is decided in `lib/answers/answer-evidence.ts`, not here: the panel
+  // supplies the stored values and the two impure steps, and that module owns the ordering the
+  // grounding design depends on.
+  const assembled = await assembleAnswerEvidence(
+    {
+      question: field.question,
+      brief,
+      availability: get(availability),
+      browserTimeZone: browserTimeZone(),
+    },
+    { checkSchedule: checkQuestionSchedule, retrieve: retrieveProfileContext },
   );
 
-  const retrieved = await retrieveProfileContext(
-    buildRetrievalQuery(field.question, brief),
-    EVIDENCE_CHARS - availabilityBlock.length,
-  );
-  if (!retrieved.ok) {
+  if (!assembled.ok) {
     setDraft(
       field.question,
-      { status: 'failed', diagnosis: diagnoseRetrievalFailure(retrieved) },
+      { status: 'failed', diagnosis: diagnoseRetrievalFailure(assembled.failure) },
       generation,
     );
     return;
@@ -163,12 +152,8 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
     type: 'DRAFT_ANSWER',
     kind: field.kind === 'pitch' ? 'pitch' : 'question',
     question: field.question,
-    job: brief ? buildJobContext(brief) : '',
-    // Availability last: Ollama truncates an overflowing context from the start, which is
-    // why `buildAnswerPrompt` already puts evidence last. Within it, last is safest.
-    evidence: [...retrieved.chunks.map((c) => c.text), availabilityBlock]
-      .filter(Boolean)
-      .join('\n\n---\n\n'),
+    job: assembled.job,
+    evidence: assembled.evidence,
   };
 
   const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;
@@ -189,13 +174,15 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
 
   setDraft(
     field.question,
-    { status: 'drafted', draft: response.draft, edited: response.draft.text, schedule },
+    {
+      status: 'drafted',
+      draft: response.draft,
+      edited: response.draft.text,
+      schedule: assembled.schedule,
+    },
     generation,
   );
 }
-
-/** Eight sections of profile is already most of a small model's usable context. */
-const EVIDENCE_CHARS = 6_000;
 
 /**
  * Captured in the panel for the same reason the News tab resolves its summary model there: the

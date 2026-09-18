@@ -1,0 +1,5 @@
+{
+  "baseUrl": "http://localhost:11434",
+  "model": "qwen3.5:9b",
+  "embedModel": "nomic-embed-text"
+}

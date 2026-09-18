@@ -9,8 +9,10 @@ import {
   type ProfileIndex,
 } from '../../lib/storage';
 import { isIndexStale } from '../../lib/profile/index-staleness';
-import { topChunks, type RetrievedChunk } from '../../lib/profile/retrieve';
-import type { RetrievalFailure } from '../../lib/profile/retrieval-diagnostics';
+import { retrieveFromIndex, type RetrievalResult } from '../../lib/profile/profile-retrieval';
+import { embedQueryInWorker } from '../../lib/profile/query-embed-port';
+
+export type { RetrievalResult };
 import type { Message, MessageResponse } from '../../types';
 
 /** What is actually in storage. Replaced wholesale on every save. */
@@ -124,46 +126,25 @@ export async function reindexProfile(): Promise<void> {
   indexState.set({ status: 'idle' });
 }
 
-export type RetrievalResult =
-  | { ok: true; chunks: RetrievedChunk[] }
-  | ({ ok: false } & RetrievalFailure);
-
 /**
  * The profile sections that should answer one question.
  *
- * Refuses *before* embedding anything whenever the index cannot be trusted, so the caller
- * gets a reason it can word rather than an empty list it has to guess at. That ordering is
- * the point: `topChunks` returns nothing for an unusable index too, and a silent empty result
- * is indistinguishable from "your CV says nothing about this", which is a very different
- * thing to tell someone applying for a job.
- *
- * Only the query crosses the port. The vectors are already here.
+ * The rules live in `lib/profile/profile-retrieval.ts` so the eval harness scores against the
+ * same implementation; this is the panel's adapter to them — the stored values on one side,
+ * the port on the other.
  */
 export async function retrieveProfileContext(
   query: string,
   budgetChars: number,
 ): Promise<RetrievalResult> {
-  if (!get(embedModel).trim()) return { ok: false, reason: 'no-embed-model' };
-  if (!get(profile).markdown.trim()) return { ok: false, reason: 'empty-profile' };
-
-  const index = get(profileIndex);
-  if (!index) return { ok: false, reason: 'no-index' };
-  if (get(indexIsStale)) return { ok: false, reason: 'stale-index' };
-
-  const msg: Message = { type: 'PROFILE_QUERY', query };
-  const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;
-
-  if (!response) {
-    return {
-      ok: false,
-      reason: 'embed-failed',
-      error: 'No response from the extension service worker',
-    };
-  }
-  if (!response.ok) return { ok: false, reason: 'embed-failed', error: response.error };
-  if (!('queryVector' in response)) {
-    return { ok: false, reason: 'embed-failed', error: 'Unexpected response shape' };
-  }
-
-  return { ok: true, chunks: topChunks(index, response.queryVector, budgetChars) };
+  return retrieveFromIndex(
+    {
+      embedModel: get(embedModel),
+      markdown: get(profile).markdown,
+      index: get(profileIndex),
+    },
+    query,
+    budgetChars,
+    embedQueryInWorker,
+  );
 }

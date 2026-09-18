@@ -1,5 +1,5 @@
 import { WEEKDAYS, type Weekday } from '../profile/availability';
-import { parseClock } from './time-range';
+import { MINUTES_PER_DAY, parseClock } from './time-range';
 import type { CalendarDate } from './zone-offset';
 
 /**
@@ -92,13 +92,53 @@ function asString(value: unknown): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-function parseDate(value: unknown): CalendarDate | null {
-  const match = ISO_DATE.exec(asString(value));
-  if (!match) return null;
+/**
+ * Whether this function's own output is an acceptable input to it.
+ *
+ * It has to be. `MessageResponse` types `times` as a parsed `QuestionTimes`, but what reaches
+ * the panel is JSON that crossed a process boundary, so `question-schedule.ts` re-validates it
+ * — and the worker sends the *normalised* value, because `extractQuestionTimes` normalises
+ * before returning. A parser that accepted only the wire shape therefore rejected every real
+ * extraction, pushed it into `unreadable`, and reported "could not be checked" for times it had
+ * read perfectly. Being idempotent is what makes that re-validation a defence rather than a
+ * silent discard.
+ *
+ * Strictness on the wire shape is unchanged: a string is still only read as `YYYY-MM-DD`, and
+ * a number only as minutes already in range.
+ */
+function parseMinutesValue(value: unknown): number | null {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 && value < MINUTES_PER_DAY ? value : null;
+  }
+  return parseClock(asString(value));
+}
 
-  const year = Number(match[1]);
-  const month = Number(match[2]);
-  const day = Number(match[3]);
+function parseDate(value: unknown): CalendarDate | null {
+  let year: number;
+  let month: number;
+  let day: number;
+
+  if (typeof value === 'object' && value !== null) {
+    const parts = value as Record<string, unknown>;
+    if (
+      typeof parts['year'] !== 'number' ||
+      typeof parts['month'] !== 'number' ||
+      typeof parts['day'] !== 'number'
+    ) {
+      return null;
+    }
+    year = parts['year'];
+    month = parts['month'];
+    day = parts['day'];
+  } else {
+    const match = ISO_DATE.exec(asString(value));
+    if (!match) return null;
+    year = Number(match[1]);
+    month = Number(match[2]);
+    day = Number(match[3]);
+  }
+
+  if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) return null;
   if (month < 1 || month > 12 || day < 1 || day > 31) return null;
 
   // Rejects 2026-02-30, which passes the range check above and would otherwise silently
@@ -138,8 +178,8 @@ export function normalizeQuestionTimes(raw: Record<string, unknown>): QuestionTi
     const entry = (item ?? {}) as Record<string, unknown>;
     const source = asString(entry['source']);
     const date = parseDate(entry['date']);
-    const start = parseClock(asString(entry['start']));
-    const end = parseClock(asString(entry['end']));
+    const start = parseMinutesValue(entry['start']);
+    const end = parseMinutesValue(entry['end']);
 
     if (!date || start === null || end === null || start === end) {
       if (source) unreadable.push(source);
@@ -157,8 +197,8 @@ export function normalizeQuestionTimes(raw: Record<string, unknown>): QuestionTi
   for (const item of Array.isArray(raw['recurring']) ? raw['recurring'] : []) {
     const entry = (item ?? {}) as Record<string, unknown>;
     const source = asString(entry['source']);
-    const start = parseClock(asString(entry['start']));
-    const end = parseClock(asString(entry['end']));
+    const start = parseMinutesValue(entry['start']);
+    const end = parseMinutesValue(entry['end']);
 
     if (start === null || end === null || start === end) {
       if (source) unreadable.push(source);
