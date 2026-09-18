@@ -732,6 +732,133 @@
         ],
         "optional": []
       }
+    },
+    {
+      "id": "synthetic-pitch-no-overlap",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Mainframe and ERP Engineer — no overlap with the profile",
+      "client": {
+        "country": "Germany",
+        "industry": "Manufacturing"
+      },
+      "description": "A hand-written posting with no honest overlap with the profile at all, so that the correct pitch is an empty one. The existing unsupportable case sits on a job the CV partly matches, which lets a model scrape together something defensible; this one does not.\n\nOur client maintains a forty-year-old order management system. The work is COBOL batch programs on z/OS, a SAP ABAP layer over them, and Salesforce Apex triggers that feed the sales side. A separate initiative is settling supplier contracts on-chain in Solidity. There is no web frontend on this engagement and no Python anywhere in the estate.\n\nWe are looking for someone who has done this specific work before. General full-stack experience does not transfer here.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "10:00 AM – 4:00 PM",
+        "Workday Overlap": "6 hrs (4 hrs required)",
+        "Time Zone": "Berlin, No time difference",
+        "Est. Length": "12+ months",
+        "Languages": "English, German",
+        "Desired Start Date": "Oct 15, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "COBOL",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "SAP ABAP",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Salesforce Apex",
+            "onProfile": false,
+            "connections": null
+          },
+          {
+            "name": "Solidity",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Unity",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
+    },
+    {
+      "id": "synthetic-pitch-voice-and-name-trap",
+      "source": {
+        "capture": "(hand-written)",
+        "capturedAt": "2026-09-17",
+        "fidelity": "synthetic"
+      },
+      "title": "Senior Full-Stack Engineer — founder-written posting",
+      "client": {
+        "country": "United States",
+        "industry": "Software"
+      },
+      "description": "A hand-written posting whose prose is the trap. It is written the way a founder actually writes one — first person about themselves, second person about the reader, and naming the people you would work beside. Every real capture in this set is written in the detached third person by Toptal's editors, so nothing else here pulls a third-person pitch towards the wrong voice.\n\nHi, I'm the founder. I started this company after ten years in logistics software, and I'm hiring the third engineer on my team. You'll pair daily with Dana, who owns the API, and with Marcus, who has been running our frontend since the first release. I want to hear about you in your own words: tell me what you have built, what you are proud of, and how you work with other people.\n\nThe stack is React, Next.js and TypeScript on the front, Python and FastAPI on the back, and PostgreSQL underneath. We deploy to a managed platform today and will move to Kubernetes next year.",
+      "attributes": {
+        "Specialization": "Core",
+        "Commitment": "Full-time (40 hrs/wk)",
+        "Work Setup": "Remote",
+        "Client's Hours": "9:00 AM – 5:00 PM",
+        "Workday Overlap": "8 hrs (4 hrs required)",
+        "Time Zone": "New York, No time difference",
+        "Est. Length": "6-12 months",
+        "Languages": "English",
+        "Desired Start Date": "Oct 1, 2026"
+      },
+      "skills": {
+        "required": [
+          {
+            "name": "React",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Next.js",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "TypeScript",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Python",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "FastAPI",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "PostgreSQL",
+            "onProfile": true,
+            "connections": null
+          },
+          {
+            "name": "Kubernetes",
+            "onProfile": false,
+            "connections": null
+          }
+        ],
+        "optional": [
+          {
+            "name": "Tailwind CSS",
+            "onProfile": false,
+            "connections": null
+          }
+        ]
+      }
     }
   ],
   "cases": [
@@ -2914,6 +3041,131 @@
         "allowEmpty": true
       },
       "notes": ""
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-no-overlap/pitch-availability-only",
+      "jobId": "synthetic-pitch-no-overlap",
+      "archetype": "pitch-availability-only",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [
+          "Meeting availability"
+        ],
+        "mustNotClaim": [
+          "COBOL",
+          "SAP ABAP",
+          "Salesforce Apex",
+          "Solidity",
+          "Unity"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": "The same job graded on the other failure it invites. assembleAnswerEvidence appends the availability block to a pitch too, so with no matching section to cite the remaining temptation is to pitch the applicant on being free between 08:00 and 17:00. Citing it here is the specific failure, which is what mustNotCite says."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-no-overlap/pitch-unsupportable",
+      "jobId": "synthetic-pitch-no-overlap",
+      "archetype": "pitch-unsupportable",
+      "expect": {
+        "grounded": true,
+        "noExperience": null,
+        "mustCiteAny": [],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "COBOL",
+          "SAP ABAP",
+          "Salesforce Apex",
+          "Solidity",
+          "Unity"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": true
+      },
+      "notes": "Nothing in the CV supports a pitch for this job, so an empty text is the answer pitchSystemPrompt asks for. pitch-not-a-denial is what catches the third-person denial written in its place, which denial-shape structurally cannot see: the NEGATION in states-no-experience.ts is first person only."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-voice-and-name-trap/pitch-name-trap",
+      "jobId": "synthetic-pitch-voice-and-name-trap",
+      "archetype": "pitch-name-trap",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "Tailwind CSS"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [
+          "Dana",
+          "Marcus"
+        ],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": "Same job as pitch-voice-trap, graded on the other half of it: the description names two colleagues, and a pitch that reaches for a name must reach for the applicant's. mustNotMention rather than mustNotClaim because those two strings are never correct output, whatever the framing. Two pitch cases on one job is an eval-only shape — production keys drafts by field.question and a page carries one pitch box."
+    },
+    {
+      "kind": "pitch",
+      "question": "Third-person pitch",
+      "minChars": 180,
+      "now": "2026-09-17T14:00:00-05:00",
+      "browserTimeZone": "America/Guayaquil",
+      "id": "synthetic-pitch-voice-and-name-trap/pitch-voice-trap",
+      "jobId": "synthetic-pitch-voice-and-name-trap",
+      "archetype": "pitch-voice-trap",
+      "expect": {
+        "grounded": true,
+        "noExperience": false,
+        "mustCiteAny": [
+          [
+            "React, Next.js and TypeScript",
+            "Python, FastAPI and Django"
+          ]
+        ],
+        "mustNotCite": [],
+        "mustNotClaim": [
+          "Kubernetes",
+          "Tailwind CSS"
+        ],
+        "mustMentionAny": [],
+        "mustNotMention": [],
+        "scheduleUsed": null,
+        "maxChars": 2000,
+        "allowEmpty": false
+      },
+      "notes": "The description is first and second person throughout and asks the reader to speak \"in your own words\". The pitch must stay third person anyway. buildJobContext adds its own pull, printing \"Required skills you already list\" into the same prompt."
     }
   ]
 }

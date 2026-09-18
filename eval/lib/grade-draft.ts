@@ -1,6 +1,8 @@
 import { statesNoExperience } from '../../src/lib/answers/states-no-experience';
+import { AVAILABILITY_HEADING } from '../../src/lib/profile/availability-text';
 import { resolveCitations } from './citations.ts';
 import { unsupportedNumbers, countNumericClaims } from './claimed-numbers.ts';
+import { firstPersonHits, namesSubject, readsAsDenial } from './pitch-voice.ts';
 import { isEmptyCheck } from '../../src/lib/answers/schedule-check';
 import type { AnswerDraft } from '../../src/lib/answers/draft-answer';
 import type { GoldenCase } from './golden.ts';
@@ -23,11 +25,23 @@ export type CheckName =
   | 'cites-retrieved'
   | 'citation-format'
   | 'cites-expected'
+  | 'no-forbidden-citation'
   | 'denial-shape'
   | 'numbers-in-evidence'
   | 'no-forbidden'
   | 'must-mention'
   | 'schedule-reached-the-model'
+  /**
+   * The three below score a pitch and are null for a question, so a question case keeps exactly
+   * the `scored` count it had before they existed and the per-check baseline stays readable.
+   *
+   * They are here rather than in `src/` because production has no use for the answer: by the
+   * time a pitch comes back in the wrong person the model has spent two minutes, and handing
+   * the user nothing is worse than handing them prose they can reword.
+   */
+  | 'pitch-voice'
+  | 'pitch-not-a-denial'
+  | 'pitch-substance'
   | 'style';
 
 export interface CheckResult {
@@ -147,6 +161,18 @@ export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
     );
   }
 
+  // ── Headings the answer must not have leant on. Until now `mustNotCite` was authored,
+  // validated by `golden.eval.ts` as a real heading, and then read by nothing — the one field
+  // in `Expectation` that could be wrong in every case without a single test noticing.
+  const forbiddenCitations = expect.mustNotCite.filter((h) => drewOn.includes(h));
+  checks.push(
+    check(
+      'no-forbidden-citation',
+      expect.mustNotCite.length === 0 ? null : forbiddenCitations.length === 0,
+      forbiddenCitations.length ? `cited: ${forbiddenCitations.join(' · ')}` : 'clean',
+    ),
+  );
+
   // ── A bare denial: production's own predicate, so the eval and the guard cannot drift.
   if (expect.noExperience === null) {
     checks.push(check('denial-shape', null, draft.noExperience ? 'denial' : 'answered'));
@@ -233,7 +259,72 @@ export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
     );
   }
 
-  // ── Shape: length bounds, no markdown, and the voice each kind is written in.
+  // ── The pitch, on the three properties that make it one. All three are null for a question
+  // and for an empty draft — '' is the correct answer to an unsupportable pitch, and grading a
+  // blank for voice would fail the one outcome `pitchSystemPrompt` asks for.
+  const isPitch = c.kind === 'pitch';
+  const gradesPitchProse = isPitch && text !== '';
+
+  // The voice. Stated three times in `pitchSystemPrompt`, last and loudest, and its docblock
+  // records that sharing the rule with the question prompt "is what made the pitch inherit the
+  // wrong voice" — a regression that has already happened once and that nothing caught.
+  const slips = gradesPitchProse ? firstPersonHits(text) : [];
+  const named = gradesPitchProse ? namesSubject(text, run.applicantName) : false;
+  checks.push(
+    check(
+      'pitch-voice',
+      gradesPitchProse ? slips.length === 0 && named : null,
+      !gradesPitchProse
+        ? isPitch
+          ? 'empty draft'
+          : 'not a pitch'
+        : slips.length
+          ? `first person: ${slips.map((w) => JSON.stringify(w)).join(', ')}`
+          : named
+            ? 'third person'
+            : `never names ${JSON.stringify(run.applicantName || 'The applicant')}`,
+    ),
+  );
+
+  // A denial written where an empty answer belongs. `denial-shape` cannot see this one:
+  // `statesNoExperience`'s NEGATION is first-person only, so "Rivera has no experience with
+  // Supabase" reads to it as an ordinary answer.
+  const denial = gradesPitchProse && readsAsDenial(text);
+  checks.push(
+    check(
+      'pitch-not-a-denial',
+      gradesPitchProse ? !denial : null,
+      !gradesPitchProse
+        ? isPitch
+          ? 'empty draft, the honest outcome'
+          : 'not a pitch'
+        : denial
+          ? `opens with a denial: ${JSON.stringify(text.slice(0, 80))}`
+          : 'pitches',
+    ),
+  );
+
+  // Grounded in the CV rather than in the injected hours. `assembleAnswerEvidence` appends the
+  // availability block to a pitch too, so citing it alone satisfies the grounding guard while
+  // saying nothing whatever about the applicant's experience.
+  //
+  // Null on an empty draft whether or not the case allowed one, like the two checks above:
+  // `style` already owns "empty where that was not allowed", and a second check failing for the
+  // same reason reports one fault as two.
+  const substantive = drewOn.filter((h) => h !== AVAILABILITY_HEADING);
+  checks.push(
+    check(
+      'pitch-substance',
+      gradesPitchProse ? substantive.length > 0 : null,
+      !gradesPitchProse
+        ? isPitch
+          ? 'empty draft'
+          : 'not a pitch'
+        : substantive.join(' · ') || `only ${AVAILABILITY_HEADING}`,
+    ),
+  );
+
+  // ── Shape: length bounds and no markdown. Voice is `pitch-voice` above, not this.
   const problems: string[] = [];
   if (text === '' && !expect.allowEmpty) problems.push('empty draft');
   if (expect.maxChars !== null && text.length > expect.maxChars)

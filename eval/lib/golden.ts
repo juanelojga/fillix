@@ -55,6 +55,16 @@ export const SYNTHETIC_ARCHETYPES = [
   'seniority-inflation',
   'non-english',
   'unanswerable-personal',
+  // The four pitch traps. Every one keeps the `pitch-` prefix on purpose: `EVAL_ONLY` matches
+  // a substring of the id *or* the archetype, so `EVAL_ONLY=pitch` narrows to the whole pitch
+  // lane, and a name like `voice-trap` would silently fall out of it.
+  //
+  // `guessArchetype` still returns a plain `pitch` for anything derived from a capture. These
+  // are hand-authored only: a real posting cannot be relied on to carry a trap.
+  'pitch-voice-trap',
+  'pitch-name-trap',
+  'pitch-unsupportable',
+  'pitch-availability-only',
 ] as const;
 
 export const ARCHETYPES = [...REAL_ARCHETYPES, ...SYNTHETIC_ARCHETYPES];

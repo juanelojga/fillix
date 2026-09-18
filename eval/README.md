@@ -42,6 +42,7 @@ variance is handled with `EVAL_SAMPLES` and a pass **rate**.
 | `cases/incoming/`   | raw captures. Gitignored, perishable, the input to `eval:derive`.        |
 | `profile/`          | the frozen world: CV, availability, model names.                         |
 | `golden.eval.ts`    | hygiene on the golden set. No Ollama, ~1 s. The fast loop.               |
+| `grader.eval.ts`    | the grader, graded. No Ollama. Part of the fast loop.                    |
 | `retrieval.eval.ts` | ranking on its own, before any drafting.                                 |
 | `drafting.eval.ts`  | the live run and the scorecard.                                          |
 | `survey.eval.ts`    | prints what the raw captures parse to. The parser's early warning.       |
@@ -51,9 +52,11 @@ variance is handled with `EVAL_SAMPLES` and a pass **rate**.
 
 One file, two arrays cross-referenced by `jobId` so each description is written once.
 
-- **10 jobs** — 8 derived from real Toptal `/confirm` captures, 2 hand-written.
-- **73 cases** — 45 real questions and pitches, 28 hand-written adversarial ones.
-- **30 archetypes**, every one of them populated; `golden.eval.ts` fails if any goes empty.
+- **12 jobs** — 8 derived from real Toptal `/confirm` captures, 4 hand-written.
+- **77 cases** — 45 real questions and pitches, 32 hand-written adversarial ones.
+- **34 archetypes**, every one of them populated; `golden.eval.ts` fails if any goes empty.
+- **13 of those cases are pitches** — one per capture plus five hand-written. `EVAL_ONLY=pitch`
+  selects the lot, which is why every pitch archetype keeps the `pitch-` prefix.
 
 No client is ever pseudonymized because Toptal never names one: the Company Information block
 carries a country, a founding year, a team size and an industry, and every description says "our
@@ -109,8 +112,12 @@ case does not decide it — nulls are reported and never counted.
 | `denial-shape`                  | an expected denial is bare: `statesNoExperience` **and** no citations |
 | `numbers-in-evidence`           | every year and tenure in the answer appears in the evidence           |
 | `no-forbidden` / `must-mention` | exact substrings absent / synonym groups covered                      |
+| `no-forbidden-citation`         | no heading in `mustNotCite` was leant on                              |
 | `schedule-reached-the-model`    | a computed schedule actually reached the prompt                       |
-| `style`                         | length bounds, no markdown, the voice the kind is written in          |
+| `pitch-voice`                   | third person, no `I`/`my`/`me`, and the subject is named              |
+| `pitch-not-a-denial`            | no denial written where an empty pitch belongs                        |
+| `pitch-substance`               | grounded in the CV, not only in the injected hours                    |
+| `style`                         | length bounds and no markdown                                         |
 
 `cites-retrieved` is the one production **structurally cannot** run: `normalizeAnswerDraft` only
 tests that `drew_on` is non-empty, so an answer citing a section it was never shown passes in the
@@ -120,6 +127,44 @@ extension today. Here the retrieved chunks are in hand.
 not hallucinated — it has formatted a true citation badly, which is a prompt fix. A model that
 names a section it was never shown has invented evidence, which is the failure this whole design
 exists to stop. One number would hide the second behind the first.
+
+### The pitch lane
+
+`EVAL_ONLY=pitch pnpm eval` runs the 13 pitch cases and nothing else.
+
+The pitch has three properties a question does not, and until they were checked here **nothing
+anywhere graded them** — `src/`'s unit specs assert that the instructions were _sent_, never
+that the output obeyed them:
+
+- **Voice.** `pitchSystemPrompt` states it three times, last and loudest, and its own docblock
+  records that sharing the rule with the question prompt "is what made the pitch inherit the
+  wrong voice". That regression has already happened once. `pitch-voice` also requires the
+  subject to be named, since the prompt injects it precisely so the pitch does not have to
+  retrieve it.
+- **A denial where an empty answer belongs.** `denial-shape` cannot see this one: the `NEGATION`
+  in `states-no-experience.ts` is first person only, so "Rivera has no experience with Supabase"
+  reads to it as an ordinary answer. `pitch-not-a-denial` is structural for the same reason that
+  module is — the prompt permits "name a gap once and move on", so only a short lead-with-negation
+  counts, never a negation anywhere in the text.
+- **Substance.** `assembleAnswerEvidence` appends the availability block to a pitch too, so a
+  pitch citing only `## Meeting availability` satisfies the grounding guard while saying nothing
+  about the applicant's experience.
+
+The three are `null` for a question and for an empty draft, so question cases keep the `scored`
+count they had before and `''` — the answer an unsupportable pitch is asked for — is never
+punished.
+
+Authoring a pitch case, all enforced by `golden.eval.ts`:
+
+- `question` is exactly `PITCH_QUESTION`. It is the drafts-map key and has already had to
+  survive Toptal relabelling the box.
+- `noExperience` is never `true`. The prompt asks for an empty `text`, not a denial.
+- `minChars` is the page's floor (180) and must not exceed `maxChars`, or `style` can never pass.
+- `archetype` starts with `pitch`, so `EVAL_ONLY=pitch` keeps selecting the whole lane.
+
+`retrieval.eval.ts` carries a second labelled set for `buildPitchQuery`, which searches on the
+job rather than on a question. It is what separates "the pitch was written badly" from "the pitch
+was handed the wrong sections" — the same reason that file exists at all.
 
 ### Reading a low score: suspect the grader first
 
@@ -152,7 +197,20 @@ A case with `knownOutput` carries what was already in the page's textarea — fo
 captures, Fillix's own earlier output. It is replayed through the grader on every run. A grader
 that passes everything is not a grader.
 
-## Baseline — two models, 73 cases
+`grader.eval.ts` is the other half of that argument, and it exists because replay cannot cover
+the pitch: no capture contains a first-person pitch, a third-person denial or a pitch grounded
+only on the hours, so those checks would report a clean sheet whether they worked or not. It
+feeds each one the draft it exists to catch, plus a good pitch that must pass, plus a question
+that must score none of them.
+
+## Baseline — two models, 73 cases (pre-pitch)
+
+> **Stale by construction.** Both runs graded `golden 782cc17d`, and
+> `goldenFingerprintInput` hashes every `expect` — so adding the four pitch cases moved the
+> hash and a new report is **not** comparable to the table below. The per-check rates still read
+> as a fair picture of the two models on the question lane; the totals do not. Re-run both
+> models to replace them, and note that the pitch checks are new denominators rather than a
+> regression when the totals move.
 
 Both runs graded `golden 782cc17d · profile 898a0d62`, which is the only condition under which
 two reports mean anything side by side.
@@ -174,6 +232,32 @@ two reports mean anything side by side.
 matters: it returns clean `##` headings, never cited a section it was not shown, and never
 invented a date. That is a model choice worth acting on, and no amount of reading individual
 answers would have established it.
+
+### The pitch lane's first numbers
+
+One run of `qwen3.5:9b` over `golden abdae191`, 13 pitch cases, single sample:
+
+| Check                   | Rate  |
+| ----------------------- | ----- |
+| `pitch-voice`           | 10/10 |
+| `pitch-not-a-denial`    | 10/10 |
+| `pitch-substance`       | 10/10 |
+| `no-forbidden-citation` | 1/1   |
+
+Green, and worth recording precisely because of that: these are now the rows where a red is a
+regression rather than a known weakness. The three nulls in each column are the empty drafts —
+all three of this run's empty pitches were on `allowEmpty` cases, which is the prompt working.
+
+`synthetic-pitch-no-overlap/pitch-availability-only` **failed on one run and passed on the
+next**: the model cited `## Meeting availability` the first time and returned empty the second.
+That is the trap doing its job and it is also a one-case demonstration of the variance section
+below — run it with `EVAL_SAMPLES=3` before concluding anything from a single green.
+
+`application-security-engineer-next-js-supabase/third-person-pitch` is fragile in a way worth
+knowing: it expects `grounded: true`, and an unsupportable pitch has two honest outcomes —
+empty text, which passes the guard, and uncited prose, which trips it. The case flips between
+them run to run, so its `grounding-guard` row is noise rather than signal. `Expectation` has no
+way to say "either", which is the real gap.
 
 ### Single-sample scores have real variance
 
@@ -206,8 +290,32 @@ with `EVAL_SAMPLES=3` or more before it is believed.
    call between changing the H1, stripping a trailing `— <word>`, and rejecting a candidate
    containing "Profile"/"CV".
 
+   **`golden.eval.ts` now asserts this, so the fast loop is red until it is decided.** That is
+   deliberate: the name is injected rather than retrieved, so no citation check can see it and
+   the pitch reads perfectly fluently with it — it would sit in this list forever otherwise. The
+   assertion is `reads a plausible name out of the frozen profile`, and the one-line fix lives in
+   `src/lib/profile/applicant-name.ts`.
+
+5. **A long job description retrieves the CV's biographical sections, not its technical ones.**
+   `buildPitchQuery` embeds the first 600 characters of the description plus the skill
+   vocabulary, and on `pt-fullstack-developer-solutions-architect-for-a` — whose first two
+   sentences say "multi-tenant SaaS solution" and "connects existing travel platform APIs" — it
+   returns `Employment history`, `Mobile` and `Selected projects`, with every score inside
+   0.64–0.68. Nothing discriminates. That job's pitch case then fails `cites-expected` on all
+   three members of its group, and the retrieval lane carries it as a labelled ✗ rather than a
+   relabelled ✓. A question retrieves fine on the same profile, so this is the pitch query's
+   length, not the index.
+6. **A pitch with nothing to say pitches the applicant's calendar.** On the first run of
+   `synthetic-pitch-no-overlap/pitch-availability-only` — a COBOL, SAP ABAP and Solidity posting
+   — the model wrote a full pitch and cited `## Meeting availability` among eight sources rather
+   than returning the empty text the prompt asks for. `assembleAnswerEvidence` appends that block
+   to a pitch as well as to a question, so it is always there to reach for. The case exists
+   because this is the failure that survives the grounding guard: it is a real citation of real
+   evidence, and it still says nothing about whether the applicant can do the work.
+
 Two cases are deliberately **known red** and say so in their `notes`. A golden set with no red
-rows is either measuring nothing or has been quietly bent to fit.
+rows is either measuring nothing or has been quietly bent to fit. The pitch lane's
+`pt-fullstack…` retrieval label is red on the same principle and for the reason in finding 5.
 
 ## Lane B is not implemented, and that is a decision
 

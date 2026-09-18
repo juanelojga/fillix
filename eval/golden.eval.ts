@@ -19,6 +19,9 @@ import { mentionsTime } from '../src/lib/answers/mentions-time';
 import { parseTimeRange } from '../src/lib/answers/time-range';
 import { statesNoExperience } from '../src/lib/answers/states-no-experience';
 import { missingRequiredSkills } from '../src/lib/playbooks/job-brief';
+import { PITCH_QUESTION } from '../src/lib/playbooks/toptal-pitch-field';
+import { applicantName } from '../src/lib/profile/applicant-name';
+import { firstPersonHits, namesSubject, readsAsDenial } from './lib/pitch-voice.ts';
 
 /**
  * Hygiene for the committed golden set. No Ollama, about a second, and it is the fast loop.
@@ -157,6 +160,155 @@ describe('golden set — meetable expectations', () => {
     }
     console.log(`  ${disagreements} skill(s) where Toptal's flag and the CV disagree`);
     expect(disagreements).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe('golden set — pitch cases', () => {
+  const pitches = labelled.filter((c) => c.kind === 'pitch');
+
+  it('has pitch cases at all', () => {
+    expect(pitches.length).toBeGreaterThan(0);
+  });
+
+  it('labels the pitch with the stable question, never the page wording', () => {
+    // `PITCH_QUESTION` is the drafts-map key and the `{#each}` key, and it has already had to
+    // survive Toptal relabelling the box from "Relevant experience (optional)" to "Write your
+    // third-person pitch here". A case that drifted off it would grade a field production
+    // cannot key.
+    for (const c of pitches) expect(c.question, c.id).toBe(PITCH_QUESTION);
+  });
+
+  it('keeps every pitch archetype inside the pitch lane', () => {
+    // `EVAL_ONLY` matches a substring of the id or the archetype, so this is what keeps
+    // `EVAL_ONLY=pitch` selecting the whole lane rather than most of it.
+    for (const c of pitches) expect(c.archetype.startsWith('pitch'), c.id).toBe(true);
+  });
+
+  it('never expects a pitch to state no experience', () => {
+    // Unmeetable twice over. `pitchSystemPrompt` replaces the denial rule with "return an empty
+    // text", and a third-person denial could not match `statesNoExperience` even if written.
+    for (const c of pitches)
+      expect(c.expect.noExperience, `${c.id}: pitches do not deny`).not.toBe(true);
+  });
+
+  it('never expects a schedule to reach a pitch', () => {
+    // The pitch's `question` is a UI label, so `mentionsTime` refuses before an extraction is
+    // ever spent. Asserted here as well as in the general rule, for the wording.
+    for (const c of pitches) {
+      expect(c.expect.scheduleUsed, c.id).not.toBe(true);
+      expect(mentionsTime(c.question), c.id).toBe(false);
+    }
+  });
+
+  it('leaves the length bounds satisfiable', () => {
+    // `style` checks both ends. A minimum above the maximum fails every model forever, and the
+    // page's minimum is the half that arrives from outside the file.
+    for (const c of pitches) {
+      expect(c.minChars, `${c.id}: the pitch box states a minimum`).toBeGreaterThan(0);
+      if (c.expect.maxChars !== null)
+        expect(c.minChars, `${c.id}: minChars ${c.minChars} > maxChars`).toBeLessThanOrEqual(
+          c.expect.maxChars,
+        );
+    }
+  });
+
+  it('gives every captured job a pitch case', () => {
+    // All eight captures carry a pitch box — seven behind `pitchInput`, one behind the older
+    // `pitchThirdPersonLabel`. A captured job without a pitch case means a derivation dropped it.
+    const missing = golden.jobs
+      .filter((j) => j.source.fidelity !== 'synthetic')
+      .filter((j) => !pitches.some((c) => c.jobId === j.id))
+      .map((j) => j.id);
+    expect(missing).toEqual([]);
+  });
+});
+
+describe('golden set — the injected pitch subject', () => {
+  const subject = applicantName(markdown);
+
+  /** A trailing `— Profile` / `- CV` is a document title, not a name. */
+  const DOCUMENT_SUFFIX = /[—–-]\s*(?:profile|cv|r[ée]sum[ée]|curriculum vitae)\s*$/i;
+
+  it('reads a plausible name out of the frozen profile', () => {
+    // KNOWN FAILURE, and deliberately loud rather than a README footnote.
+    //
+    // The frozen profile's H1 is `# Alex Rivera — Profile` and `applicant-name.ts` strips only
+    // the `#`, so `pitchSystemPrompt` is told to refer to the applicant as "Alex Rivera —
+    // Profile" and every third-person pitch opens with it. Nothing downstream can catch this:
+    // the name is injected, not retrieved, so no citation check sees it, and the pitch reads
+    // fluently with it.
+    //
+    // The fix is one line in `src/lib/profile/applicant-name.ts` plus a case in its spec, and
+    // it is out of scope here on purpose — this file's job is to make the defect impossible to
+    // forget, not to decide it.
+    console.log(`\n  injected pitch subject: ${JSON.stringify(subject)}\n`);
+    expect(subject, 'applicantName() returned nothing').not.toBe('');
+    expect(subject.includes(':'), `${subject} looks like a contact line`).toBe(false);
+    expect(
+      DOCUMENT_SUFFIX.test(subject),
+      `${JSON.stringify(subject)} is a document title, not a name — see applicant-name.ts`,
+    ).toBe(false);
+  });
+});
+
+describe("pitch-voice — the grader's own predicates", () => {
+  // Exercised here because `golden.eval.ts` is the no-Ollama fast loop and already asserts
+  // `statesNoExperience`'s behaviour the same way. `pnpm test`'s glob is `src/**`, so it can
+  // never see a module under `eval/lib/`.
+
+  it('catches the first-person forms a model actually writes', () => {
+    expect(firstPersonHits('I led the migration.')).toEqual(['I']);
+    expect(firstPersonHits("I've shipped it and I'm proud of my work.").sort()).toEqual([
+      "I'm",
+      "I've",
+      'my',
+    ]);
+    expect(firstPersonHits('It was clear to me that mine was faster.').sort()).toEqual([
+      'me',
+      'mine',
+    ]);
+  });
+
+  it('does not fire on the letter I inside a word or on a lowercase i', () => {
+    // The reason the `I`-forms are matched case-sensitively and the others are not.
+    expect(firstPersonHits('AI, UI and CI work, plus i18n and I18n support.')).toEqual([]);
+    expect(firstPersonHits('the i in the identifier')).toEqual([]);
+  });
+
+  it('accepts any significant word of the subject as naming it', () => {
+    expect(namesSubject('Rivera led the migration.', 'Alex Rivera')).toBe(true);
+    expect(namesSubject('Alex led the migration.', 'Alex Rivera')).toBe(true);
+    expect(namesSubject('The applicant led the migration.', '')).toBe(true);
+    expect(namesSubject('They led the migration.', 'Alex Rivera')).toBe(false);
+    // 'The' alone must not carry it, or every pitch would pass by accident.
+    expect(namesSubject('The migration shipped.', '')).toBe(false);
+  });
+
+  it('reads a short lead-with-negation as a denial', () => {
+    expect(readsAsDenial('Alex Rivera has no experience with COBOL or SAP ABAP.')).toBe(true);
+    expect(readsAsDenial('He has never worked with Solidity.')).toBe(true);
+    expect(readsAsDenial('The applicant lacks the required mainframe background.')).toBe(true);
+  });
+
+  it('does not read a gap named inside a real pitch as a denial', () => {
+    // `pitchSystemPrompt` explicitly permits "Name a gap once, briefly, and move on", so this
+    // is the false positive that would fail correct pitches if the scan were loose.
+    const pitch =
+      'Alex Rivera has spent nine years building full-stack systems, most recently taking over ' +
+      'marketplace surfaces already serving hundreds of thousands of users and extending them. ' +
+      'He has not worked with Kubernetes, but he has run containerised services through CI and ' +
+      'into production throughout that time. His Python and FastAPI work lines up closely with ' +
+      'the backend described here, and his React and TypeScript work with the frontend.';
+    expect(readsAsDenial(pitch)).toBe(false);
+    // Long enough to be a real pitch even when the negation does open it.
+    expect(readsAsDenial(`While ${pitch}`)).toBe(false);
+  });
+
+  it('does not read an empty pitch as a denial', () => {
+    // '' is the outcome the prompt asks for. Reading it as a failure would fail the one case
+    // the empty-answer rule exists to produce.
+    expect(readsAsDenial('')).toBe(false);
+    expect(readsAsDenial('   ')).toBe(false);
   });
 });
 

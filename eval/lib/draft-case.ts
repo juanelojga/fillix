@@ -39,7 +39,19 @@ export interface CaseWorld {
 }
 
 export type CaseRun =
-  | { ok: true; assembled: Extract<AssembledEvidence, { ok: true }>; draft: AnswerDraft }
+  | {
+      ok: true;
+      assembled: Extract<AssembledEvidence, { ok: true }>;
+      draft: AnswerDraft;
+      /**
+       * The subject `pitchSystemPrompt` was actually given, carried out for `pitch-voice`.
+       *
+       * The grader gets it from here rather than computing it, because it has no `markdown`
+       * and must not gain one: a second `applicantName` call is a second chance to disagree
+       * with the prompt that ran, and the whole point of the check is to grade that prompt.
+       */
+      applicantName: string;
+    }
   /** A refusal or a throw is a graded row, never a crashed run: a model that cannot answer is
    * a result, and losing the other seventy-two cases to it would not be. */
   | { ok: false; stage: 'evidence' | 'draft'; error: string; assembled: AssembledEvidence | null };
@@ -114,6 +126,9 @@ export async function runCase(
     return { ok: false, stage: 'evidence', error: assembled.failure.reason, assembled };
   }
 
+  // Resolved once and both used and reported: the prompt and the grader cannot disagree.
+  const subject = applicantName(world.markdown);
+
   try {
     const draft = await draftAnswer(
       world.chat,
@@ -122,11 +137,11 @@ export async function runCase(
         question: c.question,
         job: assembled.job,
         evidence: assembled.evidence,
-        applicantName: applicantName(world.markdown),
+        applicantName: subject,
       },
       signal,
     );
-    return { ok: true, assembled, draft };
+    return { ok: true, assembled, draft, applicantName: subject };
   } catch (err) {
     // The grounding guard throws from here. `grade-draft.ts` reads the message and scores it
     // against the case's expectation rather than treating it as an infrastructure failure.
