@@ -1,6 +1,6 @@
 import { statesNoExperience } from '../../src/lib/answers/states-no-experience';
 import { AVAILABILITY_HEADING } from '../../src/lib/profile/availability-text';
-import { resolveCitations } from './citations.ts';
+import { resolveCitations, shownHeadings } from './citations.ts';
 import { unsupportedNumbers, countNumericClaims } from './claimed-numbers.ts';
 import { firstPersonHits, namesSubject, readsAsDenial } from './pitch-voice.ts';
 import { isEmptyCheck } from '../../src/lib/answers/schedule-check';
@@ -62,6 +62,27 @@ export interface CaseGrade {
   gaps: string[];
   /** Carried into the report so a per-token judgement can be added later without re-running. */
   mustNotClaim: string[];
+  /**
+   * The sections the model was shown, in rank order. Carried for the same reason `drewOn` is:
+   * a report that records only what was cited cannot answer why something was not.
+   */
+  retrieved: string[];
+  /**
+   * Every `mustCiteAny` group the answer did not satisfy, each marked with whether the evidence
+   * even contained it.
+   *
+   * Structured rather than folded into the check's `detail`, because the aggregate that makes
+   * this useful — how many misses were retrieval's fault and how many were the answer's — would
+   * otherwise have to parse a sentence written for a human.
+   */
+  missedCitations: MissedCitation[];
+}
+
+/** A `mustCiteAny` group that went uncited, and whether it was ever on offer. */
+export interface MissedCitation {
+  group: string[];
+  /** True when at least one heading in the group was in the evidence and the answer ignored it. */
+  wasRetrieved: boolean;
 }
 
 const MARKDOWN = /(\*\*|^#{1,6}\s|^[-*]\s|^\d+\.\s)/m;
@@ -73,6 +94,11 @@ function check(name: CheckName, pass: boolean | null, detail = ''): CheckResult 
 export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
   const expect = c.expect;
   const checks: CheckResult[] = [];
+  // Recorded even when the run failed: a draft discarded by the guard was still handed evidence,
+  // and "what was it looking at" is the first question asked of one.
+  const evidence = run.ok ? run.assembled : run.assembled?.ok ? run.assembled : null;
+  const retrieved = evidence ? shownHeadings(evidence.chunks, evidence.availabilityBlock) : [];
+  const missedCitations: MissedCitation[] = [];
   const empty = (): CaseGrade => ({
     id: c.id,
     archetype: c.archetype,
@@ -83,6 +109,8 @@ export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
     drewOn: [],
     gaps: [],
     mustNotClaim: expect?.mustNotClaim ?? [],
+    retrieved,
+    missedCitations: [],
   });
 
   if (!expect) {
@@ -144,18 +172,32 @@ export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
   );
 
   // ── Each expected group needs one hit.
+  //
+  // A miss is reported with the reason it happened, because the two reasons have opposite fixes
+  // and the bare list of headings cannot tell them apart. `not retrieved` is retrieval's
+  // failure — `answer-query.ts` or the evidence budget — and the model could not have passed
+  // whatever it wrote. `not cited` is the answer's: the section was in front of it.
   if (expect.mustCiteAny.length === 0) {
     checks.push(check('cites-expected', null, 'no citation required'));
   } else if (text === '' && expect.allowEmpty) {
     checks.push(check('cites-expected', null, 'empty draft, allowed'));
   } else {
-    const missed = expect.mustCiteAny.filter((group) => !group.some((h) => drewOn.includes(h)));
+    missedCitations.push(
+      ...expect.mustCiteAny
+        .filter((group) => !group.some((h) => drewOn.includes(h)))
+        .map((group) => ({ group, wasRetrieved: group.some((h) => retrieved.includes(h)) })),
+    );
     checks.push(
       check(
         'cites-expected',
-        missed.length === 0,
-        missed.length
-          ? `missed: ${missed.map((g) => g.join('|')).join(' ; ')}`
+        missedCitations.length === 0,
+        missedCitations.length
+          ? `missed: ${missedCitations
+              .map(
+                (m) =>
+                  `${m.group.join('|')} (${m.wasRetrieved ? 'retrieved, not cited' : 'not retrieved'})`,
+              )
+              .join(' ; ')}`
           : drewOn.join(' · '),
       ),
     );
@@ -344,6 +386,8 @@ export function gradeCase(c: GoldenCase, run: CaseRun): CaseGrade {
     drewOn: draft.drewOn,
     gaps: draft.gaps,
     mustNotClaim: expect.mustNotClaim,
+    retrieved,
+    missedCitations,
   };
 }
 

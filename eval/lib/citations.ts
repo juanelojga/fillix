@@ -53,14 +53,32 @@ const MIN_QUOTE_CHARS = 12;
 /** How much of a quote's opening must match when the whole of it does not. */
 const QUOTE_PREFIX_CHARS = 40;
 
+/**
+ * The sections the model was actually shown, named the way a citation would have to name them.
+ *
+ * Exported because `cites-expected` cannot read its own failures without it. A missed citation
+ * has two causes with opposite fixes — the section never made the evidence, or it did and the
+ * answer ignored it — and only this list tells them apart. `resolveCitations` builds it anyway
+ * to judge a citation against, so a second copy would be a second thing to keep in step with
+ * `baseHeading` and the availability block's unsearched-but-real status.
+ */
+export function shownHeadings(
+  chunks: { heading: string; text: string }[],
+  availabilityBlock: string,
+): string[] {
+  const headings = chunks.map((k) => baseHeading(k.heading));
+  // Real evidence that never came from a retrieved chunk, and citable for exactly that reason.
+  if (availabilityBlock.trim() !== '') headings.push(AVAILABILITY_HEADING);
+  return [...new Set(headings)];
+}
+
 export function resolveCitations(
   drewOn: string[],
   chunks: { heading: string; text: string }[],
   availabilityBlock: string,
 ): Citation[] {
-  const headings = new Set(chunks.map((k) => baseHeading(k.heading)));
   const hasAvailability = availabilityBlock.trim() !== '';
-  if (hasAvailability) headings.add(AVAILABILITY_HEADING);
+  const headings = new Set(shownHeadings(chunks, availabilityBlock));
 
   const flatChunks = chunks.map((k) => ({ heading: baseHeading(k.heading), text: flat(k.text) }));
   const flatAvailability = flat(availabilityBlock);

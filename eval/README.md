@@ -26,10 +26,15 @@ pnpm eval:derive                  # rebuild golden.json from eval/cases/incoming
 Comparing two models on one golden set is the point of having one:
 
 ```bash
-pnpm eval                                   # baseline
-EVAL_MODEL=gemma4:12b pnpm eval             # the comparison
+pnpm eval                                   # baseline — gemma4:12b, per eval/profile/ollama.json
+EVAL_MODEL=qwen3.5:9b pnpm eval             # the comparison
 # then diff the two JSON files in eval/reports/
 ```
+
+The committed baseline is `gemma4:12b` because it is the only model measured that has never
+invented a citation: 0 across 116 drafts, against 39 malformed ones for `qwen3.5:9b` and 57
+invented for `llama3.2:3b`. `src/lib/storage.ts` now ships the same default for the same
+reason.
 
 Nothing passes `temperature` or `seed`. Pinning them would grade a system that never ships;
 variance is handled with `EVAL_SAMPLES` and a pass **rate**.
@@ -43,7 +48,7 @@ variance is handled with `EVAL_SAMPLES` and a pass **rate**.
 | `profile/`          | the frozen world: CV, availability, model names.                         |
 | `golden.eval.ts`    | hygiene on the golden set. No Ollama, ~1 s. The fast loop.               |
 | `grader.eval.ts`    | the grader, graded. No Ollama. Part of the fast loop.                    |
-| `retrieval.eval.ts` | ranking on its own, before any drafting.                                 |
+| `retrieval.eval.ts` | ranking on its own, before any drafting — plus where a miss ranks.       |
 | `drafting.eval.ts`  | the live run and the scorecard.                                          |
 | `survey.eval.ts`    | prints what the raw captures parse to. The parser's early warning.       |
 | `derive/`           | the derivation. Deliberately not under `cases/`, which prettier ignores. |
@@ -127,6 +132,24 @@ extension today. Here the retrieved chunks are in hand.
 not hallucinated — it has formatted a true citation badly, which is a prompt fix. A model that
 names a section it was never shown has invented evidence, which is the failure this whole design
 exists to stop. One number would hide the second behind the first.
+
+`retrieval.eval.ts` answers the follow-up a `(not retrieved)` miss raises: **how far down did
+it rank?** A section at rank 9 was one slot past where production stopped reading; one at rank
+23 of 31 was never close, and no budget would have saved it. The lane lifts both limits —
+`DEFAULT_MAX_CHUNKS` as well as the character budget, since the chunk cap is the one that
+usually binds and `retrieveFromIndex` does not expose it — and prints every expectation ranking
+below the ~8 sections production actually reads. `Meeting availability` is skipped: it is
+injected beside the retrieved sections rather than ranked among them, so it has no rank and is
+always available.
+
+`cites-expected` carries the same split one level down, because its failures have two causes and
+opposite fixes: the section never made the evidence, or it did and the answer cited something
+else. The first is retrieval's — `answer-query.ts`, the embedding, the `EVIDENCE_CHARS` budget —
+and no prompt could have saved the answer; the second is `answer-prompt.ts`'s. Each miss is
+recorded as `(not retrieved)` or `(retrieved, not cited)`, every grade carries the headings the
+model was shown as `retrieved`, and the report totals the two under `missedCitations` with the
+groups retrieval never produced ranked by how often. Reading a 74% without that split is how a
+golden set gets optimised in the wrong direction.
 
 ### The pitch lane
 

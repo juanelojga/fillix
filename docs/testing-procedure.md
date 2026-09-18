@@ -5,7 +5,7 @@
 Before starting any test, ensure the following are in place:
 
 1. **Ollama is running** — `ollama serve` is active on `http://localhost:11434`
-2. **At least one model is pulled** — e.g. `ollama pull llama3.2`
+2. **At least one model is pulled** — e.g. `ollama pull gemma4:12b`, the default in `storage.ts`
 3. **OLLAMA_ORIGINS is set** — Ollama must accept requests from the extension origin:
    ```
    OLLAMA_ORIGINS=chrome-extension://*

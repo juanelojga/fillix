@@ -46,7 +46,7 @@ beforeEach(() => {
 describe('loadSettings', () => {
   it('falls back to the Ollama defaults on a fresh profile', async () => {
     await loadSettings();
-    expect(get(ollamaConfig)).toEqual({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+    expect(get(ollamaConfig)).toEqual({ baseUrl: 'http://localhost:11434', model: 'gemma4:12b' });
   });
 
   it('seeds the model list from the active model when no list is stored', async () => {
@@ -204,7 +204,7 @@ describe('newsModel', () => {
     expect(get(newsModel)).toBe('phi4');
     expect(store.newsConfig).toEqual({ model: 'phi4' });
     expect(store.ollama).toBeUndefined();
-    expect(get(ollamaConfig)?.model).toBe('llama3.2');
+    expect(get(ollamaConfig)?.model).toBe('gemma4:12b');
   });
 
   it("setNewsModel('') persists the follow-the-chat-model state", async () => {
@@ -230,7 +230,7 @@ describe('newsModel', () => {
 describe('effectiveSummaryModel', () => {
   it("follows the chat model while the News preference is ''", async () => {
     await loadSettings();
-    expect(get(effectiveSummaryModel)).toBe('llama3.2');
+    expect(get(effectiveSummaryModel)).toBe('gemma4:12b');
   });
 
   it('is the News preference once one is set', async () => {

@@ -136,3 +136,59 @@ describe('the pitch checks fire on what they exist to catch', () => {
     console.log(`  forbidden citation → ${verdict(g, 'no-forbidden-citation')?.detail}`);
   });
 });
+
+/**
+ * The split a `cites-expected` failure is read by.
+ *
+ * Both halves fail the check identically, so nothing about the score distinguishes them — and
+ * they have opposite fixes. Untested, the classification could be inverted in every run without
+ * a single number moving, which is the state `mustNotCite` was in before it got a check.
+ */
+describe('a missed citation records whether it was ever on offer', () => {
+  const withGroups = (groups: string[][]): GoldenCase => ({
+    ...CASE,
+    expect: { ...(CASE.expect as Expectation), mustCiteAny: groups },
+  });
+
+  it('marks a group that reached the model and went uncited', () => {
+    // The chunk is in the evidence; the answer cites the availability block instead.
+    const g = gradeCase(withGroups([[CHUNK.heading]]), run(GOOD, ['Meeting availability']));
+    expect(verdict(g, 'cites-expected')?.pass).toBe(false);
+    expect(g.missedCitations).toEqual([{ group: [CHUNK.heading], wasRetrieved: true }]);
+    expect(verdict(g, 'cites-expected')?.detail).toContain('retrieved, not cited');
+    console.log(`  shown and ignored → ${verdict(g, 'cites-expected')?.detail}`);
+  });
+
+  it('marks a group retrieval never produced', () => {
+    const g = gradeCase(
+      withGroups([['PostgreSQL and data modelling']]),
+      run(GOOD, [CHUNK.heading]),
+    );
+    expect(verdict(g, 'cites-expected')?.pass).toBe(false);
+    expect(g.missedCitations).toEqual([
+      { group: ['PostgreSQL and data modelling'], wasRetrieved: false },
+    ]);
+    expect(verdict(g, 'cites-expected')?.detail).toContain('not retrieved');
+    console.log(`  never shown → ${verdict(g, 'cites-expected')?.detail}`);
+  });
+
+  it('counts one alternative in the evidence as the whole group being on offer', () => {
+    // Any member satisfies the expectation, so the group was available even though the other
+    // heading never existed. Marking this 'not retrieved' would send the fix to retrieval.
+    const g = gradeCase(
+      withGroups([['PostgreSQL and data modelling', CHUNK.heading]]),
+      run(GOOD, ['Meeting availability']),
+    );
+    expect(g.missedCitations[0]?.wasRetrieved).toBe(true);
+  });
+
+  it('records the evidence on a run that never produced a draft', () => {
+    const g = gradeCase(CASE, {
+      ok: false,
+      stage: 'draft',
+      error: 'The model answered without citing your profile, so the answer was discarded',
+      assembled: run('', []).assembled,
+    });
+    expect(g.retrieved).toEqual([CHUNK.heading, 'Meeting availability']);
+  });
+});

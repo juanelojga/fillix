@@ -132,7 +132,7 @@
           <Input
             id="new-model"
             bind:value={newModel}
-            placeholder="llama3.2"
+            placeholder="gemma4:12b"
             onkeydown={(e: KeyboardEvent) => {
               if (e.key === 'Enter') {
                 e.preventDefault();

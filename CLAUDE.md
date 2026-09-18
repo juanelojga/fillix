@@ -631,7 +631,7 @@ Pointing the Ollama base URL somewhere other than `http://localhost:11434` requi
 
 Ollama is the only backend. Worth stating explicitly when the user reports "nothing happens":
 
-1. `ollama serve` running, with at least one model pulled (default in `storage.ts` is `llama3.2`).
+1. `ollama serve` running, with at least one model pulled (default in `storage.ts` is `gemma4:12b`, chosen by the eval — see `eval/README.md`; a 3B model invents citations).
 2. `OLLAMA_ORIGINS=chrome-extension://*` in the environment Ollama runs under — otherwise the preflight/origin check rejects the extension's requests. On macOS this is `launchctl setenv OLLAMA_ORIGINS "chrome-extension://*"` then restart the Ollama app.
 
 3. The model name in Settings must match `ollama list` exactly (tag included, e.g. `qwen3:8b`). Nothing validates it on entry — hitting **Test** next to the model is what surfaces `model "…" not found`.

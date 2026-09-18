@@ -3,10 +3,12 @@ import { readFileSync } from 'node:fs';
 import { loadEvalConfig, profilePath } from './lib/eval-config.ts';
 import { loadOrBuildIndex } from './lib/index-cache.ts';
 import { ollamaQueryEmbedder } from './lib/embed-query.ts';
-import { loadGoldenSet, toJobBrief } from './lib/golden.ts';
+import { loadGoldenSet, toJobBrief, jobOf } from './lib/golden.ts';
 import { retrieveFromIndex } from '../src/lib/profile/profile-retrieval';
+import { topChunks } from '../src/lib/profile/retrieve';
+import { AVAILABILITY_HEADING } from '../src/lib/profile/availability-text';
 import { EVIDENCE_CHARS } from '../src/lib/answers/answer-evidence';
-import { buildPitchQuery } from '../src/lib/answers/answer-query';
+import { buildPitchQuery, buildRetrievalQuery } from '../src/lib/answers/answer-query';
 import type { ProfileIndex } from '../src/lib/storage';
 
 /**
@@ -98,6 +100,14 @@ const PITCH_CASES: { jobId: string; expect: string }[] = [
 
 const golden = loadGoldenSet();
 
+/**
+ * How deep production actually reads, measured rather than assumed: across a full 77-case run
+ * the evidence held 4–9 sections, 8 of them typically. Both limits bind at roughly the same
+ * depth — `DEFAULT_MAX_CHUNKS` is 8, and `EVIDENCE_CHARS` pays for about seven ~760-character
+ * sections — so a rank past this is a section production ranked and never showed.
+ */
+const TYPICAL_SECTIONS_IN_BUDGET = 8;
+
 let index: ProfileIndex;
 
 describe('profile retrieval against a live index', () => {
@@ -182,6 +192,75 @@ describe('profile retrieval against a live index', () => {
 
     console.log(`\n  pitch recall on labelled cases: ${hits}/${scored}\n`);
     expect(scored).toBeGreaterThan(0);
+  }, 600_000);
+
+  /**
+   * How far down a section the golden set expects actually ranks.
+   *
+   * `cites-expected` reports a miss as `(not retrieved)`, which names retrieval as the cause
+   * but not the fix. Two different faults wear that label: the section ranked just past where
+   * `EVIDENCE_CHARS` stopped reading, which is a budget, or it ranked nowhere near the top,
+   * which is the query. Only the rank tells them apart, and production never computes one — it
+   * takes chunks until the budget runs out and forgets everything it passed over.
+   *
+   * So this retrieves against a ceiling far above the real budget and reports the position. It
+   * is the trap `golden.eval.ts` makes loud, one level deeper: that file checks a `mustCiteAny`
+   * heading is a real heading, and a heading that is real but unreachable fails every model
+   * identically while reading exactly like a model that will not cite it.
+   *
+   * Nothing is asserted on a rank. It is a measurement, and failing the suite on one would make
+   * every profile edit look like a broken build.
+   */
+  it('reports where each expected section ranks', async () => {
+    const embed = ollamaQueryEmbedder(config.embed);
+    // `retrieveFromIndex` never exposes `maxChunks`, and that is the limit that actually binds:
+    // raising only the character budget leaves the cap at `DEFAULT_MAX_CHUNKS`, which reports
+    // everything past rank 8 as unreachable whatever its score. So the ranking is taken from
+    // `topChunks` directly, with both limits lifted past the whole index.
+    const graded = golden.cases.filter((c) => (c.expect?.mustCiteAny.length ?? 0) > 0);
+    const beyond: string[] = [];
+
+    for (const c of graded) {
+      const brief = toJobBrief(jobOf(golden, c));
+      // The production query for this kind of case, not the bare question: `buildRetrievalQuery`
+      // appends the job's vocabulary, and ranking anything else would grade a retrieval the
+      // extension never performs.
+      const query =
+        c.kind === 'pitch' ? buildPitchQuery(brief) : buildRetrievalQuery(c.question, brief);
+      const embedded = await embed(query);
+      if (!embedded.ok) continue;
+      const ranked = topChunks(
+        index,
+        embedded.vector,
+        Number.MAX_SAFE_INTEGER,
+        index.chunks.length,
+      );
+
+      const order = [...new Set(ranked.map((k) => k.heading.replace(/ \(\d+\/\d+\)$/, '')))];
+      for (const group of c.expect?.mustCiteAny ?? []) {
+        // Injected beside the retrieved sections rather than ranked among them, so it has no
+        // rank to report and is always available — `shownHeadings` counts it as shown.
+        if (group.every((h) => h === AVAILABILITY_HEADING)) continue;
+        // Any member satisfies the expectation, so the group ranks where its best member does.
+        const ranks = group.map((h) => order.indexOf(h)).filter((i) => i >= 0);
+        const best = ranks.length ? Math.min(...ranks) + 1 : null;
+        if (best === null || best > TYPICAL_SECTIONS_IN_BUDGET) {
+          beyond.push(
+            `  ${best === null ? 'unranked' : `rank ${String(best).padStart(2)}`}  ` +
+              `${group.join('|').slice(0, 56).padEnd(56)}  ${c.id.slice(-50)}`,
+          );
+        }
+      }
+    }
+
+    console.log(
+      `\n  expected sections ranking below the ~${TYPICAL_SECTIONS_IN_BUDGET} that fit ` +
+        `${EVIDENCE_CHARS} chars — ${beyond.length} of ${graded.length} graded case(s):`,
+    );
+    for (const line of beyond) console.log(line);
+    if (!beyond.length) console.log('  none — every expectation is reachable');
+    console.log('');
+    expect(graded.length).toBeGreaterThan(0);
   }, 600_000);
 
   it('gives a pitch with no brief an empty query', () => {

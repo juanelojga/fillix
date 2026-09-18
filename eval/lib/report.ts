@@ -1,5 +1,6 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { tallyMissedCitations, type MissedCitationTally } from './missed-citations.ts';
 import type { CheckName, CaseGrade } from './grade-draft.ts';
 
 /**
@@ -37,6 +38,8 @@ export interface Report {
   totals: { cases: number; scored: number; passed: number };
   byCheck: Record<string, { scored: number; passed: number }>;
   byArchetype: Record<string, { scored: number; passed: number }>;
+  /** `cites-expected`'s failures split by cause — see `missed-citations.ts`. */
+  missedCitations: MissedCitationTally;
   cases: CaseGrade[];
 }
 
@@ -64,6 +67,7 @@ export function buildReport(meta: RunMeta, grades: CaseGrade[]): Report {
     },
     byCheck: tally(grades, (_g, c) => c),
     byArchetype: tally(grades, (g) => g.archetype),
+    missedCitations: tallyMissedCitations(grades),
     cases: grades,
   };
 }
@@ -95,6 +99,17 @@ export function printReport(report: Report): void {
     console.log(
       `    ${pct(t.passed, t.scored)}  ${String(t.passed).padStart(3)}/${String(t.scored).padEnd(3)}  ${name}`,
     );
+  }
+
+  const missed = report.missedCitations;
+  if (missed.groups) {
+    console.log(
+      `\n  cites-expected misses: ${missed.groups} — ${missed.notRetrieved} never retrieved, ` +
+        `${missed.retrievedNotCited} retrieved but not cited`,
+    );
+    for (const { group, count } of missed.worstUnretrieved.slice(0, 8)) {
+      console.log(`    ${String(count).padStart(3)}×  ${group}`);
+    }
   }
 
   const failed = report.cases.filter((g) => g.passed < g.scored);

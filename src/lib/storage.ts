@@ -14,9 +14,24 @@ export async function setModelList(models: string[]): Promise<void> {
 /** `systemPrompt` is the user's override; '' means fall back to the packaged default. */
 export type ChatConfig = { systemPrompt: string };
 
+/**
+ * The model a fresh profile drafts with, and the one setting here whose wrong value is unsafe
+ * rather than merely inconvenient.
+ *
+ * `llama3.2` stood here until the eval measured it: over 231 drafts it invented a citation in
+ * 57 of them, naming sections of the CV that do not exist and, most often, quoting the job
+ * posting back as if it were the applicant's own experience. `drew_on` is non-empty in every
+ * one of those, so `normalizeAnswerDraft`'s guard passes them and the panel renders a "Drew on"
+ * list the user has no way to know is fiction. A 3B model does not hold "cite only from the
+ * evidence" across a prompt carrying both a job and a CV.
+ *
+ * `gemma4:12b` is the smallest model measured that does: 0 invented citations across 116
+ * drafts in two runs. See `eval/README.md` for the scorecard. It is a bigger pull, which is the
+ * price of the default being one that cannot quietly lie to a recruiter.
+ */
 const DEFAULT_OLLAMA: OllamaConfig = {
   baseUrl: 'http://localhost:11434',
-  model: 'llama3.2',
+  model: 'gemma4:12b',
 };
 
 export async function getOllamaConfig(): Promise<OllamaConfig> {
