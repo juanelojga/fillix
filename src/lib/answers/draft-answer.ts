@@ -39,7 +39,12 @@ export interface AnswerDraft {
 }
 
 export interface DraftInput extends AnswerPromptInput {
-  kind: 'question' | 'pitch';
+  /**
+   * Who the pitch is written about, injected rather than retrieved so it cannot depend on
+   * cosine similarity ranking the section that happens to carry it. Ignored for a question,
+   * which is written in the applicant's own first person and names nobody.
+   */
+  applicantName?: string;
 }
 
 export async function draftAnswer(
@@ -54,7 +59,7 @@ export async function draftAnswer(
   // the UI and throw on drewOn.map.
   const raw = await generateStructured<Record<string, unknown>>(
     config,
-    systemPromptFor(input.kind),
+    systemPromptFor(input.kind, input.applicantName),
     buildAnswerPrompt(input),
     signal,
     { num_ctx: DRAFT_NUM_CTX },

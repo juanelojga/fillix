@@ -20,7 +20,8 @@ import {
 } from '../../lib/capture/capture-diagnostics';
 import { TOPTAL_JOB_PAGE } from '../../lib/playbooks/toptal-job-url';
 import type { Message, MessageResponse } from '../../types';
-import { retrieveProfileContext } from './profile';
+import { applicantName } from '../../lib/profile/applicant-name';
+import { profile, retrieveProfileContext } from './profile';
 import { availability, browserTimeZone } from './availability';
 import { runState } from './playbook';
 import { ollamaConfig } from './settings';
@@ -131,6 +132,7 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
   // grounding design depends on.
   const assembled = await assembleAnswerEvidence(
     {
+      kind: field.kind === 'pitch' ? 'pitch' : 'question',
       question: field.question,
       brief,
       availability: get(availability),
@@ -154,6 +156,9 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
     question: field.question,
     job: assembled.job,
     evidence: assembled.evidence,
+    // Sent for every field; only the pitch prompt reads it. Resolved here rather than in the
+    // worker because the profile document lives in the panel and never crosses the port.
+    applicantName: applicantName(get(profile).markdown),
   };
 
   const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;

@@ -14,6 +14,7 @@ function field(overrides: Partial<ApplicationField> = {}): ApplicationField {
     locator: { by: 'name', value: 'q1' },
     unfillableReason: '',
     prefilled: '',
+    minChars: 0,
     ...overrides,
   };
 }
@@ -217,5 +218,45 @@ describe('AnswerCard', () => {
 
     expect(screen.queryByText('Written into the page.')).not.toBeInTheDocument();
     expect(screen.queryByText(/Couldn't find this field/)).not.toBeInTheDocument();
+  });
+
+  /**
+   * Toptal refuses a pitch under its stated minimum. Said here rather than asked of the model:
+   * the prompt deliberately carries no length target, because a model given one pads an answer
+   * it cannot support — the fabrication `answer-prompt.ts` exists to stop.
+   */
+  it('warns when a pitch falls under the length Toptal will accept', () => {
+    render(AnswerCard, {
+      field: field({ kind: 'pitch', minChars: 180 }),
+      state: drafted({ text: 'Short.' }),
+    });
+
+    expect(screen.getByText(/Toptal needs 180\+ characters — this is 6/)).toBeInTheDocument();
+  });
+
+  it('says nothing about length once the pitch clears the floor', () => {
+    render(AnswerCard, {
+      field: field({ kind: 'pitch', minChars: 180 }),
+      state: drafted({ text: 'x'.repeat(180) }),
+    });
+
+    expect(screen.queryByText(/Toptal needs/)).not.toBeInTheDocument();
+  });
+
+  // A blank box already says "Your profile had nothing for this one"; two warnings is noise.
+  it('does not stack a length warning on top of an empty answer', () => {
+    render(AnswerCard, {
+      field: field({ kind: 'pitch', minChars: 180 }),
+      state: drafted({ text: '', drewOn: [] }),
+    });
+
+    expect(screen.queryByText(/Toptal needs/)).not.toBeInTheDocument();
+  });
+
+  // A question has no stated floor, and warning about one would be inventing a rule.
+  it('never warns about the length of a field with no stated minimum', () => {
+    render(AnswerCard, { field: field(), state: drafted({ text: 'Short.' }) });
+
+    expect(screen.queryByText(/Toptal needs/)).not.toBeInTheDocument();
   });
 });

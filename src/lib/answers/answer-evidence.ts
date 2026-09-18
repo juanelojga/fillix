@@ -1,5 +1,5 @@
 import { buildAvailabilityEvidence } from './availability-evidence';
-import { buildRetrievalQuery } from './answer-query';
+import { buildPitchQuery, buildRetrievalQuery } from './answer-query';
 import { buildJobContext } from './job-context';
 import type { ScheduleCheck } from './schedule-check';
 import type { JobBrief } from '../playbooks/job-brief';
@@ -25,6 +25,12 @@ import type { RetrievedChunk } from '../profile/retrieve';
 export const EVIDENCE_CHARS = 6_000;
 
 export interface EvidenceRequest {
+  /**
+   * Which of the two things is being assembled. Required rather than defaulted: the pitch
+   * retrieves on a different query entirely, and a caller that forgets to say would silently
+   * ground a pitch in whatever matched its field label.
+   */
+  kind: 'question' | 'pitch';
   question: string;
   brief: JobBrief | null;
   availability: WeeklyAvailability;
@@ -86,10 +92,14 @@ export async function assembleAnswerEvidence(
     schedule,
   );
 
-  const retrieved = await deps.retrieve(
-    buildRetrievalQuery(request.question, request.brief),
-    EVIDENCE_CHARS - availabilityBlock.length,
-  );
+  // The pitch has no question to embed — its field label is a UI string, and embedding it
+  // retrieves whichever section reads most like a form field. It retrieves on the job instead.
+  const query =
+    request.kind === 'pitch'
+      ? buildPitchQuery(request.brief)
+      : buildRetrievalQuery(request.question, request.brief);
+
+  const retrieved = await deps.retrieve(query, EVIDENCE_CHARS - availabilityBlock.length);
   if (!retrieved.ok) return { ok: false, failure: retrieved, schedule };
 
   return {

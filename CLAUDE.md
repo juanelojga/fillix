@@ -145,6 +145,15 @@ availability** below.
   scores against "Do you know Python?" on nothing at all. A section over `MAX_CHUNK_CHARS`
   splits on blank lines, never mid-paragraph, and a single over-long paragraph is emitted whole
   rather than cut.
+- `applicant-name.ts` — who the third-person pitch is written about. Reads the preamble before
+  the first `##`, which `chunk.ts` already documents as "usually the name and contact line", so
+  it adds nothing for the user to maintain. Only the first non-blank line is a candidate: if
+  that is not the name, nothing below it is either, and walking on would find the contact line
+  or the summary's first sentence. Rejects a line with a `:` or over ~60 characters and returns
+  `''`, which is a **supported answer** — `pitchSystemPrompt` says "The applicant" instead,
+  because a wrong name in front of a recruiter is worse than a neutral one. The name is
+  **injected, not embedded**: it reaches the prompt on `DRAFT_ANSWER` so that whether the pitch
+  knows who it is about never depends on cosine similarity ranking the section carrying it.
 - `profile-hash.ts` — FNV-1a 32-bit, **not** `crypto.subtle`: the digest APIs are async, and
   making staleness a promise would push `await` into the store, the tab's derived state and the
   status line. Not a security boundary; the worst a collision costs is one stale index. The
@@ -349,6 +358,12 @@ aloud to a client.
   alone: "What is your experience with their stack?" names no technology, so on its own it
   retrieves whichever section is phrased most like a question. The job's skills are appended,
   **including the unclaimed ones**, because those are the likeliest to retrieve a gaps section.
+  `buildPitchQuery` is the pitch's version and takes no question at all: the pitch field's label
+  is a UI string, so embedding it would retrieve whichever section reads most like a form field.
+  It retrieves on the job — the description's opening plus the same vocabulary — because what a
+  pitch needs is "which of my sections make the best case for this role". `answer-evidence.ts`
+  picks between the two on `kind`, which is why `EvidenceRequest.kind` is required and not
+  defaulted: a caller that forgets would silently ground a pitch in the wrong half of the CV.
 - `job-context.ts` — the job, budgeted. The description is the only part that runs to thousands
   of characters, so it is what gets truncated; the attributes and the skill split are tiny and
   are what the answers turn on. Unclaimed required skills are named under an explicit "never
@@ -358,6 +373,21 @@ aloud to a client.
   its parser depends on. Evidence goes **last** in the user prompt, and that ordering is
   load-bearing — Ollama truncates an overflowing context from the _start_, so whatever leads is
   what gets silently dropped, and the applicant's own words must be the thing that survives.
+  `SHARED_RULES` carries **grounding only**. Voice and the shape of an unsupported answer are
+  deliberately per-prompt, because the two disagree about both, and keeping either shared is
+  what made the pitch inherit the wrong voice for as long as it did. A question is first person
+  and, when nothing supports it, gets the bare one-sentence denial. `pitchSystemPrompt(name)` is
+  **third person** — Toptal's box says "Write your third-person pitch here" and the checkbox
+  beside it says a recruiter forwards the text to the client, so it is the one field where the
+  voice is stated on screen. The name comes from `profile/applicant-name.ts`; `''` becomes "The
+  applicant", never a guess. An unsupportable pitch returns an **empty** `text` rather than a
+  denial: an empty answer already passes the grounding guard and already renders as "your
+  profile had nothing for this one", while "The applicant has no experience with this" is not
+  something to write into a pitch box — and being third person it would not match the
+  first-person `NEGATION` in `states-no-experience.ts` and would be discarded anyway. The pitch's
+  user prompt carries `PITCH_BRIEF` in the slot a question's text occupies, encoded here rather
+  than scraped: Toptal prints that brief above the box behind no `data-testid`, and depending on
+  unhooked prose is the exact failure this design keeps hitting.
 - `draft-answer.ts` — `generateStructured` then `normalizeAnswerDraft`, the `news/summarizer.ts`
   shape. Passes `num_ctx: 8192` explicitly, because Ollama defaults to 2048 and truncates
   silently. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
@@ -395,7 +425,11 @@ gaps). A `noExperience` draft gets a third branch that says the answer **cites n
 merely that the question touched a gap — that wording is the only thing standing between the
 user and a short uncited sentence that reads like a denial while still claiming something, and
 for the same reason the footer under the list promises a citation _or_ a stated gap, never a
-citation on every answer. A question with no locator is **named, never dropped** — it is on the page whether or not
+citation on every answer. It also warns when a draft falls under `field.minChars` — Toptal
+refuses a pitch under 180 characters. That is said **here and never asked of the model**: the
+prompt carries no length target, because a model given one pads an answer it cannot support,
+which is the fabrication `answer-prompt.ts` exists to stop. A grounded pitch clears the floor on
+its own, so the warning only ever fires on one the user has to finish. A question with no locator is **named, never dropped** — it is on the page whether or not
 we can fill it, and a missing card reads as "Toptal did not ask this". `ApplicationDrafts.svelte`
 owns the "Draft answers" button, which is deliberately not called Capture.
 
@@ -432,6 +466,28 @@ are load-bearing:
 
 It can never press Submit: the only elements it writes to are text inputs and textareas, and a
 submit button is neither.
+
+`toptal-application-form.ts` walks the captured form into `ApplicationField`s. Which element
+**is** the pitch lives next door in `toptal-pitch-field.ts`, split out by the reason that split
+`toptal-job-url.ts` from `toptal-job-sections.ts` — and split because it has already changed
+underneath us once. Toptal renamed the hook from `pitchThirdPersonLabel` to `pitchInput`,
+relabelled the box from "Relevant experience (optional)" to "Write your third-person pitch here",
+renamed the control from `comment` to `pitch` and gave it a stated minimum length. The old
+selector matched nothing, so the pitch simply never appeared and **nothing said why** — every
+piece downstream of it already worked. Both hooks are now matched, because nothing here can know
+which build an account is served.
+
+Three things follow from that failure. `PITCH_QUESTION` is a stable label (`Third-person pitch`),
+deliberately **not** the page's wording: it is the `drafts` map key and the `{#each}` key, so it
+must not move when Toptal rewords a label — which is precisely what Toptal did. `pitchMinChars`
+reads the number the page prints ("Write minimum 180 characters") rather than assuming it, and
+falls back to the known floor rather than to 0, because warning with a stale number beats not
+warning. And `findFallbackPitch` finds the box by **shape** when neither hook matches — a
+fillable textarea inside the form but outside `matcherQuestions` is structurally the pitch. It
+returns every candidate rather than the first, because the caller has to tell three cases apart:
+none (plenty of applications genuinely have no pitch box, and warning there is a false alarm),
+one (that is it), and several (guessing would write a pitch into the wrong box, so the field is
+named as unfillable through the existing `locator: null` card and the user writes it by hand).
 
 `fill-outcome.ts` words a per-field miss in place. Whole-run refusals reuse
 `diagnoseCaptureFailure` unchanged, which stays honest because every hint it gives says "press

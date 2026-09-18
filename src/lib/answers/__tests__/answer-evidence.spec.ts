@@ -44,6 +44,7 @@ describe('assembleAnswerEvidence', () => {
   it('joins the excerpts with the separator the panel used to build by hand', async () => {
     const out = await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'Do you know Python?',
         brief: brief(),
         availability: hours(),
@@ -60,6 +61,7 @@ describe('assembleAnswerEvidence', () => {
   it('puts the availability block last, because Ollama truncates from the start', async () => {
     const out = await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'When can you meet?',
         brief: brief(),
         availability: hours(),
@@ -80,6 +82,7 @@ describe('assembleAnswerEvidence', () => {
     const d = deps();
     const out = await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'When can you meet?',
         brief: brief(),
         availability: hours(),
@@ -98,6 +101,7 @@ describe('assembleAnswerEvidence', () => {
   it('leaves no stray separator when nothing was retrieved', async () => {
     const out = await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'When can you meet?',
         brief: brief(),
         availability: hours(),
@@ -128,6 +132,7 @@ describe('assembleAnswerEvidence', () => {
     };
     const out = await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'When can you meet?',
         brief: brief(),
         availability: hours(),
@@ -150,6 +155,7 @@ describe('assembleAnswerEvidence', () => {
     const d = deps();
     await assembleAnswerEvidence(
       {
+        kind: 'question' as const,
         question: 'When can you meet?',
         brief: brief(),
         availability: hours(),
@@ -164,5 +170,47 @@ describe('assembleAnswerEvidence', () => {
       ZONE,
       NOW,
     );
+  });
+
+  /**
+   * The routing that makes the pitch worth drafting at all: embedding "Third-person pitch"
+   * retrieves whichever section reads most like a form field, which is how a pitch ends up
+   * grounded in the wrong half of a CV.
+   */
+  it('retrieves a pitch on the job, not on its field label', async () => {
+    const d = deps();
+    await assembleAnswerEvidence(
+      {
+        kind: 'pitch' as const,
+        question: 'Third-person pitch',
+        brief: brief(),
+        availability: hours(),
+        browserTimeZone: ZONE,
+        now: NOW,
+      },
+      d,
+    );
+
+    const query = vi.mocked(d.retrieve).mock.calls[0][0];
+    expect(query).toContain('Build the thing.');
+    expect(query).toContain('Python');
+    expect(query).not.toContain('Third-person pitch');
+  });
+
+  it('still retrieves a question on its own words', async () => {
+    const d = deps();
+    await assembleAnswerEvidence(
+      {
+        kind: 'question' as const,
+        question: 'Do you know Python?',
+        brief: brief(),
+        availability: hours(),
+        browserTimeZone: ZONE,
+        now: NOW,
+      },
+      d,
+    );
+
+    expect(vi.mocked(d.retrieve).mock.calls[0][0]).toContain('Do you know Python?');
   });
 });
