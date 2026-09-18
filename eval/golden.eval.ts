@@ -230,17 +230,14 @@ describe('golden set — the injected pitch subject', () => {
   const DOCUMENT_SUFFIX = /[—–-]\s*(?:profile|cv|r[ée]sum[ée]|curriculum vitae)\s*$/i;
 
   it('reads a plausible name out of the frozen profile', () => {
-    // KNOWN FAILURE, and deliberately loud rather than a README footnote.
+    // This was red on purpose until `applicant-name.ts` learned to strip a document-title
+    // suffix: the frozen profile's H1 is `# Alex Rivera — Profile`, so `pitchSystemPrompt` was
+    // told to refer to the applicant as "Alex Rivera — Profile" and every third-person pitch
+    // opened with it.
     //
-    // The frozen profile's H1 is `# Alex Rivera — Profile` and `applicant-name.ts` strips only
-    // the `#`, so `pitchSystemPrompt` is told to refer to the applicant as "Alex Rivera —
-    // Profile" and every third-person pitch opens with it. Nothing downstream can catch this:
-    // the name is injected, not retrieved, so no citation check sees it, and the pitch reads
-    // fluently with it.
-    //
-    // The fix is one line in `src/lib/profile/applicant-name.ts` plus a case in its spec, and
-    // it is out of scope here on purpose — this file's job is to make the defect impossible to
-    // forget, not to decide it.
+    // It stays as a regression guard because nothing downstream can catch a bad subject: the
+    // name is injected rather than retrieved, so no citation check sees it, and the pitch reads
+    // perfectly fluently with whatever it is handed.
     console.log(`\n  injected pitch subject: ${JSON.stringify(subject)}\n`);
     expect(subject, 'applicantName() returned nothing').not.toBe('');
     expect(subject.includes(':'), `${subject} looks like a contact line`).toBe(false);

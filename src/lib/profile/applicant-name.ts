@@ -18,16 +18,35 @@
 /** A name is short. A line longer than this is a summary or a headline, not a name. */
 const MAX_NAME_CHARS = 60;
 
+/**
+ * `— Profile`, `- CV`, `– Résumé`: the tail of a document title, and not part of anyone's name.
+ *
+ * Titling a CV `# Alex Rivera — Profile` is the ordinary way to write one, and stripping only
+ * the `#` made `pitchSystemPrompt` open every pitch with "Alex Rivera — Profile is a Senior
+ * Software Engineer…" — in the box Toptal forwards to a client. Nothing downstream can catch
+ * that: the name is injected rather than retrieved, so no citation check sees it, and the pitch
+ * reads perfectly fluently with it.
+ *
+ * Stripped rather than rejected, because the name is right there and '' costs the pitch a real
+ * one for a suffix the author never meant as part of it.
+ */
+const DOCUMENT_SUFFIX = /[—–-]\s*(?:profile|cv|r[ée]sum[ée]|curriculum vitae)\s*$/i;
+
 export function applicantName(markdown: string): string {
   // Everything before the first `##`: the same preamble `chunk.ts` files under 'Overview'.
   const preamble = markdown.split(/^##\s/m)[0] ?? '';
 
   for (const raw of preamble.split('\n')) {
     // Strips a `# ` title, which is how a CV usually opens; a bare first line works too.
-    const line = raw.replace(/^#+\s*/, '').trim();
-    if (!line) continue;
+    const heading = raw.replace(/^#+\s*/, '').trim();
+    if (!heading) continue;
     // The first non-blank line is the only candidate: if it is not the name, nothing below it
     // is either, and walking on would find the contact line or the summary's first sentence.
+    // Everything below is judged on what is left once the document suffix is off, so a real
+    // name is not rejected for the length or the punctuation of a title it never chose.
+    const line = heading.replace(DOCUMENT_SUFFIX, '').trim();
+    // The whole line was the title — there is no name here to write a pitch about.
+    if (!line) return '';
     if (line.length > MAX_NAME_CHARS) return '';
     // 'Email: …', 'Phone: …' — a contact line, which is what follows a name when the name
     // itself was never written down.

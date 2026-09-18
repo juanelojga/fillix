@@ -18,6 +18,36 @@ describe('applicantName', () => {
   });
 
   /**
+   * The defect `eval/golden.eval.ts` was holding open: the frozen profile's H1 is
+   * `# Alex Rivera — Profile`, so every third-person pitch opened "Alex Rivera — Profile is a
+   * Senior Software Engineer…" in the box Toptal forwards to a client.
+   */
+  it('strips a document-title suffix from the name', () => {
+    expect(applicantName('# Alex Rivera — Profile\n\n## Python')).toBe('Alex Rivera');
+    expect(applicantName('# Juan Almeida - CV\n\n## Python')).toBe('Juan Almeida');
+    expect(applicantName('# Juan Almeida – Résumé\n\n## Python')).toBe('Juan Almeida');
+    expect(applicantName('# Juan Almeida — Curriculum Vitae\n\n## Python')).toBe('Juan Almeida');
+  });
+
+  // The suffix comes off before the length check, so a real name is not rejected for the
+  // punctuation of a title it never chose.
+  it('measures the name without the suffix', () => {
+    const name = 'Juan Sebastián Almeida de la Torre y Fernández Gutiérrez';
+
+    expect(applicantName(`# ${name} — Curriculum Vitae\n\n## Python`)).toBe(name);
+  });
+
+  // Nothing is left to write a pitch about, and '' is the supported answer for that.
+  it('gives nothing when the line is only a document title', () => {
+    expect(applicantName('# — Profile\n\n## Python')).toBe('');
+  });
+
+  // 'Rivera-Profile' is not a title: the suffix needs the dash to stand on its own.
+  it('keeps a name that merely ends in one of those words', () => {
+    expect(applicantName('# Alex Profile\n\n## Python')).toBe('Alex Profile');
+  });
+
+  /**
    * '' is a supported answer, not a failure — `pitchSystemPrompt` says "The applicant" instead.
    * A guessed name in front of a recruiter is worse than a neutral one.
    */
