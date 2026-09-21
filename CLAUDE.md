@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-Fillix is a Manifest V3 Chrome extension with two core capabilities: **tool-augmented chat** (side panel) and **form auto-fill** (content script). All LLM inference runs locally via Ollama — there is no remote provider and no telemetry is ever sent. Models are entered by hand in Settings and verified with a **Test** button; the extension never queries Ollama for the list of installed models.
+Fillix is a Manifest V3 Chrome extension with two core capabilities: **tool-augmented chat** (side panel) and **form auto-fill** (content script). All LLM **inference** runs locally via Ollama — there is no remote inference provider and no telemetry is ever sent. Exactly one tool reaches a remote service: `tavily_search` posts the query the model composed to Tavily, and only once the user has pasted an API key in Settings. With no key stored the tool is not named in the system prompt at all, so the model cannot call it. Models are entered by hand in Settings and verified with a **Test** button; the extension never queries Ollama for the list of installed models.
 
 ## Commands
 
@@ -56,9 +56,9 @@ Shared code lives in `src/lib/`:
   brace would strip `drew_on` and make the grounding guard report fabrication instead.
 - `ollama-embed.ts` — the **embeddings** client, a sibling rather than a section of `ollama.ts`: a different endpoint, a different failure set, and a different model entirely. `embedTexts()` batches through `/api/embed` and falls back to the older singular `/api/embeddings` on a 404; it validates the row count and a uniform width, because a malformed reply produces an index that scores every query identically and by then the vectors are in storage. `testEmbedModel()` exists because `testModel()` POSTs `/api/chat`, which an embed-only model rejects outright — testing `nomic-embed-text` with it reports "not installed" for a model that is installed and working.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
-- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig` holds the Workflows tab's two preferences, `playbook` and `model`, both `''` by default — never chosen, and same as chat. They have **two owners** (`stores/playbook.ts` writes one, `stores/settings.ts` the other), which is why `setWorkflowsConfig` takes a `Partial` and merges: a replacing write from either store would silently erase the other's field, and having each store read the value it does not own would make the two import each other. And the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere.
+- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig` holds the Workflows tab's two preferences, `playbook` and `model`, both `''` by default — never chosen, and same as chat. They have **two owners** (`stores/playbook.ts` writes one, `stores/settings.ts` the other), which is why `setWorkflowsConfig` takes a `Partial` and merges: a replacing write from either store would silently erase the other's field, and having each store read the value it does not own would make the two import each other. And the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere. `tavilyConfig` holds the Tavily API key, the **only credential in the extension** — its own key because nothing else stored here is a secret and folding it into `ollama` would put one into the object the content script's inference path reads on every form it touches. `''` means not configured, and that is load-bearing twice: `tools/tavily-search.ts` refuses with a worded error and `tools/tool-prompt.ts` withholds the tool from the prompt entirely. Neither half of the name is free to change — the bare `search` key is the Brave-era name purged on every startup, and `searchConfig` is pinned dead by `settings-tab.spec.ts`.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
-- `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs. The Obsidian purge removes keys by **exact** name and must stay that way — `workflowsConfig` is a live setting one suffix away from the retired `workflows`.
+- `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs. The Obsidian purge removes keys by **exact** name and must stay that way — `workflowsConfig` is a live setting one suffix away from the retired `workflows`, and `tavilyConfig` (the live Tavily key) sits the same distance from the retired `search`. If web search is ever removed, `tavilyConfig` joins this file: no credential outlives the feature that needed it, which is the whole reason `search` and `obsidian` are purged today.
 
 **Playbooks (`src/lib/playbooks/`) and capture (`src/lib/capture/`)**
 
@@ -549,7 +549,9 @@ Capture again" and that button is still on screen.
 
 **Tools (`src/lib/tools/`)**
 
-- `registry.ts` — `dispatchTool(name, args)` router; maps tool names to implementations.
+- `registry.ts` — `dispatchTool(name, args)` router; maps tool names to implementations. Every tool but one takes a single positional argument out of `args`; `tavily_search` gets the whole record, because which of a search's four arguments the model may set is `tavily/search-args.ts`'s judgment and not the router's.
+- `tool-prompt.ts` — `buildToolSystemPrompt({ webSearch })`, the menu the model is shown. Lifted out of `chat-runner.ts`, which owns how the loop runs: this prose is reworded every time a small model fails to emit a call in the shape the parser expects, and the loop around it does not move. It stays in TS by the `src/prompts/` rule — it defines the JSON envelope `detectToolCall` parses, so it is a mechanism rather than a preference.
+- `tavily-search.ts` — the live web search, and the **one tool that needs a key**. A thin orchestrator in the `profile-search.ts` shape: read `tavilyConfig`, hand the args to `tavily/`, word the outcome. The key is pasted into the Settings tab; without it the tool is not advertised at all. Three outcomes kept apart, as `profile-search.ts` insists: a failure is `Error: ` plus wording **we** authored — never Tavily's own message, which is the one string in the system that could carry the key into chat history, where a tool result lives as a user message the model can quote back. A web with no answer is plain prose. See **Web search** below.
 - `wikipedia.ts` — Wikipedia REST API page summary (first 500 chars + URL); no key required.
 - `news-feed.ts` — top-5 Hacker News headlines for a query, formatted for the ReAct loop; no key required. A thin wrapper over `news/hacker-news.ts`; it used Google News RSS until that needed `DOMParser`, which does not exist in a service worker.
 - `fetch-url.ts` — HTTP fetch → stripped plain text (3 000-char cap, 15 s timeout); validates `http`/`https` URLs.
@@ -583,6 +585,90 @@ chat tool is already on that side and calls `embedTexts` with no round trip to f
 tool ever throws: like every tool here they catch and return `Error: …`, which is what
 `ToolCallBlock` keys its error styling on.
 
+**Web search (`src/lib/tavily/`)**
+
+Backs the `tavily_search` chat tool. Four modules, split the way `news/` is: one throwing
+client, and three pure things around it.
+
+- `search.ts` — the only module that touches the network and the only one that knows Tavily's
+  wire shape. It **throws**, deliberately unlike `tools/*.ts`, which return `"Error: …"` strings
+  — the split `news/hacker-news.ts` argues at length, and here the second reader is the Settings
+  badge, which needs a message it can run a diagnosis over rather than a sentence already worded
+  for a model. HTTP failures are formatted `Tavily /search returned <status>: <detail>`, mirroring
+  `Ollama /api/chat returned …`, so the diagnostics regexes have one shape to match, and
+  `extractTavilyError` is `extractOllamaError`'s twin because Tavily has used three different
+  error envelopes (`detail.error`, a bare string `detail`, a top-level `error`). `Retry-After` is
+  folded into the message **here**, since `search-diagnostics.ts` is a pure function of a string
+  and cannot reach a header. `buildSearchBody` is exported and separately tested for the reason
+  `buildHnUrl` is: it is the part that silently costs credits or searches the wrong index if it
+  drifts. `max_results: 5` and `search_depth: 'basic'` are **not the model's to set**, and that is
+  the whole mitigation for a loop that can search on all eight of its iterations — one credit
+  against `advanced`'s two, and five results is what the char budget assumes.
+  `include_answer: false` for the same reason `answer-prompt.ts` exists: a synthesized `answer`
+  field is the one thing a model would quote wholesale without ever opening a result.
+- `search-args.ts` — the only module that distrusts what the model emitted, and the reason it is
+  not part of `search.ts`: this is reworded when a small model phrases a call badly, that one when
+  Tavily changes a parameter. It is also where `detectToolCall`'s `Record<string, string>` is
+  finally paid for — `JSON.parse` can hand back a number, an array, `null` or a nested object, and
+  every other tool is immune only because it reads one value and passes it somewhere that
+  stringifies it. Every rule fails **soft**: `topic` and `time_range` are matched against
+  allowlists and dropped otherwise, because `"last week"`, `"7d"` and `"recent"` are all things a
+  model emits and Tavily 400s on every one, and a search without a date filter beats no search.
+  `sites` accepts a comma-separated string _or_ an array (the prompt asks for a string, which a
+  small model emits far more reliably; a larger one sends the array anyway) and drops a bare word,
+  which as an `include_domains` entry would return nothing at all and read as "the web has no
+  answer". The one hard failure is a missing query.
+- `search-results.ts` — the results as the model reads them, and the contract
+  `ToolCallBlock.svelte`'s `parseSearch` has to agree with. `TAVILY_RESULT_CHARS` is 2 500,
+  matching `PROFILE_SEARCH_CHARS` for the reason stated there. Three lines per result —
+  `N. Title`, then the URL with an optional ` · date`, then a capped snippet — and deliberately
+  **not** the `N. Title — snippet (url)` one-liner `news_feed` emits, even though `parseList`
+  already reads that: its regex has a lazy title group, so a result whose title contains an em
+  dash renders as only the part before it, with the rest folded into the snippet. Feed titles
+  rarely carry a dash; page titles carry one constantly, and a URL with parentheses is just as
+  common. Whole blocks are dropped to fit the budget, never part of one — a half-block loses the
+  line the parser reads, so the panel would show four results while the model reasoned about five
+  — except the first, which is kept even when it alone overflows, by `retrieve.ts`'s rule about
+  its best chunk.
+- `search-diagnostics.ts` — failure → worded cause and next step, the
+  `model-test-diagnostics.ts` contract plus `summary-diagnostics.ts`'s `context`. Its own module
+  by the test `embed-diagnostics.ts` states: the causes are unique here and the existing wording
+  would actively mislead — a 401 is a mistyped or rotated key, and `diagnoseTestFailure`'s 404 arm
+  would tell the user to run `ollama pull`. This is the codebase's first vocabulary for an
+  unauthorized request, a rate limit and a spent quota. Ordering is load-bearing three times over:
+  timeout before network (an aborted fetch also reads as a failed fetch), network before **every**
+  status arm (a missing `host_permissions` entry produces a bare `Failed to fetch` with no status,
+  which on a first install is the likeliest failure of the lot), and there is deliberately **no**
+  catch-all `4\d\d` arm — a status Tavily adds later falls to `unknown` and shows its own detail,
+  where a generic arm would confidently report a bad key.
+
+**The Test button probes `GET /usage`, not `/search`.** A throwaway search would work and would
+spend a credit every time someone pressed Test; `/usage` validates the same key against the same
+auth layer for nothing, and returns the figure that actually matters for a tool the _model_ decides
+to spend on. What it does not prove is that `/search` answers — but every 401/432/433 the search
+path can raise is raised here identically, and the endpoint each failure names is in the diagnosis
+(`context`). That figure is why `MessageResponse` gains a `tavily` arm rather than reusing
+`latencyMs`: two arms of the same key shape could not be narrowed apart.
+
+The panel never calls Tavily. `TEST_TAVILY` carries **no payload** — the worker reads the key from
+storage, so the one credential in the product never crosses `sendMessage` — and the tool itself
+needs no message at all, since chat tools already run in the worker. That background case is also
+the first caller of `sanitizeError` since the Brave removal left it taking zero keys.
+
+`sidepanel/stores/tavily.ts` holds the key and the probe, rather than more of `stores/settings.ts`.
+That file is at the ~150-line mark and every doc comment in it answers one question — _which model
+runs this?_ A credential with its own round trip is a different question, and
+`stores/availability.ts` is the precedent for a tab's secondary concern owning its own store with
+its own hydrate. The key rides on its own **Save key** button, not the page-level Save Settings,
+which writes only the Ollama config.
+
+**What is not enforced, and is said that way on screen.** The prompt tells the model never to send
+the user's own details to `tavily_search`, and that is an instruction, not a mechanism. What is
+real: the tool is off until a key is pasted, the query is visible in the panel's tool row, and the
+profile reaches chat only through `profile_search` and `meeting_availability`. Nothing here is
+measurable in `eval/` either — that harness grades drafting, and nothing grades chat tool choice,
+so the decision to list `tavily_search` first is reasoned rather than tuned.
+
 **News (`src/lib/news/`)**
 
 Backs the News tab. `aggregator.ts` fans four sources out in parallel with
@@ -613,7 +699,7 @@ recoverable.
 
 **Chat**
 
-- `chat-runner.ts` — ReAct tool-use loop (max 8 iterations). Each iteration: stream LLM tokens → scan response for `{"tool":"<name>","args":{…}}` JSON line → dispatch tool → emit `tool-call`/`tool-result` port messages → append result to messages → loop. Exits early when no tool call is detected. It also resolves the system prompt: `TOOL_SYSTEM_PROMPT` always leads, then whatever `getSystemPrompt()` returns. Tool instructions are not the user's to switch off, so an override replaces the packaged prose but never the tool block. That block is also where `profile_search` and `meeting_availability` are advertised, with the rule that questions about the user's own experience or schedule are never answered from memory — the profile reaches chat **only** through those tools, never injected into the system prompt, so an ordinary turn spends no embedding call and no context.
+- `chat-runner.ts` — ReAct tool-use loop (max 8 iterations). Each iteration: stream LLM tokens → scan response for `{"tool":"<name>","args":{…}}` JSON line → dispatch tool → emit `tool-call`/`tool-result` port messages → append result to messages → loop. Exits early when no tool call is detected. It also resolves the system prompt: `buildToolSystemPrompt()` always leads, then whatever `getSystemPrompt()` returns. The tool block is built **per turn** from `getTavilyConfig()`, not once at module load, so pasting a Tavily key into Settings takes effect on the next message rather than the next browser restart. Tool instructions are not the user's to switch off, so an override replaces the packaged prose but never the tool block. That block is also where `profile_search` and `meeting_availability` are advertised, with the rule that questions about the user's own experience or schedule are never answered from memory — the profile reaches chat **only** through those tools, never injected into the system prompt, so an ordinary turn spends no embedding call and no context.
 
   `chatStream` passes `num_ctx: 8192` for the reason `draft-answer.ts` does: Ollama defaults to
   2048 and truncates an overflowing context from the **start**, so the system prompt is the
@@ -629,8 +715,8 @@ recoverable.
 
 Every prompt the user can change lives here as Markdown, bundled with `?raw`. Today
 that is `system.md` (the chat system prompt). Prompts that are part of a mechanism
-rather than a preference stay in TS next to their caller — `TOOL_SYSTEM_PROMPT` in
-`chat-runner.ts`, the summarizer prompt in `news/summarizer.ts`, the field-inference
+rather than a preference stay in TS next to their caller — the tool menu in
+`tools/tool-prompt.ts`, the summarizer prompt in `news/summarizer.ts`, the field-inference
 prompt in `ollama.ts` — because changing them changes how the code parses the reply.
 
 `src/types.ts` is the cross-context message contract. It defines `OllamaConfig` (`baseUrl`, `model`) and the `PortMessage` union used for streaming — including `tool-call` and `tool-result` variants that carry tool name and args/result. When adding a new message kind, update `Message` **and** `MessageResponse`, and add a `case` in `background.ts`'s `handle` — TypeScript's exhaustiveness check will flag the rest.
@@ -713,6 +799,7 @@ authorized by the standing `<all_urls>` entry below instead.
 | `http://localhost:11434/*`   | Ollama inference                      |
 | `https://en.wikipedia.org/*` | `wikipedia` tool + News tab           |
 | `https://hn.algolia.com/*`   | `news_feed` tool + News tab           |
+| `https://api.tavily.com/*`   | `tavily_search` tool (opt-in, keyed)  |
 | `<all_urls>`                 | `fetch_url` tool + playbook injection |
 
 Pointing the Ollama base URL somewhere other than `http://localhost:11434` requires adding that origin here **and** reloading the extension — a runtime `baseUrl` without a matching permission entry will fail silently.

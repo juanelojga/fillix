@@ -98,6 +98,14 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(src).toContain('workflowsConfig');
     });
 
+    it('ToolCallBlock.spec.ts pins that tavily_search keeps its own list', () => {
+      expect(existsSync(comp('ToolCallBlock.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ToolCallBlock.spec.ts'), 'utf-8');
+      expect(src).toContain('tavily_search');
+      // The retired Brave tool's class must stay gone even as a new list is added beside it.
+      expect(src).toContain('result-list');
+    });
+
     // Shares the workflowsConfig key with PlaybookPicker, so its spec has to pin that a
     // model write keeps the playbook — a replacing setter would silently reset it.
     it('WorkflowModelPicker.spec.ts exists and pins the workflowsConfig-key write', () => {

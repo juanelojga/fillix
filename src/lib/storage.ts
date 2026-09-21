@@ -251,3 +251,36 @@ export async function getAvailability(): Promise<WeeklyAvailability> {
 export async function setAvailability(availability: WeeklyAvailability): Promise<void> {
   await chrome.storage.local.set({ availability });
 }
+
+/**
+ * The Tavily API key for the `tavily_search` chat tool, typed in by hand exactly as model
+ * names are.
+ *
+ * The only credential in the extension, and its own key for that reason: nothing else stored
+ * here is a secret, and folding it into `ollama` would put one into the object the content
+ * script's field-inference path reads on every form it touches.
+ *
+ * `''` means not configured, the same ''-is-absent convention as `profileConfig.embedModel`,
+ * and here it is load-bearing twice. The tool refuses with a worded error naming the Settings
+ * tab, and `tools/tool-prompt.ts` withholds `tavily_search` from the system prompt entirely, so
+ * a keyless install never spends a ReAct iteration on a search it cannot run.
+ *
+ * Neither half of the name is free to change. The bare `search` key is the Brave-era name
+ * `legacy-migration.ts` deletes on every install *and* startup, so a key stored there would
+ * vanish on the next browser restart with nothing logged — the `workflows`/`workflowsConfig`
+ * hazard again. And `searchConfig` is pinned dead by `settings-tab.spec.ts` so the retired tool
+ * cannot quietly return under its old storage name.
+ *
+ * If web search is ever removed, this key joins `legacy-migration.ts`: no credential outlives
+ * the feature that needed it. That rule is why `search` and `obsidian` are purged today.
+ */
+export type TavilyConfig = { apiKey: string };
+
+export async function getTavilyConfig(): Promise<TavilyConfig> {
+  const { tavilyConfig } = await chrome.storage.local.get('tavilyConfig');
+  return { apiKey: (tavilyConfig as Partial<TavilyConfig> | undefined)?.apiKey ?? '' };
+}
+
+export async function setTavilyConfig(tavilyConfig: TavilyConfig): Promise<void> {
+  await chrome.storage.local.set({ tavilyConfig });
+}

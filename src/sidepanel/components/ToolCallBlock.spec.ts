@@ -114,3 +114,90 @@ describe('ToolCallBlock', () => {
     expect(container.querySelector('.chip')).toBeNull();
   });
 });
+
+describe('ToolCallBlock — tavily_search', () => {
+  const RESULT =
+    '1. Svelte 5 is alive\n' +
+    'https://svelte.dev/blog/svelte-5-is-alive · 2026-09-14\n' +
+    'Runes are a new reactivity system built on signals.\n' +
+    '\n' +
+    '2. Vue 3 — the Composition API guide\n' +
+    'https://vuejs.org/guide\n' +
+    'Composition API replaces the options object.';
+
+  async function expand(props: Record<string, unknown>) {
+    const rendered = render(ToolCallBlock, { props: props as never });
+    await screen.getByRole('button').click();
+    return rendered;
+  }
+
+  it('resolves its own label rather than falling back to the raw tool name', () => {
+    render(ToolCallBlock, {
+      props: { toolName: 'tavily_search', args: { query: 'svelte 5' }, result: null },
+    });
+    expect(screen.getByText(/Search/)).toBeInTheDocument();
+  });
+
+  // Reads `query` by name, not by position: this is the first tool that can arrive with several
+  // args, and the order of keys in the model's JSON is its own whim.
+  it('shows the query in the header even when it is not the first arg', () => {
+    render(ToolCallBlock, {
+      props: {
+        toolName: 'tavily_search',
+        args: { topic: 'news', query: 'ollama releases' },
+        result: null,
+      },
+    });
+    expect(screen.getByText(/ollama releases/)).toBeInTheDocument();
+  });
+
+  it('renders results through its own list, never the removed result-list', async () => {
+    const { container } = await expand({
+      toolName: 'tavily_search',
+      args: { query: 'svelte 5' },
+      result: RESULT,
+    });
+    expect(container.querySelector('.search-list')).not.toBeNull();
+    expect(container.querySelector('.result-list')).toBeNull();
+    expect(container.querySelectorAll('.search-row')).toHaveLength(2);
+  });
+
+  /**
+   * The reason the block format differs from news_feed's one-liner. `parseList`'s lazy title group
+   * would split this title at the first em dash and render it as "Vue 3", with the remainder folded
+   * into the snippet.
+   */
+  it('keeps a title containing an em dash intact', async () => {
+    await expand({ toolName: 'tavily_search', args: { query: 'vue' }, result: RESULT });
+    expect(screen.getByText('Vue 3 — the Composition API guide')).toBeInTheDocument();
+  });
+
+  it('links each result and shows where it came from', async () => {
+    await expand({ toolName: 'tavily_search', args: { query: 'svelte 5' }, result: RESULT });
+    const link = screen.getByRole('link', { name: /Svelte 5 is alive/ });
+    expect(link).toHaveAttribute('href', 'https://svelte.dev/blog/svelte-5-is-alive');
+    expect(screen.getByText('svelte.dev')).toBeInTheDocument();
+  });
+
+  it('styles a refusal as an error rather than parsing it as a result', async () => {
+    const { container } = await expand({
+      toolName: 'tavily_search',
+      args: { query: 'q' },
+      result: 'Error: Tavily rejected the key. Copy the key again.',
+    });
+    expect(container.querySelector('.err')).not.toBeNull();
+    expect(container.querySelector('.search-list')).toBeNull();
+  });
+
+  // "No web results" is prose, not a block, so there is nothing to list — an empty <ul> would
+  // read as a rendering bug rather than as an answer.
+  it('falls back to raw text when nothing parses into a block', async () => {
+    const { container } = await expand({
+      toolName: 'tavily_search',
+      args: { query: 'q' },
+      result: 'No web results for that query.',
+    });
+    expect(container.querySelector('.search-list')).toBeNull();
+    expect(screen.getByText(/No web results/)).toBeInTheDocument();
+  });
+});

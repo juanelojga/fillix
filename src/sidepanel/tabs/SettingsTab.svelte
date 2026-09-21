@@ -25,10 +25,22 @@
     TooltipTrigger,
     TooltipProvider,
   } from '$components/ui/tooltip';
+  import {
+    tavilyApiKey,
+    hydrateTavilyKey,
+    saveTavilyKey,
+    clearTavilyKey,
+    testTavilyKey,
+  } from '../stores/tavily';
   import { diagnoseTestFailure } from '../../lib/model-test-diagnostics';
+  import { diagnoseTavilyFailure } from '../../lib/tavily/search-diagnostics';
   import { DEFAULT_SYSTEM_PROMPT } from '../../lib/system-prompt';
 
   type TestState = { status: 'testing' } | { status: 'ok'; latencyMs: number } | { status: 'error'; error: string };
+  type TavilyState =
+    | { status: 'testing' }
+    | { status: 'ok'; latencyMs: number; used: number | null; limit: number | null }
+    | { status: 'error'; error: string };
 
   function formatLatency(ms: number): string {
     return ms >= 1000 ? `${(ms / 1000).toFixed(1)} s` : `${ms} ms`;
@@ -41,6 +53,9 @@
   let testStates = $state<Record<string, TestState>>({});
   let promptText = $state('');
   let promptStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+  let tavilyKey = $state('');
+  let tavilyStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+  let tavilyTest = $state<TavilyState | null>(null);
 
   onMount(async () => {
     await loadSettings();
@@ -50,6 +65,8 @@
       model = cfg.model;
     }
     promptText = get(systemPromptOverride);
+    await hydrateTavilyKey();
+    tavilyKey = get(tavilyApiKey);
   });
 
   // Keep the radio in sync when the model changes from elsewhere (e.g. chat header).
@@ -84,6 +101,39 @@
         ? { status: 'ok', latencyMs: result.latencyMs }
         : { status: 'error', error: result.error },
     };
+  }
+
+  async function handleSaveTavily() {
+    tavilyStatus = 'saving';
+    await saveTavilyKey(tavilyKey);
+    tavilyKey = get(tavilyApiKey);
+    tavilyStatus = 'saved';
+    setTimeout(() => {
+      tavilyStatus = 'idle';
+    }, 2000);
+  }
+
+  async function handleClearTavily() {
+    await clearTavilyKey();
+    tavilyKey = '';
+    tavilyTest = null;
+  }
+
+  // Saves before testing, as ProfileTab does: the worker reads the *stored* key, so testing
+  // what is currently typed means persisting it first.
+  async function handleTestTavily() {
+    await saveTavilyKey(tavilyKey);
+    tavilyKey = get(tavilyApiKey);
+    tavilyTest = { status: 'testing' };
+    const result = await testTavilyKey();
+    tavilyTest = result.ok
+      ? {
+          status: 'ok',
+          latencyMs: result.status.latencyMs,
+          used: result.status.used,
+          limit: result.status.limit,
+        }
+      : { status: 'error', error: result.error };
   }
 
   async function handleSavePrompt() {
@@ -231,6 +281,94 @@
         {:else}
           <p class="mt-1 text-xs text-muted-foreground">No models yet — add one above.</p>
         {/if}
+      </div>
+    </section>
+
+    <!-- Web search section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-indigo-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">Web search</h2>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <label class="text-xs text-muted-foreground" for="tavily-key">Tavily API key</label>
+        <div class="flex gap-2">
+          <Input
+            id="tavily-key"
+            type="password"
+            bind:value={tavilyKey}
+            placeholder="tvly-…"
+            onkeydown={(e: KeyboardEvent) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleTestTavily();
+              }
+            }}
+          />
+          <Button
+            variant="secondary"
+            onclick={handleTestTavily}
+            disabled={tavilyTest?.status === 'testing' || !tavilyKey.trim()}
+          >
+            {tavilyTest?.status === 'testing' ? 'Testing…' : 'Test'}
+          </Button>
+        </div>
+        <p class="text-xs text-muted-foreground">
+          Paste a key from <code>tavily.com</code> to let chat search the live web. Until you do, the
+          model isn't told the search tool exists. The key is stored on this machine and sent only to
+          <code>api.tavily.com</code>, along with whatever the model chose to search for — never your
+          CV or your hours, which stay local.
+        </p>
+
+        <div aria-live="polite">
+          {#if tavilyTest?.status === 'ok'}
+            <div class="flex flex-col gap-1">
+              <Tooltip>
+                <TooltipTrigger class="w-fit cursor-default">
+                  <Badge class="bg-emerald-50 text-emerald-700 border-emerald-200">
+                    Working · {formatLatency(tavilyTest.latencyMs)}
+                  </Badge>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Asked api.tavily.com about this key and measured the round trip. Costs no search
+                  credits.
+                </TooltipContent>
+              </Tooltip>
+              <p class="text-xs text-muted-foreground break-words">
+                {#if tavilyTest.used !== null && tavilyTest.limit !== null}
+                  Tavily accepted the key. {tavilyTest.used} of {tavilyTest.limit} credits used — the
+                  model spends one per search, and a single reply can search more than once.
+                {:else}
+                  Tavily accepted the key.
+                {/if}
+              </p>
+            </div>
+          {:else if tavilyTest?.status === 'error'}
+            {@const diagnosis = diagnoseTavilyFailure(tavilyTest.error, '/usage')}
+            <div class="flex flex-col gap-1">
+              <Badge variant="destructive" class="w-fit">{diagnosis.summary}</Badge>
+              {#if diagnosis.hint}
+                <p class="text-xs text-muted-foreground break-words">{diagnosis.hint}</p>
+              {/if}
+              <p class="text-xs text-destructive break-words font-mono">{diagnosis.detail}</p>
+              <p class="text-xs text-muted-foreground break-words">{diagnosis.context}</p>
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <div class="flex items-center gap-2 self-end">
+        {#if $tavilyApiKey}
+          <Button variant="ghost" onclick={handleClearTavily}>Remove key</Button>
+        {/if}
+        <Button
+          variant="secondary"
+          onclick={handleSaveTavily}
+          disabled={tavilyStatus === 'saving' || tavilyKey.trim() === $tavilyApiKey}
+        >
+          {tavilyStatus === 'saving' ? 'Saving…' : tavilyStatus === 'saved' ? '✓ Saved' : 'Save key'}
+        </Button>
       </div>
     </section>
 

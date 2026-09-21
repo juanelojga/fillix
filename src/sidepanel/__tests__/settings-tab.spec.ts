@@ -46,8 +46,16 @@ describe('SettingsTab.svelte', () => {
       }
     });
 
+    /**
+     * Ollama runs over loopback and needs no credential — that is what this has always asserted,
+     * and it stays true. It used to be a blunt `not.toContain('apiKey')` over the whole file,
+     * which also banned the Tavily search key that now lives in its own section below. Narrowed to
+     * the provider-era identifiers so it keeps catching what it meant to catch.
+     */
     it('has no API key input for the LLM provider', () => {
-      expect(src).not.toContain('apiKey');
+      for (const token of ['ollamaApiKey', 'openaiApiKey', 'providerApiKey', 'PROVIDER_DEFAULTS']) {
+        expect(src).not.toContain(token);
+      }
     });
 
     it('does not fetch the available models from Ollama', () => {
@@ -66,6 +74,36 @@ describe('SettingsTab.svelte', () => {
     // Catches the visible label text too, not just the identifiers.
     it('shows nothing about Brave', () => {
       expect(src.toLowerCase()).not.toContain('brave');
+    });
+  });
+
+  describe('web search section', () => {
+    it('wires up the Tavily key store actions', () => {
+      for (const fn of ['tavilyApiKey', 'saveTavilyKey', 'clearTavilyKey', 'testTavilyKey']) {
+        expect(src).toContain(fn);
+      }
+    });
+
+    // A credential is not shoulder-readable.
+    it('masks the key field', () => {
+      expect(src).toContain('type="password"');
+    });
+
+    // Tavily's failure set — a rejected key, a spent quota, a rate limit — has no overlap with
+    // diagnoseTestFailure's, whose 404 arm would tell the user to run "ollama pull".
+    it('diagnoses a failed key test with the Tavily module, not the Ollama one', () => {
+      expect(src).toContain('diagnoseTavilyFailure');
+    });
+
+    // The key rides on its own Save, not the page-level Save Settings button, which writes only
+    // the Ollama config.
+    it('gives the key its own save control', () => {
+      expect(src).toContain('Save key');
+    });
+
+    it('says where the key goes and that the tool is off without one', () => {
+      expect(src).toContain('api.tavily.com');
+      expect(src).toContain("isn't told the search tool exists");
     });
   });
 

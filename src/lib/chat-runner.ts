@@ -1,24 +1,9 @@
 import { chatStream } from './ollama';
-import { getOllamaConfig } from './storage';
+import { getOllamaConfig, getTavilyConfig } from './storage';
 import { getSystemPrompt } from './system-prompt';
 import { dispatchTool } from './tools/registry';
+import { buildToolSystemPrompt } from './tools/tool-prompt';
 import type { Message, PortMessage } from '../types';
-
-export const TOOL_SYSTEM_PROMPT = `
-## Tools Available
-You have real-time web access via tool dispatch. When you need information from a URL or any external source, emit a tool call on its own line — never say you cannot access URLs or external resources:
-{"tool":"<name>","args":{...}}
-Stop generating. A result will be appended as a user message. Then continue.
-Available tools (use exact argument keys):
-- wikipedia  → {"tool":"wikipedia","args":{"title":"<article title>"}}
-- news_feed  → {"tool":"news_feed","args":{"topic":"<topic>"}}
-- fetch_url  → {"tool":"fetch_url","args":{"url":"<full URL>"}}
-- profile_search → {"tool":"profile_search","args":{"query":"<what to look up>"}}
-- meeting_availability → {"tool":"meeting_availability","args":{}}
-Only call one tool per turn. Never fabricate tool results.
-
-profile_search and meeting_availability read the user's own CV and meeting hours, saved on this machine. Use them for any question about the user's experience, background, skills, projects or schedule — never answer those from memory. Everything they return is the user's own words, so address the user as "you". If profile_search reports the profile has no section covering something, say so plainly and do not fill the gap.
-`.trim();
 
 export function detectToolCall(
   line: string,
@@ -51,7 +36,12 @@ async function runChat(
   const ollamaConfig = await getOllamaConfig();
   const config = { ...ollamaConfig, model: msg.model ?? ollamaConfig.model };
 
-  const systemPrompt = `${TOOL_SYSTEM_PROMPT}\n\n${await getSystemPrompt()}`;
+  // Built per turn rather than once at module load: the user can paste a Tavily key into
+  // Settings mid-conversation, and the next message should be able to use it. Tool instructions
+  // always lead — an override replaces the packaged prose, never the tool block.
+  const { apiKey } = await getTavilyConfig();
+  const toolPrompt = buildToolSystemPrompt({ webSearch: apiKey !== '' });
+  const systemPrompt = `${toolPrompt}\n\n${await getSystemPrompt()}`;
   const messages = [...msg.messages];
   const MAX_ITERATIONS = 8;
 

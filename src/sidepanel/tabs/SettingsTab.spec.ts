@@ -144,3 +144,111 @@ describe('SettingsTab (model test result)', () => {
     expect(container.textContent).toContain('OLLAMA_ORIGINS');
   });
 });
+
+describe('SettingsTab (web search)', () => {
+  const KEY = 'tvly-abc';
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  /** Resolves once the stored key has been hydrated into the field. */
+  async function renderWithKey(stored = KEY) {
+    vi.spyOn(chrome.storage.local, 'get').mockImplementation((async () => ({
+      tavilyConfig: { apiKey: stored },
+    })) as typeof chrome.storage.local.get);
+    vi.spyOn(chrome.storage.local, 'set').mockImplementation(
+      (async () => undefined) as typeof chrome.storage.local.set,
+    );
+    const result = render(SettingsTab);
+    if (stored) await screen.findByRole('button', { name: /remove key/i });
+    return result;
+  }
+
+  function mockTest(response: unknown | Promise<unknown>) {
+    vi.spyOn(chrome.runtime, 'sendMessage').mockImplementation((async (msg: { type: string }) =>
+      msg.type === 'TEST_TAVILY' ? await response : {}) as typeof chrome.runtime.sendMessage);
+  }
+
+  const testButton = () => screen.getByRole('button', { name: /^test$/i });
+
+  it('renders the section heading', () => {
+    render(SettingsTab);
+    expect(screen.getByRole('heading', { name: /web search/i })).toBeInTheDocument();
+  });
+
+  it('masks the key field', () => {
+    const { container } = render(SettingsTab);
+    expect(container.querySelector('#tavily-key')).toHaveAttribute('type', 'password');
+  });
+
+  it('cannot be tested with nothing pasted in', () => {
+    render(SettingsTab);
+    expect(testButton()).toBeDisabled();
+  });
+
+  // Nothing to remove on a fresh install, so the control would only read as an error.
+  it('offers no Remove key until one is stored', () => {
+    render(SettingsTab);
+    expect(screen.queryByRole('button', { name: /remove key/i })).not.toBeInTheDocument();
+  });
+
+  it('hydrates a stored key and offers to remove it', async () => {
+    await renderWithKey();
+    expect(screen.getByRole('button', { name: /remove key/i })).toBeInTheDocument();
+  });
+
+  it('reports a success as "Working" with the latency', async () => {
+    mockTest({ ok: true, tavily: { latencyMs: 312, used: 150, limit: 1000 } });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('Working · 312 ms'));
+  });
+
+  // The model is what spends the allowance, and a turn can search more than once, so the figure
+  // belongs on screen rather than in a dashboard the user has to go and find.
+  it('shows how much of the allowance is left', async () => {
+    mockTest({ ok: true, tavily: { latencyMs: 312, used: 150, limit: 1000 } });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('150 of 1000 credits used'));
+  });
+
+  it('says only that the key was accepted when Tavily reported no figures', async () => {
+    mockTest({ ok: true, tavily: { latencyMs: 90, used: null, limit: null } });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('Tavily accepted the key'));
+    expect(container.textContent).not.toContain('credits used');
+  });
+
+  it('turns a 401 into a diagnosis, a next step, the raw error and the endpoint', async () => {
+    mockTest({
+      ok: false,
+      error: 'Tavily /usage returned 401: Unauthorized: missing or invalid API key.',
+    });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('Tavily rejected the key'));
+    expect(container.textContent).toContain('tvly-');
+    expect(container.textContent).toContain('missing or invalid API key');
+    expect(container.textContent).toContain('GET https://api.tavily.com/usage');
+  });
+
+  it('turns a spent plan into its own diagnosis rather than a bad-key one', async () => {
+    mockTest({ ok: false, error: 'Tavily /usage returned 432: plan limit exceeded' });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('Tavily credits used up'));
+    expect(container.textContent).not.toContain('rejected the key');
+  });
+
+  it('announces the outcome through an aria-live region', async () => {
+    mockTest({ ok: true, tavily: { latencyMs: 312, used: null, limit: null } });
+    const { container } = await renderWithKey();
+    await fireEvent.click(testButton());
+    await waitFor(() => expect(container.textContent).toContain('Working'));
+    const regions = [...container.querySelectorAll('[aria-live="polite"]')];
+    expect(regions.some((r) => r.textContent?.includes('Working'))).toBe(true);
+  });
+});

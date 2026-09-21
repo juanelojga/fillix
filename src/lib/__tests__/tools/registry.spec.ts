@@ -8,12 +8,14 @@ vi.mock('../../tools/fetch-url', () => ({ fetchUrl: vi.fn() }));
 vi.mock('../../tools/news-feed', () => ({ newsFeed: vi.fn() }));
 vi.mock('../../tools/profile-search', () => ({ profileSearch: vi.fn() }));
 vi.mock('../../tools/meeting-availability', () => ({ meetingAvailability: vi.fn() }));
+vi.mock('../../tools/tavily-search', () => ({ tavilySearch: vi.fn() }));
 
 import { wikipediaSummary } from '../../tools/wikipedia';
 import { fetchUrl } from '../../tools/fetch-url';
 import { newsFeed } from '../../tools/news-feed';
 import { profileSearch } from '../../tools/profile-search';
 import { meetingAvailability } from '../../tools/meeting-availability';
+import { tavilySearch } from '../../tools/tavily-search';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -53,6 +55,15 @@ describe('dispatchTool', () => {
     const result = await dispatchTool('news_feed', { topic: 'AI' });
     expect(newsFeed).toHaveBeenCalledWith('AI');
     expect(result).toBe('1. Headline — date (url)');
+  });
+
+  // The one tool that gets the whole record: a search is a query plus optional narrowing, and
+  // which of those the model may set is `tavily/search-args.ts`'s judgment, not the router's.
+  it('routes tavily_search with every arg it was given', async () => {
+    vi.mocked(tavilySearch).mockResolvedValue('1. Svelte 5\nhttps://svelte.dev\nRunes.');
+    const result = await dispatchTool('tavily_search', { query: 'svelte 5', topic: 'news' });
+    expect(tavilySearch).toHaveBeenCalledWith({ query: 'svelte 5', topic: 'news' });
+    expect(result).toBe('1. Svelte 5\nhttps://svelte.dev\nRunes.');
   });
 
   // The retired web_search tool must stay unroutable — this fails loudly if the
