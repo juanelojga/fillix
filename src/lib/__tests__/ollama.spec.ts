@@ -71,9 +71,13 @@ describe('chatStream', () => {
       model: string;
       messages: { role: string; content: string }[];
       stream: boolean;
+      options: { num_ctx: number };
     };
     expect(body.model).toBe('llama3.2');
     expect(body.stream).toBe(true);
+    // Ollama defaults to 2048 and truncates from the start, so the system prompt would be the
+    // first casualty once a profile_search result is in the conversation.
+    expect(body.options.num_ctx).toBe(8192);
     expect(body.messages[0]).toMatchObject({ role: 'system', content: SYSTEM_PROMPT });
     expect(body.messages[1]).toMatchObject({ role: 'user', content: 'Hello' });
   });

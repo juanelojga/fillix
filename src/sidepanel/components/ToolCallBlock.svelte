@@ -9,7 +9,9 @@
 
   let { toolName, args, result }: Props = $props();
 
-  const primaryArg = $derived(Object.values(args)[0] ?? '');
+  // `query` by name rather than by position: tavily_search is the first tool that can arrive with
+  // several args, and the order of keys in the model's JSON is its own whim.
+  const primaryArg = $derived(args['query'] ?? Object.values(args)[0] ?? '');
   let expanded = $state(false);
 
   const isError = $derived(result?.startsWith('Error:') ?? false);
@@ -20,11 +22,16 @@
     wikipedia:  { label: 'Wikipedia', color: '#fbbf24' },
     news_feed:  { label: 'News', color: '#f87171' },
     fetch_url:  { label: 'Fetch', color: '#4ade80' },
+    profile_search:       { label: 'Profile', color: '#60a5fa' },
+    meeting_availability: { label: 'Hours',   color: '#60a5fa' },
+    tavily_search:        { label: 'Search',  color: '#22d3ee' },
   };
   const tool = $derived(TOOLS[toolName] ?? { label: toolName, color: '#a78bfa' });
 
   type ListItem = { title: string; snippet: string; url: string; domain: string };
+  type SearchHit = { title: string; url: string; domain: string; snippet: string };
   type WikiData = { extract: string; url: string };
+  type ProfileData = { headings: string[]; text: string };
 
   function domain(url: string): string {
     try { return new URL(url).hostname.replace(/^www\./, ''); }
@@ -48,15 +55,54 @@
       });
   }
 
+  /**
+   * The `##` headings the retrieved sections carry, shown as chips.
+   *
+   * A chat reply is free-form streamed prose with no JSON envelope, so nothing can enforce a
+   * citation the way `draft-answer.ts` discards a draft whose `drew_on` is empty. Surfacing
+   * the headings is what makes the grounding checkable instead: what the model was shown is
+   * one click away from what it wrote.
+   */
+  /**
+   * The three-line blocks `tavily/search-results.ts` emits: `N. Title`, then the URL (with an
+   * optional ` · date`), then the snippet.
+   *
+   * Deliberately not `parseList`, whose one-line format has a lazy title group — a web result
+   * titled "Vue 3 — the Composition API guide" would render as "Vue 3" with the rest folded into
+   * the snippet. Page titles carry dashes and parentheses constantly. Reading the URL off its own
+   * line makes the parse survive any title at all.
+   */
+  function parseSearch(text: string): SearchHit[] {
+    return text.split(/\n\s*\n/)
+      .flatMap(block => {
+        const [head, location, ...rest] = block.split('\n');
+        const m = head?.match(/^\d+\. (.+)$/);
+        if (!m || !location) return [];
+        const [url] = location.split(' · ');
+        return [{ title: m[1], url, domain: domain(url), snippet: rest.join(' ').trim() }];
+      });
+  }
+
+  function parseProfile(text: string): ProfileData {
+    const headings = text.split('\n')
+      .flatMap(line => {
+        const m = line.match(/^##\s+(.+)$/);
+        return m ? [m[1].trim()] : [];
+      });
+    return { headings, text };
+  }
+
   function parseWiki(text: string): WikiData {
     const i = text.lastIndexOf('\n');
     return i >= 0 ? { extract: text.slice(0, i), url: text.slice(i + 1) } : { extract: text, url: '' };
   }
 
-  const parsed = $derived.by(() => {
+  const parsed = $derived.by((): ListItem[] | SearchHit[] | WikiData | ProfileData | null => {
     if (!result || isError) return null;
+    if (toolName === 'tavily_search') return parseSearch(result);
     if (toolName === 'news_feed') return parseList(result);
     if (toolName === 'wikipedia') return parseWiki(result);
+    if (toolName === 'profile_search') return parseProfile(result);
     return null;
   });
 
@@ -84,6 +130,24 @@
       {#if isError}
         <p class="err">{result}</p>
 
+      {:else if toolName === 'tavily_search' && Array.isArray(parsed) && parsed.length > 0}
+        <ul class="search-list">
+          {#each parsed as hit, i}
+            <li class="search-row">
+              <a href={hit.url} target="_blank" rel="noopener noreferrer" class="news-link">
+                <span class="news-n">{String(i + 1).padStart(2, '0')}</span>
+                <div class="news-body">
+                  <span class="news-title">{hit.title}</span>
+                  <span class="src-domain">{hit.domain}</span>
+                  {#if hit.snippet}
+                    <span class="src-snippet">{hit.snippet}</span>
+                  {/if}
+                </div>
+              </a>
+            </li>
+          {/each}
+        </ul>
+
       {:else if toolName === 'news_feed' && Array.isArray(parsed)}
         <ul class="news-list">
           {#each parsed as item, i}
@@ -99,7 +163,19 @@
           {/each}
         </ul>
 
-      {:else if toolName === 'wikipedia' && !Array.isArray(parsed) && parsed}
+      {:else if toolName === 'profile_search' && parsed && 'headings' in parsed}
+        <div class="profile-wrap">
+          {#if parsed.headings.length}
+            <ul class="chips">
+              {#each parsed.headings as heading}
+                <li class="chip">{heading}</li>
+              {/each}
+            </ul>
+          {/if}
+          <pre class="raw-text">{parsed.text}</pre>
+        </div>
+
+      {:else if toolName === 'wikipedia' && parsed && 'extract' in parsed}
         <blockquote class="wiki-quote">
           <p>{parsed.extract}</p>
           {#if parsed.url}
@@ -262,6 +338,30 @@
     letter-spacing: 0.03em;
   }
 
+  /* tavily_search — reuses the news row's link chrome; the sub-label is where a result came
+     from rather than when, because a search result's date already rides in its snippet. */
+  .search-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .search-row + .search-row {
+    border-top: 1px solid color-mix(in srgb, var(--border, #333) 80%, transparent);
+  }
+
+  .src-domain {
+    font-size: 9px;
+    color: var(--c);
+    letter-spacing: 0.03em;
+  }
+
+  .src-snippet {
+    font-size: 10px;
+    line-height: 1.45;
+    color: var(--muted-foreground, #888);
+  }
+
   /* wikipedia */
   .wiki-quote {
     margin: 0;
@@ -288,6 +388,33 @@
     align-self: flex-start;
   }
   .wiki-link:hover { text-decoration: underline; }
+
+  /* profile_search */
+  .profile-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .chip {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    color: var(--c);
+    border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+    background: color-mix(in srgb, var(--c) 10%, transparent);
+  }
 
   /* fetch_url */
   .raw-wrap {

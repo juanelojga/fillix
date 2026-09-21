@@ -14,8 +14,10 @@ import {
   setWorkflowsConfig,
   getAvailability,
   setAvailability,
+  getTavilyConfig,
+  setTavilyConfig,
 } from '../storage';
-import type { ChatConfig, NewsConfig } from '../storage';
+import type { ChatConfig, NewsConfig, TavilyConfig } from '../storage';
 import type { OllamaConfig } from '../../types';
 
 const mockGet = vi.fn();
@@ -308,5 +310,59 @@ describe('availability', () => {
     const week = await getAvailability();
     await setAvailability(week);
     expect(mockSet).toHaveBeenCalledWith({ availability: week });
+  });
+});
+
+describe('getTavilyConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns '' on a fresh profile, which means web search is off", async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getTavilyConfig()).toEqual({ apiKey: '' });
+  });
+
+  it('returns the stored key', async () => {
+    mockGet.mockResolvedValue({ tavilyConfig: { apiKey: 'tvly-abc' } });
+    expect(await getTavilyConfig()).toEqual({ apiKey: 'tvly-abc' });
+  });
+
+  it('reads from the "tavilyConfig" storage key', async () => {
+    mockGet.mockResolvedValue({});
+    await getTavilyConfig();
+    expect(mockGet).toHaveBeenCalledWith('tavilyConfig');
+  });
+
+  it('tolerates a non-object stored value', async () => {
+    mockGet.mockResolvedValue({ tavilyConfig: 'tvly-abc' });
+    expect(await getTavilyConfig()).toEqual({ apiKey: '' });
+  });
+});
+
+describe('setTavilyConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('writes to the "tavilyConfig" storage key', async () => {
+    const config: TavilyConfig = { apiKey: 'tvly-abc' };
+    await setTavilyConfig(config);
+    expect(mockSet).toHaveBeenCalledWith({ tavilyConfig: config });
+  });
+
+  /**
+   * The bare `search` key is the Brave-era name `legacy-migration.ts` removes on every install
+   * *and* startup, so a credential stored there would vanish on the next browser restart with
+   * nothing logged — the `workflows`/`workflowsConfig` hazard again.
+   */
+  it('never writes the retired "search" or "searchConfig" key', async () => {
+    await setTavilyConfig({ apiKey: 'tvly-abc' });
+    expect(Object.keys(mockSet.mock.calls[0]?.[0] ?? {})).toEqual(['tavilyConfig']);
+  });
+
+  it("persists '' so removing the key turns web search off", async () => {
+    await setTavilyConfig({ apiKey: '' });
+    expect(mockSet).toHaveBeenCalledWith({ tavilyConfig: { apiKey: '' } });
   });
 });

@@ -2,6 +2,7 @@
 // Run with: pnpm exec vitest run
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Message, PortMessage } from '../types';
+import { getTavilyConfig } from '../lib/storage';
 
 // --- Chrome API stubs ---
 
@@ -37,6 +38,7 @@ let connectListeners: ((port: MockPort) => void)[] = [];
 
 const mockChatStream = vi.fn();
 const mockTestModel = vi.fn();
+const mockCheckTavilyKey = vi.fn();
 
 vi.mock('../lib/ollama', () => ({
   chatStream: mockChatStream,
@@ -54,6 +56,12 @@ vi.mock('../lib/storage', () => ({
     .mockResolvedValue({ baseUrl: 'http://localhost:11434', model: 'llama3.2' }),
   getChatConfig: vi.fn().mockResolvedValue({ systemPrompt: 'Be brief.' }),
   getModelList: vi.fn().mockResolvedValue([]),
+  // Keyless by default: `chat-runner` reads this on every turn to decide whether to advertise
+  // tavily_search, and the TEST_TAVILY case reads it to refuse before spending a request.
+  getTavilyConfig: vi.fn().mockResolvedValue({ apiKey: '' }),
+}));
+vi.mock('../lib/tavily/search', () => ({
+  checkTavilyKey: mockCheckTavilyKey,
 }));
 
 const messageListeners: ((
@@ -276,5 +284,76 @@ describe('TEST_MODEL message type', () => {
     const response = await send({ type: 'TEST_MODEL', model: 'nope' });
 
     expect(response).toEqual({ ok: false, error: 'model "nope" not found' });
+  });
+});
+
+describe('TEST_TAVILY message type', () => {
+  const KEY = 'tvly-secret-key';
+
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    messageListeners.length = 0;
+    connectListeners = [];
+    await loadBackground();
+    vi.mocked(getTavilyConfig).mockResolvedValue({ apiKey: KEY });
+  });
+
+  function send(msg: Message): Promise<unknown> {
+    return new Promise((resolve) => {
+      messageListeners[0](msg, {}, resolve);
+    });
+  }
+
+  it('probes the stored key and returns its status', async () => {
+    mockCheckTavilyKey.mockResolvedValue({ latencyMs: 312, used: 150, limit: 1000 });
+
+    const response = await send({ type: 'TEST_TAVILY' });
+
+    const [key, signal] = mockCheckTavilyKey.mock.calls[0] as [string, AbortSignal];
+    expect(key).toBe(KEY);
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(response).toEqual({ ok: true, tavily: { latencyMs: 312, used: 150, limit: 1000 } });
+  });
+
+  // The PROFILE_INDEX pattern: a precondition is a throw, and the message names the tab that
+  // fixes it rather than leaving the panel to guess.
+  it('refuses without a key and names the Settings tab', async () => {
+    vi.mocked(getTavilyConfig).mockResolvedValue({ apiKey: '' });
+
+    const response = await send({ type: 'TEST_TAVILY' });
+
+    expect(response).toEqual({
+      ok: false,
+      error: 'No Tavily API key saved — paste one in the Settings tab.',
+    });
+    expect(mockCheckTavilyKey).not.toHaveBeenCalled();
+  });
+
+  it('returns the failure text so the panel can diagnose it', async () => {
+    mockCheckTavilyKey.mockRejectedValue(
+      new Error('Tavily /usage returned 401: Unauthorized: missing or invalid API key.'),
+    );
+
+    const response = await send({ type: 'TEST_TAVILY' });
+
+    expect(response).toEqual({
+      ok: false,
+      error: 'Tavily /usage returned 401: Unauthorized: missing or invalid API key.',
+    });
+  });
+
+  /**
+   * `sanitizeError` has been called with zero keys since the last credential was removed from the
+   * product. This is the first thing to feed it again: Tavily's own error text is the one string
+   * in the system that could echo a secret onto the screen.
+   */
+  it('redacts the key out of an error that echoed it back', async () => {
+    mockCheckTavilyKey.mockRejectedValue(new Error(`Tavily /usage returned 401: bad token ${KEY}`));
+
+    const response = await send({ type: 'TEST_TAVILY' });
+
+    const { error } = response as { error: string };
+    expect(error).not.toContain(KEY);
+    expect(error).toContain('[REDACTED]');
   });
 });

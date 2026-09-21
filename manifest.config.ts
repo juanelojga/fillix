@@ -25,6 +25,7 @@ export default defineManifest({
     'http://localhost:11434/*',
     'https://en.wikipedia.org/*',
     'https://hn.algolia.com/*',
+    'https://api.tavily.com/*',
     '<all_urls>',
   ],
 });

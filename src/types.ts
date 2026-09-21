@@ -1,4 +1,5 @@
 import type { AnswerDraft } from './lib/answers/draft-answer';
+import type { TavilyKeyStatus } from './lib/tavily/search';
 import type { QuestionTimes } from './lib/answers/question-times';
 
 export interface OllamaConfig {
@@ -88,6 +89,11 @@ export type Message =
   // Only the query crosses the port. The vectors stay in storage and the panel scores them.
   | { type: 'PROFILE_QUERY'; query: string }
   | { type: 'TEST_EMBED_MODEL'; model: string }
+  // Verifying the Tavily API key, from the Settings tab's Test button. Carries no payload on
+  // purpose: the worker reads the key from storage, so the one credential in the product never
+  // crosses sendMessage. The `tavily_search` tool itself needs no message at all — chat tools
+  // already run in the worker and read storage directly.
+  | { type: 'TEST_TAVILY' }
   // The panel retrieves (it holds the vectors) and sends the evidence; the worker owns the
   // outbound generate call, as it does for NEWS_SUMMARIZE.
   // Reading the times out of one question. Separate from DRAFT_ANSWER because the panel has to
@@ -108,7 +114,7 @@ export type Message =
 // Success arms are distinguished ONLY by payload key shape (narrowed with `'key' in r`).
 // Never reuse an existing key name with a different value type: it cross-wires silently
 // with no compiler diagnostic. Taken: value, latencyMs, news, degraded, article, summary,
-// indexed, queryVector, draft, times.
+// indexed, queryVector, draft, times, tavily.
 export type MessageResponse =
   | { ok: true; value: string }
   | { ok: true; latencyMs: number }
@@ -121,4 +127,8 @@ export type MessageResponse =
   | { ok: true; draft: AnswerDraft }
   // Only what the question said, never what it means: the verdict is computed in the panel.
   | { ok: true; times: QuestionTimes }
+  // Its own arm rather than the shared `latencyMs` one: the probe is GET /usage, so it returns
+  // how much of the key's allowance is left as well as the round trip, and the model is what
+  // spends that allowance. A second `{ latencyMs }` arm could not be narrowed from the first.
+  | { ok: true; tavily: TavilyKeyStatus }
   | { ok: false; error: string };

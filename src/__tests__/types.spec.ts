@@ -198,3 +198,29 @@ describe('News message contract', () => {
     }
   });
 });
+
+describe('Message TEST_TAVILY variant', () => {
+  // No payload on purpose: the worker reads the key from storage, so the one credential in the
+  // product never crosses sendMessage.
+  it('carries no payload', () => {
+    const msg: Message = { type: 'TEST_TAVILY' };
+    expectTypeOf(msg).toMatchTypeOf<Message>();
+  });
+
+  // Its own arm rather than the shared `latencyMs` one, because the probe is GET /usage and
+  // returns how much of the key's allowance is left as well as the round trip. A second
+  // `{ latencyMs }` arm could not have been narrowed from the first.
+  it('narrows the tavily response by its own key', () => {
+    const response: MessageResponse = {
+      ok: true,
+      tavily: { latencyMs: 312, used: 150, limit: 1000 },
+    };
+    if (response.ok && 'tavily' in response) {
+      expectTypeOf(response.tavily.latencyMs).toEqualTypeOf<number>();
+      // null rather than 0 when Tavily reports no figure: an unknown allowance must not render
+      // as an exhausted one.
+      expectTypeOf(response.tavily.used).toEqualTypeOf<number | null>();
+      expectTypeOf(response.tavily.limit).toEqualTypeOf<number | null>();
+    }
+  });
+});

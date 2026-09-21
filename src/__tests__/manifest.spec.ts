@@ -11,7 +11,13 @@ const permissions: string[] = (manifest as { host_permissions?: string[] }).host
 const apiPermissions: string[] = (manifest as { permissions?: string[] }).permissions ?? [];
 
 describe('manifest host_permissions', () => {
-  const required = ['https://en.wikipedia.org/*', 'https://hn.algolia.com/*'];
+  const required = [
+    'https://en.wikipedia.org/*',
+    'https://hn.algolia.com/*',
+    // The tavily_search tool. Redundant against <all_urls>, and listed anyway: this array is the
+    // documented statement of which endpoints the worker is *meant* to reach.
+    'https://api.tavily.com/*',
+  ];
 
   for (const url of required) {
     it(`includes ${url}`, () => {

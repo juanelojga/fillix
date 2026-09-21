@@ -98,16 +98,21 @@
           );
           break;
         case 'tool-result':
-          activeMessage.update((m) =>
-            m
-              ? {
-                  ...m,
-                  toolCalls: m.toolCalls.map((tc) =>
-                    tc.toolName === msg.toolName ? { ...tc, result: msg.result } : tc,
-                  ),
-                }
-              : m,
-          );
+          activeMessage.update((m) => {
+            if (!m) return m;
+            // The *last still-pending* call of that name, not every call of that name: the
+            // model can search the profile twice in one turn, and matching by name alone gave
+            // both rows the second result. Sound because `runChat` dispatches one tool per
+            // iteration and awaits it, so only one call of a name is ever outstanding.
+            let i = m.toolCalls.length - 1;
+            while (i >= 0 && !(m.toolCalls[i].toolName === msg.toolName && m.toolCalls[i].result === null)) {
+              i -= 1;
+            }
+            if (i < 0) return m;
+            const toolCalls = [...m.toolCalls];
+            toolCalls[i] = { ...toolCalls[i], result: msg.result };
+            return { ...m, toolCalls };
+          });
           break;
         case 'done': {
           // finishTurn flushes first: buffered tokens would otherwise be dropped.
@@ -239,7 +244,7 @@
                 isStreaming={$streamingState === 'streaming'}
               />
             {/if}
-            {#each $activeMessage.toolCalls as toolCall (toolCall.toolName)}
+            {#each $activeMessage.toolCalls as toolCall, i (i)}
               <ToolCallBlock toolName={toolCall.toolName} args={toolCall.args} result={toolCall.result} />
             {/each}
           </MessageBubble>

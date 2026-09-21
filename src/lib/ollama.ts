@@ -27,6 +27,11 @@ export async function chatStream(
         model: config.model,
         messages: [{ role: 'system', content: systemPrompt }, ...messages],
         stream: true,
+        // Ollama defaults to 2048 and truncates an overflowing context from the *start*, so
+        // the system prompt is the first thing silently dropped once a profile excerpt and a
+        // few turns are in the conversation. `draft-answer.ts` passes the same for the same
+        // reason; here the tool results are what make it necessary.
+        options: { num_ctx: 8192 },
       }),
       signal,
     });

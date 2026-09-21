@@ -1,5 +1,11 @@
 import { inferFieldValue, testModel } from './lib/ollama';
-import { getOllamaConfig, getProfile, getProfileConfig, setProfileIndex } from './lib/storage';
+import {
+  getOllamaConfig,
+  getProfile,
+  getProfileConfig,
+  getTavilyConfig,
+  setProfileIndex,
+} from './lib/storage';
 import {
   migrateLegacyProviderKeys,
   removeRetiredObsidianKeys,
@@ -14,9 +20,13 @@ import { embedTexts, testEmbedModel } from './lib/ollama-embed';
 import { DRAFT_TIMEOUT_MS, draftAnswer } from './lib/answers/draft-answer';
 import { extractQuestionTimes } from './lib/answers/extract-question-times';
 import { EXTRACT_TIMEOUT_MS } from './lib/answers/question-times';
+import { checkTavilyKey } from './lib/tavily/search';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+
+/** Shorter than the Ollama probe's 30s: there is no model to load into VRAM, just one GET. */
+const TAVILY_TEST_TIMEOUT_MS = 15_000;
 
 async function initialize(): Promise<void> {
   await migrateLegacyProviderKeys().catch((err: unknown) => {
@@ -121,6 +131,21 @@ async function handle(msg: Message): Promise<MessageResponse> {
       // Not testModel(): that POSTs /api/chat, which an embed-only model rejects outright.
       const latencyMs = await testEmbedModel({ baseUrl: config.baseUrl, model: msg.model });
       return { ok: true, latencyMs };
+    }
+    // The only credential in the product, which is why this case redacts its own errors rather
+    // than leaning on the listener's catch below: Tavily's message is the one string in the
+    // system that could echo a secret back onto the screen, and the generic catch has no key to
+    // pass. The precondition names the tab that fixes it, as PROFILE_INDEX's does.
+    case 'TEST_TAVILY': {
+      const { apiKey } = await getTavilyConfig();
+      if (!apiKey) throw new Error('No Tavily API key saved — paste one in the Settings tab.');
+      try {
+        const tavily = await checkTavilyKey(apiKey, AbortSignal.timeout(TAVILY_TEST_TIMEOUT_MS));
+        return { ok: true, tavily };
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new Error(sanitizeError(raw, apiKey));
+      }
     }
     case 'EXTRACT_QUESTION_TIMES': {
       const times = await extractQuestionTimes(
