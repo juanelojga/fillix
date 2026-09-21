@@ -213,6 +213,50 @@ describe('chat port handler — ReAct loop', () => {
     expect(systemPromptArg).not.toContain('web_search');
   });
 
+  it('runs a profile_search round trip and feeds the sections back as context', async () => {
+    const chatStreamFn = makeChatStream([
+      { toolCallLine: '{"tool":"profile_search","args":{"query":"Python experience"}}' },
+      { tokens: ['You have eight years of Python.'] },
+    ]);
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
+    vi.mocked(dispatchTool).mockResolvedValue('## Python\n\nEight years of Python.');
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
+
+    expect(dispatchTool).toHaveBeenCalledWith('profile_search', { query: 'Python experience' });
+    expect(port.sent).toContainEqual({
+      type: 'tool-result',
+      toolName: 'profile_search',
+      result: '## Python\n\nEight years of Python.',
+    });
+
+    // The retrieved section has to reach the *second* stream, or the model answers the
+    // question it already asked the tool about from memory anyway.
+    const [, secondMessages] = chatStreamFn.mock.calls[1] as [
+      unknown,
+      { role: string; content: string }[],
+      unknown,
+      unknown,
+    ];
+    expect(secondMessages.at(-1)?.content).toContain('Eight years of Python.');
+  });
+
+  it('advertises the local profile tools and forbids answering about the user from memory', async () => {
+    const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);
+    vi.mocked(chatStream).mockImplementation(chatStreamFn);
+
+    const port = makePort();
+    const { triggerChatStart } = await simulateChatPort(port);
+    await triggerChatStart({ type: 'CHAT_START', messages: [] });
+
+    const [, , systemPromptArg] = chatStreamFn.mock.calls[0] as [unknown, unknown, string, unknown];
+    expect(systemPromptArg).toContain('profile_search');
+    expect(systemPromptArg).toContain('meeting_availability');
+    expect(systemPromptArg).toContain('never answer those from memory');
+  });
+
   it('uses the stored override in place of the packaged default', async () => {
     vi.mocked(storage.getChatConfig).mockResolvedValue({ systemPrompt: 'Answer only in haiku.' });
     const chatStreamFn = makeChatStream([{ tokens: ['ok'] }]);

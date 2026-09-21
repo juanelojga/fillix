@@ -72,4 +72,45 @@ describe('ToolCallBlock', () => {
     expect(container.querySelector('.news-list')).not.toBeNull();
     expect(container.querySelector('.result-list')).toBeNull();
   });
+
+  // A chat reply is free-form prose with no JSON envelope, so nothing can enforce a citation
+  // the way `draft-answer.ts` discards a draft whose `drew_on` is empty. The chips are what
+  // make the grounding checkable instead.
+  it('lists the retrieved ## headings as chips for profile_search', async () => {
+    const { container } = render(ToolCallBlock, {
+      props: {
+        toolName: 'profile_search',
+        args: { query: 'Python' },
+        result: '## Python\n\nEight years.\n\n---\n\n## Backend\n\nAPIs and queues.',
+      },
+    });
+
+    await screen.getByRole('button').click();
+
+    const chips = [...container.querySelectorAll('.chip')].map((el) => el.textContent);
+    expect(chips).toEqual(['Python', 'Backend']);
+    expect(container.querySelector('.raw-text')?.textContent).toContain('Eight years.');
+  });
+
+  it('labels the profile tools in the header', () => {
+    render(ToolCallBlock, {
+      props: { toolName: 'meeting_availability', args: {}, result: null },
+    });
+    expect(screen.getByText(/Hours/i)).toBeInTheDocument();
+  });
+
+  it('styles a retrieval refusal as an error rather than as retrieved content', async () => {
+    const { container } = render(ToolCallBlock, {
+      props: {
+        toolName: 'profile_search',
+        args: { query: 'Python' },
+        result: 'Error: Your profile changed since it was indexed. Open the Profile tab.',
+      },
+    });
+
+    await screen.getByRole('button').click();
+
+    expect(container.querySelector('.err')).not.toBeNull();
+    expect(container.querySelector('.chip')).toBeNull();
+  });
 });

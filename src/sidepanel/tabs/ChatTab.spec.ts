@@ -205,4 +205,55 @@ describe('ChatTab — streamed token handling', () => {
     expect(afterFirst).toBeGreaterThan(afterStart);
     expect(afterSecond).toBeGreaterThan(afterFirst);
   });
+
+  // The model can search the profile twice in one turn — one broad query, then a narrower
+  // one. Matching a tool-result by name alone gave both calls the second result, and keying
+  // the {#each} by name made two calls of one name a duplicate-key error.
+  it('gives two calls of the same tool their own results', async () => {
+    const { port, emit } = makePort();
+    render(ChatTab, { context: new Map([['chatPort', port]]) });
+    await startTurn();
+
+    emit({ type: 'tool-call', toolName: 'profile_search', args: { query: 'Python' } });
+    await tick();
+    emit({ type: 'tool-result', toolName: 'profile_search', result: '## Python' });
+    await tick();
+    emit({ type: 'tool-call', toolName: 'profile_search', args: { query: 'Go' } });
+    await tick();
+    emit({ type: 'tool-result', toolName: 'profile_search', result: '## Go' });
+    await tick();
+
+    const calls = get(activeMessage)?.toolCalls ?? [];
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatchObject({ args: { query: 'Python' }, result: '## Python' });
+    expect(calls[1]).toMatchObject({ args: { query: 'Go' }, result: '## Go' });
+  });
+
+  it('renders both calls of one tool without a duplicate-key error', async () => {
+    const { port, emit } = makePort();
+    const { container } = render(ChatTab, { context: new Map([['chatPort', port]]) });
+    await startTurn();
+
+    emit({ type: 'tool-call', toolName: 'profile_search', args: { query: 'Python' } });
+    emit({ type: 'tool-result', toolName: 'profile_search', result: '## Python' });
+    emit({ type: 'tool-call', toolName: 'profile_search', args: { query: 'Go' } });
+    emit({ type: 'tool-result', toolName: 'profile_search', result: '## Go' });
+    await tick();
+
+    expect(container.querySelectorAll('.tool-wrap')).toHaveLength(2);
+  });
+
+  // A result arriving for a name with nothing pending must not overwrite a settled call.
+  it('ignores a tool-result with no pending call of that name', async () => {
+    const { port, emit } = makePort();
+    render(ChatTab, { context: new Map([['chatPort', port]]) });
+    await startTurn();
+
+    emit({ type: 'tool-call', toolName: 'wikipedia', args: { title: 'Svelte' } });
+    emit({ type: 'tool-result', toolName: 'wikipedia', result: 'first' });
+    emit({ type: 'tool-result', toolName: 'wikipedia', result: 'second' });
+    await tick();
+
+    expect(get(activeMessage)?.toolCalls[0].result).toBe('first');
+  });
 });

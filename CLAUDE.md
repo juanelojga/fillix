@@ -553,6 +553,35 @@ Capture again" and that button is still on screen.
 - `wikipedia.ts` — Wikipedia REST API page summary (first 500 chars + URL); no key required.
 - `news-feed.ts` — top-5 Hacker News headlines for a query, formatted for the ReAct loop; no key required. A thin wrapper over `news/hacker-news.ts`; it used Google News RSS until that needed `DOMParser`, which does not exist in a service worker.
 - `fetch-url.ts` — HTTP fetch → stripped plain text (3 000-char cap, 15 s timeout); validates `http`/`https` URLs.
+- `profile-search.ts` — the chat tool that reads the user's own CV. A thin orchestrator: it
+  gathers the three stored values and hands them to `profile/profile-retrieval.ts`, the same
+  `retrieveFromIndex` the drafting path and the eval harness use, so there is one set of
+  refusal rules rather than two that agree until they don't. **Three outcomes, and keeping
+  them apart is the whole point**: an unusable index comes back `Error: …` carrying
+  `diagnoseRetrievalFailure`'s wording, a profile that genuinely says nothing comes back as
+  plain prose, and sections come back joined by the `'\n\n---\n\n'` separator
+  `answer-evidence.ts` uses. Collapsing the first two is exactly what `retrieveFromIndex`
+  refuses early to prevent — "your CV has nothing on this" and "your index is stale" are very
+  different things to tell someone. Each chunk's text already opens with its `## Heading`
+  (`chunk.ts`), so the citations ride along for free and `ToolCallBlock` parses them back out.
+  `PROFILE_SEARCH_CHARS` is 2 500, well under drafting's `EVIDENCE_CHARS` of 6 000: a tool
+  result is appended to the conversation as a user message and the loop runs up to eight
+  times, so these accumulate across a turn in a way a single draft prompt never does.
+- `meeting-availability.ts` — the stored Mon–Fri hours, as `renderAvailability(hours, null)`.
+  A sibling of `profile-search.ts` rather than a branch inside it, for the reason the hours sit
+  under their own storage key: they are not in the vector index and asking for them is not a
+  retrieval. The one tool taking no arguments — the week is small enough to return whole, and
+  a query would only invite the model to invent one. `''` back means no day reads, which
+  becomes a worded refusal rather than a silent empty block that would read as "I have no
+  availability at all".
+
+Both run in the **worker**, where chat already runs, so they read `chrome.storage.local` and
+call Ollama directly. `profile/query-embed-direct.ts` is the `QueryEmbedder` they use — the
+twin of `query-embed-port.ts`, split for the reason that module states: transport is its own
+reason to change. The panel has to cross `PROFILE_QUERY` to reach the embeddings client; a
+chat tool is already on that side and calls `embedTexts` with no round trip to fail. Neither
+tool ever throws: like every tool here they catch and return `Error: …`, which is what
+`ToolCallBlock` keys its error styling on.
 
 **News (`src/lib/news/`)**
 
@@ -584,7 +613,17 @@ recoverable.
 
 **Chat**
 
-- `chat-runner.ts` — ReAct tool-use loop (max 8 iterations). Each iteration: stream LLM tokens → scan response for `{"tool":"<name>","args":{…}}` JSON line → dispatch tool → emit `tool-call`/`tool-result` port messages → append result to messages → loop. Exits early when no tool call is detected. It also resolves the system prompt: `TOOL_SYSTEM_PROMPT` always leads, then whatever `getSystemPrompt()` returns. Tool instructions are not the user's to switch off, so an override replaces the packaged prose but never the tool block.
+- `chat-runner.ts` — ReAct tool-use loop (max 8 iterations). Each iteration: stream LLM tokens → scan response for `{"tool":"<name>","args":{…}}` JSON line → dispatch tool → emit `tool-call`/`tool-result` port messages → append result to messages → loop. Exits early when no tool call is detected. It also resolves the system prompt: `TOOL_SYSTEM_PROMPT` always leads, then whatever `getSystemPrompt()` returns. Tool instructions are not the user's to switch off, so an override replaces the packaged prose but never the tool block. That block is also where `profile_search` and `meeting_availability` are advertised, with the rule that questions about the user's own experience or schedule are never answered from memory — the profile reaches chat **only** through those tools, never injected into the system prompt, so an ordinary turn spends no embedding call and no context.
+
+  `chatStream` passes `num_ctx: 8192` for the reason `draft-answer.ts` does: Ollama defaults to
+  2048 and truncates an overflowing context from the **start**, so the system prompt is the
+  first thing silently dropped once a retrieved profile section is in the conversation.
+
+  The panel matches a `tool-result` to the **last still-pending call of that name**, and keys
+  the rendered list by position rather than by tool name. Matching by name alone was
+  survivable while every tool had a distinct name; the model can search the profile twice in
+  one turn — a broad query, then a narrower one — which gave both rows the second result and
+  made the keyed `{#each}` a duplicate-key error.
 
 **Prompts (`src/prompts/`)**
 

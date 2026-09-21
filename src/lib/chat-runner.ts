@@ -13,7 +13,11 @@ Available tools (use exact argument keys):
 - wikipedia  → {"tool":"wikipedia","args":{"title":"<article title>"}}
 - news_feed  → {"tool":"news_feed","args":{"topic":"<topic>"}}
 - fetch_url  → {"tool":"fetch_url","args":{"url":"<full URL>"}}
+- profile_search → {"tool":"profile_search","args":{"query":"<what to look up>"}}
+- meeting_availability → {"tool":"meeting_availability","args":{}}
 Only call one tool per turn. Never fabricate tool results.
+
+profile_search and meeting_availability read the user's own CV and meeting hours, saved on this machine. Use them for any question about the user's experience, background, skills, projects or schedule — never answer those from memory. Everything they return is the user's own words, so address the user as "you". If profile_search reports the profile has no section covering something, say so plainly and do not fill the gap.
 `.trim();
 
 export function detectToolCall(

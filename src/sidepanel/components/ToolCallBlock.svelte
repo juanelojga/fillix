@@ -20,11 +20,14 @@
     wikipedia:  { label: 'Wikipedia', color: '#fbbf24' },
     news_feed:  { label: 'News', color: '#f87171' },
     fetch_url:  { label: 'Fetch', color: '#4ade80' },
+    profile_search:       { label: 'Profile', color: '#60a5fa' },
+    meeting_availability: { label: 'Hours',   color: '#60a5fa' },
   };
   const tool = $derived(TOOLS[toolName] ?? { label: toolName, color: '#a78bfa' });
 
   type ListItem = { title: string; snippet: string; url: string; domain: string };
   type WikiData = { extract: string; url: string };
+  type ProfileData = { headings: string[]; text: string };
 
   function domain(url: string): string {
     try { return new URL(url).hostname.replace(/^www\./, ''); }
@@ -48,15 +51,33 @@
       });
   }
 
+  /**
+   * The `##` headings the retrieved sections carry, shown as chips.
+   *
+   * A chat reply is free-form streamed prose with no JSON envelope, so nothing can enforce a
+   * citation the way `draft-answer.ts` discards a draft whose `drew_on` is empty. Surfacing
+   * the headings is what makes the grounding checkable instead: what the model was shown is
+   * one click away from what it wrote.
+   */
+  function parseProfile(text: string): ProfileData {
+    const headings = text.split('\n')
+      .flatMap(line => {
+        const m = line.match(/^##\s+(.+)$/);
+        return m ? [m[1].trim()] : [];
+      });
+    return { headings, text };
+  }
+
   function parseWiki(text: string): WikiData {
     const i = text.lastIndexOf('\n');
     return i >= 0 ? { extract: text.slice(0, i), url: text.slice(i + 1) } : { extract: text, url: '' };
   }
 
-  const parsed = $derived.by(() => {
+  const parsed = $derived.by((): ListItem[] | WikiData | ProfileData | null => {
     if (!result || isError) return null;
     if (toolName === 'news_feed') return parseList(result);
     if (toolName === 'wikipedia') return parseWiki(result);
+    if (toolName === 'profile_search') return parseProfile(result);
     return null;
   });
 
@@ -99,7 +120,19 @@
           {/each}
         </ul>
 
-      {:else if toolName === 'wikipedia' && !Array.isArray(parsed) && parsed}
+      {:else if toolName === 'profile_search' && parsed && 'headings' in parsed}
+        <div class="profile-wrap">
+          {#if parsed.headings.length}
+            <ul class="chips">
+              {#each parsed.headings as heading}
+                <li class="chip">{heading}</li>
+              {/each}
+            </ul>
+          {/if}
+          <pre class="raw-text">{parsed.text}</pre>
+        </div>
+
+      {:else if toolName === 'wikipedia' && parsed && 'extract' in parsed}
         <blockquote class="wiki-quote">
           <p>{parsed.extract}</p>
           {#if parsed.url}
@@ -288,6 +321,33 @@
     align-self: flex-start;
   }
   .wiki-link:hover { text-decoration: underline; }
+
+  /* profile_search */
+  .profile-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .chips {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .chip {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    padding: 2px 6px;
+    border-radius: 10px;
+    color: var(--c);
+    border: 1px solid color-mix(in srgb, var(--c) 35%, transparent);
+    background: color-mix(in srgb, var(--c) 10%, transparent);
+  }
 
   /* fetch_url */
   .raw-wrap {

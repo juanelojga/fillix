@@ -6,10 +6,14 @@ import { dispatchTool } from '../../tools/registry';
 vi.mock('../../tools/wikipedia', () => ({ wikipediaSummary: vi.fn() }));
 vi.mock('../../tools/fetch-url', () => ({ fetchUrl: vi.fn() }));
 vi.mock('../../tools/news-feed', () => ({ newsFeed: vi.fn() }));
+vi.mock('../../tools/profile-search', () => ({ profileSearch: vi.fn() }));
+vi.mock('../../tools/meeting-availability', () => ({ meetingAvailability: vi.fn() }));
 
 import { wikipediaSummary } from '../../tools/wikipedia';
 import { fetchUrl } from '../../tools/fetch-url';
 import { newsFeed } from '../../tools/news-feed';
+import { profileSearch } from '../../tools/profile-search';
+import { meetingAvailability } from '../../tools/meeting-availability';
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -21,6 +25,20 @@ describe('dispatchTool', () => {
     const result = await dispatchTool('wikipedia', { title: 'TypeScript' });
     expect(wikipediaSummary).toHaveBeenCalledWith('TypeScript');
     expect(result).toBe('TypeScript is a language.');
+  });
+
+  it('routes profile_search to profileSearch with the query arg', async () => {
+    vi.mocked(profileSearch).mockResolvedValue('## Python\n\nEight years.');
+    const result = await dispatchTool('profile_search', { query: 'Python experience' });
+    expect(profileSearch).toHaveBeenCalledWith('Python experience');
+    expect(result).toBe('## Python\n\nEight years.');
+  });
+
+  it('routes meeting_availability with no arguments at all', async () => {
+    vi.mocked(meetingAvailability).mockResolvedValue('## Meeting availability');
+    const result = await dispatchTool('meeting_availability', {});
+    expect(meetingAvailability).toHaveBeenCalledWith();
+    expect(result).toBe('## Meeting availability');
   });
 
   it('routes fetch_url to fetchUrl with url arg', async () => {
