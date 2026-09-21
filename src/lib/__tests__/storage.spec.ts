@@ -10,6 +10,8 @@ import {
   setModelList,
   getNewsConfig,
   setNewsConfig,
+  getWorkflowsConfig,
+  setWorkflowsConfig,
   getAvailability,
   setAvailability,
 } from '../storage';
@@ -188,6 +190,87 @@ describe('setNewsConfig', () => {
   it("persists '' so the News tab can go back to the active model", async () => {
     await setNewsConfig({ model: '' });
     expect(mockSet).toHaveBeenCalledWith({ newsConfig: { model: '' } });
+  });
+});
+
+describe('getWorkflowsConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("returns '' for both fields on a fresh profile", async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getWorkflowsConfig()).toEqual({ playbook: '', model: '' });
+  });
+
+  it('returns the stored playbook and model', async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: { playbook: 'toptal', model: 'phi4' } });
+    expect(await getWorkflowsConfig()).toEqual({ playbook: 'toptal', model: 'phi4' });
+  });
+
+  // The model field was added after the playbook one, so an install that only ever chose
+  // a playbook must still read back cleanly rather than as `{ model: undefined }`.
+  it("defaults the model to '' when only a playbook was ever stored", async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: { playbook: 'toptal' } });
+    expect(await getWorkflowsConfig()).toEqual({ playbook: 'toptal', model: '' });
+  });
+
+  it('reads from the "workflowsConfig" storage key', async () => {
+    mockGet.mockResolvedValue({});
+    await getWorkflowsConfig();
+    expect(mockGet).toHaveBeenCalledWith('workflowsConfig');
+  });
+
+  it('tolerates a non-object stored value', async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: 'toptal' });
+    expect(await getWorkflowsConfig()).toEqual({ playbook: '', model: '' });
+  });
+});
+
+describe('setWorkflowsConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+    mockGet.mockResolvedValue({});
+  });
+
+  it('writes to the "workflowsConfig" storage key', async () => {
+    await setWorkflowsConfig({ playbook: 'toptal', model: 'phi4' });
+    expect(mockSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: 'phi4' },
+    });
+  });
+
+  // The two assertions the whole two-owner design turns on. `stores/playbook.ts` writes
+  // the playbook and `stores/settings.ts` writes the model; a replacing setter would let
+  // either one silently erase the other's field.
+  it('preserves a stored playbook when only the model is patched', async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: { playbook: 'toptal', model: '' } });
+    await setWorkflowsConfig({ model: 'phi4' });
+    expect(mockSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: 'phi4' },
+    });
+  });
+
+  it('preserves a stored model when only the playbook is patched', async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: { playbook: '', model: 'phi4' } });
+    await setWorkflowsConfig({ playbook: 'toptal' });
+    expect(mockSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: 'phi4' },
+    });
+  });
+
+  // `legacy-migration.ts` purges the bare `workflows` key by exact name on every startup.
+  it('never touches any other key', async () => {
+    await setWorkflowsConfig({ model: 'phi4' });
+    expect(Object.keys(mockSet.mock.calls[0]?.[0] ?? {})).toEqual(['workflowsConfig']);
+  });
+
+  it("persists '' so the Workflows tab can go back to the active model", async () => {
+    mockGet.mockResolvedValue({ workflowsConfig: { playbook: 'toptal', model: 'phi4' } });
+    await setWorkflowsConfig({ model: '' });
+    expect(mockSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: '' },
+    });
   });
 });
 

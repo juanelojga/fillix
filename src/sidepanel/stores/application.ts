@@ -2,6 +2,7 @@ import { derived, get, writable } from 'svelte/store';
 import type { AnswerDraft } from '../../lib/answers/draft-answer';
 import { assembleAnswerEvidence } from '../../lib/answers/answer-evidence';
 import { checkQuestionSchedule } from '../../lib/answers/question-schedule';
+import { requestQuestionTimes } from '../../lib/answers/question-times-port';
 import type { ScheduleCheck } from '../../lib/answers/schedule-check';
 import { diagnoseDraftFailure, type DraftDiagnosis } from '../../lib/answers/draft-diagnostics';
 import {
@@ -24,7 +25,7 @@ import { applicantName } from '../../lib/profile/applicant-name';
 import { profile, retrieveProfileContext } from './profile';
 import { availability, browserTimeZone } from './availability';
 import { runState } from './playbook';
-import { ollamaConfig } from './settings';
+import { effectiveWorkflowModel } from './settings';
 
 /**
  * The application form's questions and their drafted answers.
@@ -127,6 +128,12 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
   const state = get(runState);
   const brief = state.status === 'ready' ? state.brief : null;
 
+  // Read once, before either round trip, for the reason `stores/news.ts` states: the two
+  // generations and the failure wording must all name the model that actually ran, and the
+  // header's picker is never disabled. Per question rather than per `draftAll`, because
+  // `redraft` enters here directly.
+  const model = get(effectiveWorkflowModel);
+
   // What the model is shown is decided in `lib/answers/answer-evidence.ts`, not here: the panel
   // supplies the stored values and the two impure steps, and that module owns the ordering the
   // grounding design depends on.
@@ -138,7 +145,16 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
       availability: get(availability),
       browserTimeZone: browserTimeZone(),
     },
-    { checkSchedule: checkQuestionSchedule, retrieve: retrieveProfileContext },
+    {
+      // The model reaches the extraction as a bound source rather than as one more
+      // parameter of `checkQuestionSchedule`: that module is a pure function of the times
+      // it is handed and has no business knowing about transport. Same shape the eval uses.
+      checkSchedule: (question, weeklyHours, timeZone, at) =>
+        checkQuestionSchedule(question, weeklyHours, timeZone, at, (q) =>
+          requestQuestionTimes(q, model),
+        ),
+      retrieve: retrieveProfileContext,
+    },
   );
 
   if (!assembled.ok) {
@@ -159,6 +175,8 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
     // Sent for every field; only the pitch prompt reads it. Resolved here rather than in the
     // worker because the profile document lives in the panel and never crosses the port.
     applicantName: applicantName(get(profile).markdown),
+    // '' means "follow the active model", and the worker already reads it that way.
+    model: model || undefined,
   };
 
   const response = (await chrome.runtime.sendMessage(msg)) as MessageResponse | undefined;
@@ -171,7 +189,7 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
         : response.error;
     setDraft(
       field.question,
-      { status: 'failed', diagnosis: diagnoseDraftFailure(error, modelName()) },
+      { status: 'failed', diagnosis: diagnoseDraftFailure(error, model || 'your model') },
       generation,
     );
     return;
@@ -187,15 +205,6 @@ async function draftOne(field: ApplicationField, generation: number): Promise<vo
     },
     generation,
   );
-}
-
-/**
- * Captured in the panel for the same reason the News tab resolves its summary model there: the
- * failure wording names a model, and reading it here — from the same store the worker's config
- * came from — is what keeps it from naming one that did not run.
- */
-function modelName(): string {
-  return get(ollamaConfig)?.model ?? 'your model';
 }
 
 export async function redraft(question: string): Promise<void> {

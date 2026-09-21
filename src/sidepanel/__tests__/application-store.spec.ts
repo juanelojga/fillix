@@ -18,6 +18,7 @@ vi.stubGlobal('chrome', {
 const { runState } = await import('../stores/playbook');
 const { profile, embedModel, profileIndex } = await import('../stores/profile');
 const { availability, browserTimeZone } = await import('../stores/availability');
+const { ollamaConfig, workflowModel } = await import('../stores/settings');
 const { defaultAvailability } = await import('../../lib/profile/availability');
 const { hashProfile } = await import('../../lib/profile/profile-hash');
 const {
@@ -599,5 +600,148 @@ describe('the pitch reaches the worker as a pitch', () => {
     await draftAll();
 
     expect(lastDraftCall().applicantName).toBe('');
+  });
+});
+
+/**
+ * The Workflows tab's model, and the two generations it has to reach.
+ *
+ * The transposition of `news-store.spec.ts`'s "the summary model that travels with the
+ * request": what the header names and what actually ran must be the same thing, including
+ * in the failure wording. The extra case here is the schedule extraction — it is a second
+ * generation on the same draft, and a forgotten source would silently run it on the chat
+ * model while the answer itself ran on the picked one.
+ */
+const TIME_Q = 'Can you take a call on Tuesday at 5pm CEST?';
+
+const TIME_FORM = `<html><body><form>
+  <div data-testid="matcherQuestions">
+    <div data-testid="matcherQuestionInput">
+      <label for="t"><span>${TIME_Q}</span></label>
+      <textarea id="t" name="t"></textarea>
+    </div>
+  </div>
+</form></body></html>`;
+
+function readyWithTimeQuestion() {
+  runState.set({
+    status: 'ready',
+    capture: { ...capture(5000), html: TIME_FORM, totalChars: TIME_FORM.length },
+    sections: [],
+    brief: null,
+  });
+}
+
+function callsOfType(type: string): Record<string, unknown>[] {
+  return sendMessage.mock.calls
+    .map((c) => c[0] as Record<string, unknown>)
+    .filter((m) => m?.type === type);
+}
+
+describe('the Workflows model travels with the request', () => {
+  beforeEach(() => {
+    sendMessage.mockImplementation((msg) => {
+      if (msg.type === 'PROFILE_QUERY') return Promise.resolve({ ok: true, queryVector: [1, 0] });
+      if (msg.type === 'EXTRACT_QUESTION_TIMES') return Promise.resolve({ ok: true, times: {} });
+      return Promise.resolve(draftReply('An answer.'));
+    });
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'gemma4:12b' });
+    workflowModel.set('');
+  });
+
+  it('sends the Workflows preference, not the chat model', async () => {
+    workflowModel.set('phi4');
+    ready();
+
+    await draftAll();
+
+    expect(lastDraftCall().model).toBe('phi4');
+  });
+
+  it('sends the chat model while the preference is unset', async () => {
+    ready();
+
+    await draftAll();
+
+    expect(lastDraftCall().model).toBe('gemma4:12b');
+  });
+
+  it('omits the model entirely when nothing is configured', async () => {
+    ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: '' });
+    ready();
+
+    await draftAll();
+
+    expect(lastDraftCall().model).toBeUndefined();
+  });
+
+  // The verdict is computed from what the extraction read. Running it on a different model
+  // than the answer would make the two halves of one draft disagree about the same sentence.
+  it('runs the schedule extraction on the same model', async () => {
+    availability.set({
+      timeZone: 'America/Guayaquil',
+      days: { mon: '', tue: '9am-5pm', wed: '', thu: '', fri: '' },
+      updatedAt: 1,
+    });
+    workflowModel.set('phi4');
+    readyWithTimeQuestion();
+
+    await draftAll();
+
+    const extractions = callsOfType('EXTRACT_QUESTION_TIMES');
+    expect(extractions).toHaveLength(1);
+    expect(extractions[0]?.model).toBe('phi4');
+    expect(lastDraftCall().model).toBe('phi4');
+  });
+
+  // The embed model is a different knob for a different endpoint, and must not be dragged
+  // along by the drafting one.
+  it('never puts the Workflows model on a PROFILE_QUERY', async () => {
+    workflowModel.set('phi4');
+    ready();
+
+    await draftAll();
+
+    const queries = callsOfType('PROFILE_QUERY');
+    expect(queries.length).toBeGreaterThan(0);
+    for (const q of queries) expect(q.model).toBeUndefined();
+  });
+
+  // The picker is deliberately never disabled while drafting runs. Reading it once per
+  // question is what stops a mid-run change from retargeting a question already in flight.
+  it('captures the model when the question starts, not when it resolves', async () => {
+    let release: (() => void) | undefined;
+    const gate = new Promise<void>((resolve) => (release = resolve));
+    sendMessage.mockImplementation(async (msg) => {
+      if (msg.type === 'PROFILE_QUERY') return { ok: true, queryVector: [1, 0] };
+      await gate;
+      return draftReply('An answer.');
+    });
+    workflowModel.set('phi4');
+    ready();
+
+    const run = draftAll();
+    workflowModel.set('qwen3:8b');
+    release?.();
+    await run;
+
+    expect(callsOfType('DRAFT_ANSWER')[0]?.model).toBe('phi4');
+  });
+
+  it('names the Workflows model in a failure hint, not the chat model', async () => {
+    sendMessage.mockImplementation((msg) =>
+      msg.type === 'PROFILE_QUERY'
+        ? Promise.resolve({ ok: true, queryVector: [1, 0] })
+        : Promise.resolve({ ok: false, error: 'model "phi4" not found' }),
+    );
+    workflowModel.set('phi4');
+    ready();
+
+    await draftAll();
+
+    const state = get(drafts)[Q1];
+    expect(state?.status).toBe('failed');
+    expect(JSON.stringify(state)).toContain('phi4');
+    expect(JSON.stringify(state)).not.toContain('gemma4:12b');
   });
 });

@@ -62,12 +62,14 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(tab('NewsTab.spec.ts'))).toBe(true);
     });
 
-    it('WorkflowsTab.spec.ts exists and covers the Capture button and the playbook picker', () => {
+    it('WorkflowsTab.spec.ts exists and covers the Capture button and both pickers', () => {
       expect(existsSync(tab('WorkflowsTab.spec.ts'))).toBe(true);
       const src = readFileSync(tab('WorkflowsTab.spec.ts'), 'utf-8');
       expect(src).toContain('Capture');
-      // The button is one of two controls now — the picker chooses what it runs.
+      // The button is one of three controls now — one picker chooses what it runs, the
+      // other chooses what runs it.
       expect(src).toContain('playbook');
+      expect(src).toContain('workflow model');
     });
   });
 
@@ -94,6 +96,15 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(existsSync(comp('PlaybookPicker.spec.ts'))).toBe(true);
       const src = readFileSync(comp('PlaybookPicker.spec.ts'), 'utf-8');
       expect(src).toContain('workflowsConfig');
+    });
+
+    // Shares the workflowsConfig key with PlaybookPicker, so its spec has to pin that a
+    // model write keeps the playbook — a replacing setter would silently reset it.
+    it('WorkflowModelPicker.spec.ts exists and pins the workflowsConfig-key write', () => {
+      expect(existsSync(comp('WorkflowModelPicker.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('WorkflowModelPicker.spec.ts'), 'utf-8');
+      expect(src).toContain('workflowsConfig');
+      expect(src).toContain('playbook');
     });
   });
 

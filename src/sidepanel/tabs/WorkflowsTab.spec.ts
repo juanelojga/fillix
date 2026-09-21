@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/svelte';
 import WorkflowsTab from './WorkflowsTab.svelte';
 import { runState, clearRun, selectedPlaybookId } from '../stores/playbook';
+import { modelList, ollamaConfig, workflowModel } from '../stores/settings';
 import { resolvePlaybook } from '$lib/playbooks/registry';
 import type { PageCapture } from '$lib/capture/html-budget';
 import type { CapturedSection } from '$lib/playbooks/playbook';
@@ -28,6 +29,9 @@ function ready(sections: CapturedSection[] = SECTIONS) {
 beforeEach(() => {
   selectedPlaybookId.set('toptal');
   clearRun();
+  ollamaConfig.set({ baseUrl: 'http://localhost:11434', model: 'llama3.2' });
+  modelList.set(['llama3.2', 'phi4']);
+  workflowModel.set('');
   vi.restoreAllMocks();
 });
 
@@ -164,5 +168,34 @@ describe('WorkflowsTab', () => {
 
     const second = render(WorkflowsTab);
     expect(second.getByText('Full-Stack Lead Engineer')).toBeInTheDocument();
+  });
+});
+
+describe('WorkflowsTab model picker', () => {
+  it('exposes the workflow model in the header', () => {
+    render(WorkflowsTab);
+    expect(screen.getByRole('button', { name: /workflow model: llama3\.2/i })).toBeInTheDocument();
+  });
+
+  // Three buttons share this header now. Each query must still resolve to exactly one
+  // element, or the Capture hints point at something ambiguous.
+  it('does not collide with the Capture button or the playbook picker', () => {
+    render(WorkflowsTab);
+
+    expect(screen.getByRole('button', { name: /^Capture$/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /playbook: toptal/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /workflow model/i })).toBeInTheDocument();
+  });
+
+  // Deliberate: the model is read when a question starts drafting, so a change made
+  // mid-capture should be free to apply to the next run.
+  it('leaves the picker usable while a capture is running', async () => {
+    runState.set({ status: 'running' });
+    render(WorkflowsTab);
+
+    const trigger = screen.getByRole('button', { name: /workflow model/i });
+    expect(trigger).not.toBeDisabled();
+    await fireEvent.click(trigger);
+    expect(screen.getByRole('listbox')).toBeInTheDocument();
   });
 });

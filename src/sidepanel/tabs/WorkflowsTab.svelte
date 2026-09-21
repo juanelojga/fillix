@@ -1,6 +1,7 @@
 <script lang="ts">
   import CaptureResult from '$components/CaptureResult.svelte';
   import PlaybookPicker from '$components/PlaybookPicker.svelte';
+  import WorkflowModelPicker from '$components/WorkflowModelPicker.svelte';
   import { diagnoseCaptureFailure } from '$lib/capture/capture-diagnostics';
   import { resolvePlaybook } from '$lib/playbooks/registry';
   import { runState, runPlaybook, selectedPlaybookId } from '../stores/playbook';
@@ -50,11 +51,19 @@
       <h2 class="text-sm font-semibold text-slate-800">Workflows</h2>
       <p class="text-[11px] text-muted-foreground truncate">{statusLine}</p>
     </div>
-    <!-- Picker and button share one row, as in NewsTab. The picker names the playbook,
-         the button names the action — which is also why the verb stays "Capture" whatever
-         is selected: every hint in capture-diagnostics.ts says "press Capture again". -->
-    <div class="shrink-0 flex items-center gap-1">
+    <!-- Pickers and button share one row, as in NewsTab, ordered what to run, what runs
+         it, then do it. The button names the action — which is also why the verb stays
+         "Capture" whatever is selected: every hint in capture-diagnostics.ts says "press
+         Capture again".
+
+         Three controls no longer fit a 240px panel at full width, so the group is not
+         shrink-0 any more: the two pickers give first (their triggers truncate, so a long
+         model name ellipsises rather than pushing anything off-panel) and Capture keeps
+         its own shrink-0. Neither picker is disabled while a capture or a draft runs —
+         the model is read when a question starts, so the next one picks up the change. -->
+    <div class="flex items-center gap-1 min-w-0">
       <PlaybookPicker />
+      <WorkflowModelPicker />
       <button
         type="button"
         class="shrink-0 inline-flex items-center gap-1.5 rounded-md border border-input

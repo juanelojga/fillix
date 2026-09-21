@@ -12,11 +12,19 @@ import type { Message, MessageResponse } from '../../types';
  * the caller re-validates it before any number is treated as the applicant's stated
  * availability. Returning the parsed type here would move that decision somewhere it cannot be
  * seen.
+ *
+ * `model` is the caller's to supply and deliberately so: this module lives in `lib/` but runs
+ * in the panel, and reading the Workflows preference here would invert the layering. Omitted
+ * or blank, the worker falls back to the globally active model — which is what every caller
+ * outside the drafting path wants.
  */
 export async function requestQuestionTimes(
   question: string,
+  model?: string,
 ): Promise<Record<string, unknown> | null> {
-  const msg: Message = { type: 'EXTRACT_QUESTION_TIMES', question };
+  // `|| undefined` rather than `?? undefined`: '' means "follow the active model", and an
+  // empty string on the wire would be sent to Ollama as a model name.
+  const msg: Message = { type: 'EXTRACT_QUESTION_TIMES', question, model: model || undefined };
 
   let response: MessageResponse | undefined;
   try {
