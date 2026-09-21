@@ -25,10 +25,19 @@
     $fillState.status === 'done' ? summariseFill(Object.values($fillState.outcomes)) : '',
   );
 
+  /**
+   * The count is of what can be *answered*, while the list below is every field on the page.
+   * Naming the difference is what stops "2 questions to answer" reading as a miscount above
+   * four cards.
+   */
+  const picks = $derived($fields.length - $answerable.length);
+  const pickSuffix = $derived(picks > 0 ? ` · ${picks} you pick yourself` : '');
+
   const summary = $derived.by(() => {
     if ($draftingAll) return `Writing answers… ${$draftedCount} of ${total} done`;
-    if (!attempted) return `${total} ${total === 1 ? 'question' : 'questions'} to answer`;
-    return `${$draftedCount} of ${total} answered`;
+    if (!attempted)
+      return `${total} ${total === 1 ? 'question' : 'questions'} to answer${pickSuffix}`;
+    return `${$draftedCount} of ${total} answered${pickSuffix}`;
   });
 </script>
 
@@ -91,10 +100,11 @@
       {/if}
     {/if}
 
+    <!-- One line, but both promises survive the trim: grounded in the profile *or* a stated
+         gap, and nothing leaves the machine. Neither is visible from the cards alone. -->
     <p class="px-3 pb-2 text-[10px] text-muted-foreground leading-relaxed">
-      Answers are written from your profile and nothing else. Each one either names the sections
-      it drew on, or says you do not have that experience. Read them before you paste anything
-      into the page — nothing is written to Toptal, and Submit is never pressed for you.
+      Written from your profile only — each answer names what it drew on, or says you do not
+      have that experience. Submit is never pressed for you.
     </p>
 
     <div class="border-t">
@@ -108,4 +118,11 @@
       {/each}
     </div>
   </section>
+{:else}
+  <!-- With the brief and the decoded sections gone this is the only thing between a capture
+       that found no form and a blank tab. -->
+  <p class="border-b px-3 py-3 text-[11px] text-muted-foreground">
+    No application questions on this page — open the job's apply step, or Toptal may have
+    changed its markup.
+  </p>
 {/if}

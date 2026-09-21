@@ -57,12 +57,13 @@
   {#if field.locator === null}
     <!-- Named, never dropped: the question is on the page whether or not we can fill it, and a
          silently missing card reads as "Toptal did not ask this". -->
-    <p class="mt-1.5 text-[11px] text-muted-foreground">{field.unfillableReason}</p>
-    {#if field.prefilled}
-      <p class="mt-1 text-[11px] text-slate-700">
-        Currently set to <span class="font-medium">{field.prefilled}</span>.
-      </p>
-    {/if}
+    <p class="mt-1.5 text-[11px] text-muted-foreground">
+      {field.unfillableReason}{#if field.prefilled}
+        <span class="text-slate-700">
+          Now: <span class="font-medium">{field.prefilled}</span>.
+        </span>
+      {/if}
+    </p>
   {:else if state.status === 'drafting'}
     <p class="mt-1.5 text-[11px] text-muted-foreground">Writing an answer…</p>
   {:else if failed}
@@ -72,7 +73,11 @@
       </span>
       <p class="text-[11px] text-muted-foreground">{failed.hint}</p>
       {#if 'detail' in failed && failed.detail}
-        <p class="text-[10px] font-mono text-destructive break-words">{failed.detail}</p>
+        <!-- Bounded: the detail now carries the head and tail of the model's real reply, and an
+             unbounded one would push the remaining questions off screen on a narrow panel. -->
+        <p class="max-h-24 overflow-y-auto text-[10px] font-mono text-destructive break-words">
+          {failed.detail}
+        </p>
       {/if}
       <button
         type="button"

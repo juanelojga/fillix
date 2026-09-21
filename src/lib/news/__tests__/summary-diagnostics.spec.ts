@@ -4,6 +4,11 @@ import { diagnoseSummaryFailure } from '../summary-diagnostics';
 const URL_ = 'https://example.com/story';
 const BASE = 'http://localhost:11434';
 
+/** Exactly what `lib/structured-reply.ts` throws: cause on line one, model's own words on line two. */
+const CUT_OFF =
+  'Model output was cut off before it finished the JSON (done_reason "length")\n' +
+  'raw 900 chars · head: {"summary":"The article describes… · tail: …and a request timeout';
+
 function diagnose(stage: 'fetch' | 'summarize', error: string) {
   return diagnoseSummaryFailure(stage, error, URL_, BASE, 'llama3.2');
 }
@@ -16,6 +21,7 @@ describe('diagnoseSummaryFailure', () => {
     ['summarize', 'Failed to fetch'],
     ['summarize', 'Model returned invalid JSON: {oops'],
     ['summarize', 'Model returned no usable summary'],
+    ['summarize', CUT_OFF],
     ['summarize', 'something nobody predicted'],
   ];
 
@@ -44,5 +50,24 @@ describe('diagnoseSummaryFailure', () => {
   it('separates a timeout from an unreachable server', () => {
     expect(diagnose('summarize', 'signal timed out').summary).toContain('60s');
     expect(diagnose('summarize', 'Failed to fetch').summary).toBe('Ollama is unreachable');
+  });
+
+  /**
+   * The summariser shares `generateStructured`, so it inherits the cut-off error too. Without its
+   * own arm it would fall through to the generic fallback and lose the specific wording it had.
+   */
+  it('names a cut-off summary as cut off rather than as nothing usable', () => {
+    const d = diagnose('summarize', CUT_OFF);
+
+    expect(d.summary).toMatch(/cut off/i);
+    expect(d.hint).toContain('Try again');
+  });
+
+  // Same guard as the drafting diagnostics: the timeout arm is checked first, and the raw model
+  // text on line two must not reach it.
+  it('does not read the model quoting "timeout" as Ollama timing out', () => {
+    const d = diagnose('summarize', CUT_OFF);
+
+    expect(d.summary).not.toMatch(/did not reply/i);
   });
 });

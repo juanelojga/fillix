@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { draftAnswer, normalizeAnswerDraft, DRAFT_NUM_CTX } from '../draft-answer';
+import {
+  draftAnswer,
+  normalizeAnswerDraft,
+  DRAFT_NUM_CTX,
+  DRAFT_NUM_PREDICT,
+} from '../draft-answer';
 
 describe('normalizeAnswerDraft', () => {
   it('reads the envelope the prompt asks for', () => {
@@ -162,6 +167,24 @@ describe('draftAnswer', () => {
     expect(DRAFT_NUM_CTX).toBeGreaterThan(2048);
   });
 
+  /**
+   * The twin of the num_ctx test above, for the output half. Left unsent, Ollama uses whatever the
+   * model's Modelfile set — invisible from here and different per model — and a generation that
+   * runs away returns a truncated object with a 200 status. The cap is what bounds that.
+   */
+  it('caps the answer length rather than inheriting whatever the model was built with', async () => {
+    await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000));
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body) as {
+      options?: { num_predict?: number };
+    };
+    expect(body.options?.num_predict).toBe(DRAFT_NUM_PREDICT);
+    // Room for the longest answer the eval set has ever produced (2,492 chars ≈ 800 tokens),
+    // and still inside the context it shares with the prompt.
+    expect(DRAFT_NUM_PREDICT).toBeGreaterThan(800);
+    expect(DRAFT_NUM_PREDICT).toBeLessThan(DRAFT_NUM_CTX);
+  });
+
   it('sends the evidence, and labels it as the only permitted source', async () => {
     await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000));
 
@@ -292,5 +315,26 @@ describe('draftAnswer', () => {
     await expect(draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000))).rejects.toThrow(
       /without citing your profile/,
     );
+  });
+
+  /**
+   * The end-to-end shape of the bug this change exists for: Ollama answers 200 with an object it
+   * never closed. It must surface as the cut-off it is — and in particular *not* as the grounding
+   * guard firing, which is what a repaired object would have produced and would have told the user
+   * the model fabricated when in fact it ran out of room.
+   */
+  it('reports a reply that stopped mid-object as cut off', async () => {
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ response: '{"text":"Eight years of Py', done_reason: 'length' }),
+    });
+
+    const error = await draftAnswer(CONFIG, INPUT, AbortSignal.timeout(1000)).catch(
+      (err: unknown) => err as Error,
+    );
+
+    expect(error.message).toMatch(/cut off before it finished/i);
+    expect(error.message).not.toMatch(/without citing your profile/i);
   });
 });

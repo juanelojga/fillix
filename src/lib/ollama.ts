@@ -1,4 +1,5 @@
 import type { ChatMessage, FieldContext, OllamaConfig } from '../types';
+import { cutOffError, parseStructuredReply } from './structured-reply';
 
 export type StreamOptions = {
   signal: AbortSignal;
@@ -153,9 +154,14 @@ export async function generateStructured<T>(
     signal,
   });
   if (!res.ok) throw new Error(`Ollama /api/generate returned ${res.status}`);
-  const data = (await res.json()) as { response: string; thinking?: string };
+  const data = (await res.json()) as {
+    response: string;
+    thinking?: string;
+    /** 'stop' when the model finished, 'length' when it ran out of room. See `structured-reply.ts`. */
+    done_reason?: string;
+  };
   const raw = (data.response || '').trim();
-  if (raw) return parseJsonResponse<T>(raw);
+  if (raw) return parseStructuredReply<T>(raw, data.done_reason);
 
   // Thinking models (qwen3) sometimes put the structured JSON directly in the
   // thinking field and leave response empty. Accept that — but reject any object
@@ -182,28 +188,12 @@ export async function generateStructured<T>(
     }
   }
 
-  throw new Error('Model returned empty response');
-}
+  // An empty response with done_reason "length" is not an empty answer — it is a model that spent
+  // its whole budget (usually inside `thinking`) before writing one. "Returned nothing" points the
+  // user at the wrong fix, so name it as the cut-off it is.
+  if (data.done_reason === 'length') throw cutOffError(thinkingRaw || raw, data.done_reason);
 
-function parseJsonResponse<T>(raw: string): T {
-  try {
-    return JSON.parse(raw) as T;
-  } catch {
-    const stripped = raw
-      .replace(/```(?:json)?\s*/gi, '')
-      .replace(/```/g, '')
-      .trim();
-    const start = stripped.indexOf('{');
-    const end = stripped.lastIndexOf('}');
-    if (start !== -1 && end > start) {
-      try {
-        return JSON.parse(stripped.slice(start, end + 1)) as T;
-      } catch {
-        // fall through
-      }
-    }
-    throw new Error(`Model returned invalid JSON: ${raw.slice(0, 120)}`);
-  }
+  throw new Error('Model returned empty response');
 }
 
 export async function inferFieldValue(config: OllamaConfig, field: FieldContext): Promise<string> {

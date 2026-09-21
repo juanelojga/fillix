@@ -5,6 +5,18 @@ import { generateStructured } from '../ollama';
  *  30s is too tight here because a full article is a much larger prompt. */
 export const SUMMARY_TIMEOUT_MS = 60_000;
 
+/**
+ * Stated for the same reason `answers/draft-answer.ts` states its pair, and overdue here: this
+ * path sent no options at all, so it has been running at Ollama's 2048-token default the whole
+ * time. `fetch-url.ts` caps an article at 3,000 characters, which with the title and the system
+ * prompt leaves the 2048 barely enough — and an overflow is truncated from the *start*, eating the
+ * "use ONLY the article text" rule before anything else.
+ */
+export const SUMMARY_NUM_CTX = 4_096;
+
+/** Two to four sentences plus at most three key points. Bounds a model that starts repeating. */
+export const SUMMARY_NUM_PREDICT = 512;
+
 const MAX_KEY_POINTS = 3;
 
 const SUMMARY_SYSTEM_PROMPT = [
@@ -46,6 +58,7 @@ export async function summarizeArticle(
     SUMMARY_SYSTEM_PROMPT,
     userPrompt,
     signal,
+    { num_ctx: SUMMARY_NUM_CTX, num_predict: SUMMARY_NUM_PREDICT },
   );
   return normalizeNewsSummary(raw);
 }

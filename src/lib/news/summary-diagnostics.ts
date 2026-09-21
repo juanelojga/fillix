@@ -37,7 +37,11 @@ export function diagnoseSummaryFailure(
 
   const context = `POST ${baseUrl}/api/generate · model "${model}"`;
 
-  if (/abort|timed out|timeout|signal timed out/i.test(error)) {
+  // First line only, for the reason `answers/draft-diagnostics.ts` states at length: everything
+  // after it is verbatim model output, and the timeout arm below is checked before the JSON ones.
+  const causeLine = error.split('\n')[0] ?? '';
+
+  if (/abort|timed out|timeout|signal timed out/i.test(causeLine)) {
     return {
       summary: 'Ollama did not reply in 60s',
       hint: `A model loading into memory for the first time can take longer than this. Try "${model}" again once it is warm.`,
@@ -46,7 +50,7 @@ export function diagnoseSummaryFailure(
     };
   }
 
-  if (/failed to fetch|networkerror|load failed/i.test(error)) {
+  if (/failed to fetch|networkerror|load failed/i.test(causeLine)) {
     return {
       summary: 'Ollama is unreachable',
       hint: `Nothing answered at ${baseUrl}. Check that "ollama serve" is running, then press Try again.`,
@@ -55,7 +59,19 @@ export function diagnoseSummaryFailure(
     };
   }
 
-  if (/invalid json|no usable summary|empty response/i.test(error)) {
+  // Above the arm below, which would otherwise claim it: a cut-off reply is unparseable too, but
+  // "not in the expected JSON shape" is the wrong thing to tell someone whose model simply ran out
+  // of room. `lib/structured-reply.ts` words the error this matches.
+  if (/cut off before it finished/i.test(causeLine)) {
+    return {
+      summary: 'The summary was cut off',
+      hint: `"${model}" ran out of room before it finished, so the half-written summary was discarded rather than shown. Press Try again.`,
+      detail: error,
+      context,
+    };
+  }
+
+  if (/invalid json|no usable summary|empty response/i.test(causeLine)) {
     return {
       summary: 'The model returned nothing usable',
       hint: `"${model}" answered but not in the expected JSON shape. A larger model usually fixes this — smaller ones often ignore the format instruction.`,
