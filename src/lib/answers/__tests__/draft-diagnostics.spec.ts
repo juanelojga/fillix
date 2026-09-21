@@ -3,6 +3,11 @@ import { diagnoseDraftFailure } from '../draft-diagnostics';
 
 const MODEL = 'qwen3:8b';
 
+/** Exactly what `lib/structured-reply.ts` throws: cause on line one, model's own words on line two. */
+const CUT_OFF =
+  'Model output was cut off before it finished the JSON (done_reason "length")\n' +
+  'raw 900 chars · head: {"text":"I have extensive experience… · tail: …a multi-agent orches';
+
 function diagnose(error: string) {
   return diagnoseDraftFailure(error, MODEL);
 }
@@ -55,11 +60,56 @@ describe('diagnoseDraftFailure', () => {
     expect(d.hint).toContain(`ollama pull ${MODEL}`);
   });
 
-  // A small model under a long prompt does this, and the next step is a different model rather
-  // than anything the user did wrong.
+  // Output that finished and still was not JSON — the model ignoring the format instruction,
+  // which a different model fixes. Distinct from the cut-off case below.
   it('separates malformed JSON from an empty response', () => {
-    expect(diagnose('Model returned invalid JSON: {"text"').cause).toBe('bad-json');
+    expect(diagnose('Model returned invalid JSON after 42 characters: {"text"').cause).toBe(
+      'bad-json',
+    );
     expect(diagnose('Model returned empty response').cause).toBe('empty');
+  });
+
+  /**
+   * The failure that prompted this module's newest arm. It used to be reported as malformed JSON
+   * and hinted that a larger model would fix it — untrue, it happens on gemma4:12b too.
+   */
+  it('names a cut-off answer as cut off rather than as bad formatting', () => {
+    const d = diagnose(CUT_OFF);
+
+    expect(d.cause).toBe('truncated');
+    expect(d.summary).toMatch(/cut off/i);
+    expect(d.hint).toContain('Re-draft');
+  });
+
+  /**
+   * Ordering, like the grounding test above. A cut-off reply is unparseable too, so the bad-json
+   * arm would happily claim it if it came first — and the user would be sent to Settings to swap
+   * a model that was never the problem.
+   */
+  it('prefers the cut-off reading over the malformed-JSON one', () => {
+    expect(
+      diagnose('Model output was cut off before it finished the JSON (done_reason "length")').cause,
+    ).toBe('truncated');
+  });
+
+  /**
+   * The arms are checked in order with timeout and model-missing ahead of the JSON ones, and the
+   * error now carries the model's own words on a second line. Matching the whole string would
+   * diagnose an answer that merely mentions a timeout as Ollama timing out — it did, before the
+   * cause line was split off.
+   */
+  it('does not read the model quoting "timeout" as Ollama timing out', () => {
+    const error =
+      'Model returned invalid JSON\nraw 90 chars · {"text":"I fixed a request timeout in checkout';
+
+    expect(diagnose(error).cause).toBe('bad-json');
+  });
+
+  it('does not read the model quoting "not found" as a missing model', () => {
+    const error =
+      'Model returned invalid JSON\nraw 90 chars · {"text":"The page was not found so I added a 404';
+
+    expect(diagnose(error).cause).toBe('bad-json');
   });
 
   it('names a server error', () => {
@@ -71,6 +121,7 @@ describe('diagnoseDraftFailure', () => {
       'without citing your profile',
       'Failed to fetch',
       'Ollama /api/generate returned 500',
+      CUT_OFF,
       'something nobody predicted',
     ];
 

@@ -48,9 +48,10 @@ export const APPLICATION_FORM_ANCHOR = '[data-testid="matcherQuestions"]';
 const SELECT_FIELD = '[data-testid="matcherQuestionSelect"]';
 const TEXT_FIELD = '[data-testid="matcherQuestionInput"]';
 
-const CHOICE_REASON =
-  'Toptal renders this one as a dropdown backed by a hidden field, not a text box — ' +
-  'pick the answer yourself.';
+// Short because it repeats verbatim under every choice question, and the *why* (a hidden
+// field behind a readonly input) changes nothing the user can act on. The two reasons below
+// stay long: they are markup drift, not boilerplate.
+const CHOICE_REASON = 'A dropdown, not a text box — pick it yourself.';
 
 const NO_CONTROL_REASON =
   'The question is on the page but its text box is not — Toptal may have changed its markup.';

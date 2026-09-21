@@ -255,6 +255,57 @@ describe('generateStructured', () => {
     await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow();
   });
 
+  /**
+   * `done_reason` is the only thing that distinguishes a model that ran out of room from one that
+   * ignored the format instruction, and it arrives on the same reply. Before this it was read off
+   * the wire and dropped, so every truncation was reported to the user as malformed JSON.
+   */
+  it('threads done_reason into the failure so a cut-off reply is named as one', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ response: '{"text":"half a sen', done_reason: 'length' }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      /cut off before it finished/i,
+    );
+  });
+
+  /**
+   * The third mislabel of the same root cause: a reasoning model that spends its whole budget
+   * inside `thinking` leaves `response` empty, and "the model returned nothing" sends the user
+   * looking for a model that is answering perfectly well — it just never got to the answer.
+   */
+  it('names an empty response that ran out of room as cut off, not as nothing', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ response: '', done_reason: 'length' }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).rejects.toThrow(
+      /cut off before it finished/i,
+    );
+  });
+
+  // Older Ollama builds omit the field entirely; the happy path must not depend on it.
+  it('works against a server that sends no done_reason', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        json: () => Promise.resolve({ response: '{"text":"Hi"}' }),
+      }),
+    );
+
+    await expect(generateStructured(CONFIG, 'sys', 'user')).resolves.toEqual({ text: 'Hi' });
+  });
+
   it('throws when the HTTP response is not ok', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: false, status: 500 }));
 

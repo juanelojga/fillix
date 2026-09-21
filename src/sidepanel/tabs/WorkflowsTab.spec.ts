@@ -85,21 +85,24 @@ describe('WorkflowsTab', () => {
     expect(screen.getByText('Reading the active tab…')).toBeInTheDocument();
   });
 
-  it('renders each decoded section under its heading', () => {
+  // The job text is already on the page behind the panel; the wall of it pushed the answer
+  // cards off screen.
+  it('does not show the decoded sections', () => {
     runState.set(ready());
     render(WorkflowsTab);
 
-    expect(screen.getByText('Hiring Status')).toBeInTheDocument();
-    expect(screen.getByText('Matchers reviewing applications')).toBeInTheDocument();
+    expect(screen.queryByText('Hiring Status')).not.toBeInTheDocument();
+    expect(screen.queryByText('Matchers reviewing applications')).not.toBeInTheDocument();
   });
 
-  // Decoded or not, the text came off an arbitrary page and stays text.
-  it('renders a section body as text, never as HTML', () => {
-    runState.set(ready([{ heading: 'Job Description', body: '<h1>Hi</h1>', found: true }]));
-    const { container } = render(WorkflowsTab);
+  // A hook that has moved is the one thing about the sections still worth a line: it empties
+  // the brief the drafting runs on, and nothing else on the tab would say so.
+  it('names a section whose hook it could not find', () => {
+    runState.set(ready([{ heading: 'Job Description', body: '', found: false }]));
+    render(WorkflowsTab);
 
-    expect(screen.getByText('<h1>Hi</h1>')).toBeInTheDocument();
-    expect(container.querySelector('h1')).toBeNull();
+    const notice = screen.getByText(/Not found on this page/);
+    expect(notice.textContent).toContain('Job Description');
   });
 
   // The playbook reads one site, so this is the refusal the user will actually hit.
@@ -156,10 +159,10 @@ describe('WorkflowsTab', () => {
     runState.set(ready());
 
     const first = render(WorkflowsTab);
-    expect(first.getByText('Matchers reviewing applications')).toBeInTheDocument();
+    expect(first.getByText('Full-Stack Lead Engineer')).toBeInTheDocument();
     first.unmount();
 
     const second = render(WorkflowsTab);
-    expect(second.getByText('Matchers reviewing applications')).toBeInTheDocument();
+    expect(second.getByText('Full-Stack Lead Engineer')).toBeInTheDocument();
   });
 });

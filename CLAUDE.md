@@ -29,13 +29,31 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows its sections as decoded text, and refuses any other page), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows the application questions with a drafted answer each, and refuses any other page), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
 Shared code lives in `src/lib/`:
 
 - `ollama.ts` — the chat and structured-generation client, and the only caller of `/api/chat` and `/api/generate`. `chatStream()` (NDJSON `/api/chat`), `generateStructured()` and `inferFieldValue()` (`/api/generate`, `format: 'json'`), and `testModel()` which runs one tiny generation and returns its latency. Structured prompts expect `{"value": "..."}` back; if parse fails, the field is skipped (empty string), **never** hallucinated text. There is deliberately no `listModels()` — see `legacy-migration.ts`. `extractOllamaError` is exported for `ollama-embed.ts`, which formats its HTTP failures identically so both diagnostics modules can match on one shape.
+- `structured-reply.ts` — turns one model reply into a typed object, and is the only place that
+  decides **why** an unreadable one failed. Split out of `ollama.ts` because that is a different
+  reason to change. With `format: 'json'` the sampler is grammar-constrained, so a generation that
+  finishes is valid JSON by construction — an unterminated object means the model stopped early,
+  which needs a different next step from "it ignored the format". Ollama says which in `done_reason`
+  (`'length'` vs `'stop'`), and that field was read off the wire and dropped until this module
+  existed, so every truncation reached the user as malformed JSON with a hint to try a larger model
+  — untrue, it happens on `gemma4:12b` too. Two details are load-bearing. It **parses first and
+  classifies second**: a model can finish a complete object and only then hit the cap, so gating on
+  `done_reason` before `JSON.parse` would turn working drafts into red cards. And the error it
+  throws is **two lines** — the cause, then the raw reply — because both diagnostics modules match
+  regexes against the first line only. Their `timeout` and `not found` arms are checked before the
+  JSON ones, so an answer reading "I fixed a request timeout in the checkout service" was being
+  diagnosed as Ollama timing out. The excerpt keeps the **head and the tail**: the old head-only
+  120 characters is why this failure went undiagnosed for so long — every report of it showed the
+  same confident opening sentence and nothing about where the model actually stopped. Nothing is
+  ever repaired into valid JSON; a half-written answer goes in front of a recruiter, and closing the
+  brace would strip `drew_on` and make the grounding guard report fabrication instead.
 - `ollama-embed.ts` — the **embeddings** client, a sibling rather than a section of `ollama.ts`: a different endpoint, a different failure set, and a different model entirely. `embedTexts()` batches through `/api/embed` and falls back to the older singular `/api/embeddings` on a 404; it validates the row count and a uniform width, because a malformed reply produces an index that scores every query identically and by then the vectors are in storage. `testEmbedModel()` exists because `testModel()` POSTs `/api/chat`, which an embed-only model rejects outright — testing `nomic-embed-text` with it reports "not installed" for a model that is installed and working.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
 - `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig.playbook` is the Workflows tab's selected playbook, `''` meaning "never chosen" — and the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere.
@@ -120,7 +138,17 @@ text node; the flip side is the limit worth knowing: `outerHTML` serializes **at
 value React set only as a property — anything the user typed and has not submitted — is not in
 the capture and cannot be decoded out of it. A section whose hook is missing comes back
 `found: false` and is named on screen, because `data-pendoid` is Pendo instrumentation and is
-simply absent when Pendo is blocked.
+simply absent when Pendo is blocked — it quietly empties the brief the drafting runs on, and
+since the decoded text itself is no longer displayed that one amber line is the only thing that
+would say so.
+
+`CaptureResult.svelte` is what a ready capture renders, and it is deliberately short: the page's
+identity, the warnings, `ApplicationDrafts` and the collapsed raw markup. The decoded sections
+are **not** shown. They were the product while the playbook was being built; now the brief feeds
+`job-context.ts` and the answers are what the user acts on, so a wall of text the user already
+read on the page behind the panel only pushed the answer cards off screen. `ApplicationDrafts`
+words a capture that found no form for the same reason — with nothing else on the tab, a blank
+would explain nothing.
 
 `sidepanel/stores/playbook.ts` holds both the selected playbook and the last result, in one
 store because they share one invariant: the displayed result always belongs to the displayed
@@ -392,7 +420,9 @@ aloud to a client.
   unhooked prose is the exact failure this design keeps hitting.
 - `draft-answer.ts` — `generateStructured` then `normalizeAnswerDraft`, the `news/summarizer.ts`
   shape. Passes `num_ctx: 8192` explicitly, because Ollama defaults to 2048 and truncates
-  silently. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
+  silently, and `num_predict: 1536` for the mirror-image reason: left unsent, the ceiling is
+  whatever the model's Modelfile chose — invisible from here and different per model. It bounds
+  what a runaway costs rather than preventing one; `structured-reply.ts` is what names the result. **The guard the whole feature turns on lives here:** a non-empty answer with an empty
   `drew_on` is thrown away, because it was written out of the model's training rather than out
   of the profile. The **one** exception is a bare statement of having no experience, which is
   what the prompt now asks for in place of a blank — it claims nothing, so there is nothing for

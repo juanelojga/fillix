@@ -1,5 +1,5 @@
 <script lang="ts">
-  import CapturedSections from '$components/CapturedSections.svelte';
+  import CaptureResult from '$components/CaptureResult.svelte';
   import PlaybookPicker from '$components/PlaybookPicker.svelte';
   import { diagnoseCaptureFailure } from '$lib/capture/capture-diagnostics';
   import { resolvePlaybook } from '$lib/playbooks/registry';
@@ -82,11 +82,7 @@
         <p class="text-xs text-destructive break-words font-mono">{diagnosis.detail}</p>
       </div>
     {:else if $runState.status === 'ready'}
-      <CapturedSections
-        capture={$runState.capture}
-        sections={$runState.sections}
-        brief={$runState.brief}
-      />
+      <CaptureResult capture={$runState.capture} sections={$runState.sections} />
     {:else}
       <div class="flex flex-col gap-2 p-4 text-center">
         <p class="text-sm font-medium text-slate-700">No page captured yet.</p>

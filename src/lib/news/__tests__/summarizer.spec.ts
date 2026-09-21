@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../../ollama', () => ({ generateStructured: vi.fn() }));
 
-import { normalizeNewsSummary, summarizeArticle } from '../summarizer';
+import {
+  normalizeNewsSummary,
+  summarizeArticle,
+  SUMMARY_NUM_CTX,
+  SUMMARY_NUM_PREDICT,
+} from '../summarizer';
 import { generateStructured } from '../../ollama';
 
 const CONFIG = { baseUrl: 'http://localhost:11434', model: 'llama3.2' };
@@ -28,6 +33,21 @@ describe('summarizeArticle', () => {
     expect(userPrompt).toContain('A story');
     expect(userPrompt).toContain('example.com');
     expect(userPrompt).toContain('The article body.');
+  });
+
+  /**
+   * This path sent no options at all, so it ran at Ollama's 2048-token default — which truncates
+   * from the *start*, eating the "use ONLY the article text" rule above before anything else.
+   */
+  it('asks for a context and an output length instead of inheriting the defaults', async () => {
+    vi.mocked(generateStructured).mockResolvedValue({ summary: 'Done.', key_points: [] });
+    await summarizeArticle(CONFIG, INPUT, AbortSignal.timeout(1000));
+
+    const options = vi.mocked(generateStructured).mock.calls[0]?.[4];
+    expect(options).toEqual({ num_ctx: SUMMARY_NUM_CTX, num_predict: SUMMARY_NUM_PREDICT });
+    // fetch-url.ts caps an article at 3,000 characters; the context has to hold that and the prompt.
+    expect(SUMMARY_NUM_CTX).toBeGreaterThan(2048);
+    expect(SUMMARY_NUM_PREDICT).toBeLessThan(SUMMARY_NUM_CTX);
   });
 
   it('instructs the model to use only the supplied text', async () => {

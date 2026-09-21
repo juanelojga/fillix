@@ -18,6 +18,22 @@ export const DRAFT_TIMEOUT_MS = 120_000;
  */
 export const DRAFT_NUM_CTX = 8192;
 
+/**
+ * The output half of that budget, stated rather than inherited.
+ *
+ * Without it Ollama uses whatever the model's Modelfile set — invisible from here, different per
+ * model, and the reason a cut-off answer looked model-specific when it was not. Graded eval answers
+ * run to 2,492 characters at the very longest (~800 tokens), so this is about twice the longest
+ * answer this has ever produced: generous for a real one, and a hard stop on a model that has
+ * started repeating itself instead of finishing.
+ *
+ * Against DRAFT_NUM_CTX: a worst-case prompt is ~14.5 kB ≈ 4,300 tokens, + 1,536 = 5,836, inside
+ * 8,192 with room to spare. One budget serves both kinds — a pitch's "two or three short
+ * paragraphs" is nowhere near it. It bounds what a runaway costs; it does not prevent one, and
+ * `draft-diagnostics.ts` is what tells the user which happened.
+ */
+export const DRAFT_NUM_PREDICT = 1_536;
+
 export interface AnswerDraft {
   /**
    * The answer, as the model wrote it. A question the profile cannot support gets a plain
@@ -62,7 +78,7 @@ export async function draftAnswer(
     systemPromptFor(input.kind, input.applicantName),
     buildAnswerPrompt(input),
     signal,
-    { num_ctx: DRAFT_NUM_CTX },
+    { num_ctx: DRAFT_NUM_CTX, num_predict: DRAFT_NUM_PREDICT },
   );
   return normalizeAnswerDraft(raw);
 }

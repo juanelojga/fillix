@@ -30,10 +30,13 @@ beforeEach(() => {
 });
 
 describe('ApplicationDrafts', () => {
-  it('renders nothing at all before a capture', () => {
+  // Only ever mounted under a ready capture, so no fields means the form was not found —
+  // and with the brief and the decoded sections gone, a blank would explain nothing.
+  it('words a capture that found no application form', () => {
     const { container } = render(ApplicationDrafts);
 
     expect(container.querySelector('section')).toBeNull();
+    expect(screen.getByText(/No application questions on this page/)).toBeInTheDocument();
   });
 
   it('lists every question, including the one that cannot be filled', () => {
@@ -45,12 +48,20 @@ describe('ApplicationDrafts', () => {
     expect(screen.getByText(Q2)).toBeInTheDocument();
   });
 
-  // The count is of what can actually be answered, not of what is on the page.
-  it('counts only the answerable questions', () => {
+  // The count is of what can actually be answered, not of what is on the page — and the
+  // difference is named, so it does not read as a miscount above three cards.
+  it('counts the answerable questions and names the rest as yours to pick', () => {
     fields.set(FIELDS);
     render(ApplicationDrafts);
 
-    expect(screen.getByText('2 questions to answer')).toBeInTheDocument();
+    expect(screen.getByText('2 questions to answer · 1 you pick yourself')).toBeInTheDocument();
+  });
+
+  it('leaves the suffix off when every question can be answered', () => {
+    fields.set([field(Q1, { by: 'name', value: 'q1' })]);
+    render(ApplicationDrafts);
+
+    expect(screen.getByText('1 question to answer')).toBeInTheDocument();
   });
 
   it('reports progress as answers land', () => {
@@ -64,7 +75,7 @@ describe('ApplicationDrafts', () => {
     });
     render(ApplicationDrafts);
 
-    expect(screen.getByText('1 of 2 answered')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 answered · 1 you pick yourself')).toBeInTheDocument();
   });
 
   /**
@@ -87,7 +98,7 @@ describe('ApplicationDrafts', () => {
     });
     render(ApplicationDrafts);
 
-    expect(screen.getByText('1 of 2 answered')).toBeInTheDocument();
+    expect(screen.getByText('1 of 2 answered · 1 you pick yourself')).toBeInTheDocument();
   });
 
   // The standing promise under the list. It stopped being true the moment an uncited denial
@@ -111,7 +122,7 @@ describe('ApplicationDrafts', () => {
     });
     render(ApplicationDrafts);
 
-    expect(screen.getByText('0 of 2 answered')).toBeInTheDocument();
+    expect(screen.getByText('0 of 2 answered · 1 you pick yourself')).toBeInTheDocument();
   });
 
   /**
@@ -140,11 +151,10 @@ describe('ApplicationDrafts', () => {
     expect(screen.getByRole('button', { name: 'Draft all again' })).toBeInTheDocument();
   });
 
-  it('states that nothing is written to the page and Submit is never pressed', () => {
+  it('states that Submit is never pressed for the user', () => {
     fields.set(FIELDS);
     render(ApplicationDrafts);
 
-    expect(screen.getByText(/nothing is written to\s+Toptal/)).toBeInTheDocument();
     expect(screen.getByText(/Submit is never pressed for you/)).toBeInTheDocument();
   });
 
