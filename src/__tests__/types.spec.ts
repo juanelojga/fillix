@@ -141,6 +141,37 @@ describe('News message contract', () => {
     expectTypeOf(summarizeWithModel).toMatchTypeOf<Message>();
   });
 
+  // The Workflows tab resolves its own model in the panel and puts it on both of its
+  // generations; omitting the field leaves the worker on the globally active model.
+  it('carries an optional model on both Workflows messages', () => {
+    const extract: Message = { type: 'EXTRACT_QUESTION_TIMES', question: 'When?' };
+    const extractWithModel: Message = {
+      type: 'EXTRACT_QUESTION_TIMES',
+      question: 'When?',
+      model: 'phi4',
+    };
+    const draft: Message = {
+      type: 'DRAFT_ANSWER',
+      kind: 'question',
+      question: 'Do you know Python?',
+      job: '',
+      evidence: '',
+    };
+    const draftWithModel: Message = {
+      type: 'DRAFT_ANSWER',
+      kind: 'question',
+      question: 'Do you know Python?',
+      job: '',
+      evidence: '',
+      model: 'phi4',
+    };
+
+    expectTypeOf(extract).toMatchTypeOf<Message>();
+    expectTypeOf(extractWithModel).toMatchTypeOf<Message>();
+    expectTypeOf(draft).toMatchTypeOf<Message>();
+    expectTypeOf(draftWithModel).toMatchTypeOf<Message>();
+  });
+
   it('restricts NewsCategory to the four fixed values', () => {
     expectTypeOf<NewsCategory>().toEqualTypeOf<
       'ai' | 'technology' | 'software-development' | 'curiosities'

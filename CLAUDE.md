@@ -56,7 +56,7 @@ Shared code lives in `src/lib/`:
   brace would strip `drew_on` and make the grounding guard report fabrication instead.
 - `ollama-embed.ts` — the **embeddings** client, a sibling rather than a section of `ollama.ts`: a different endpoint, a different failure set, and a different model entirely. `embedTexts()` batches through `/api/embed` and falls back to the older singular `/api/embeddings` on a 404; it validates the row count and a uniform width, because a malformed reply produces an index that scores every query identically and by then the vectors are in storage. `testEmbedModel()` exists because `testModel()` POSTs `/api/chat`, which an embed-only model rejects outright — testing `nomic-embed-text` with it reports "not installed" for a model that is installed and working.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
-- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig.playbook` is the Workflows tab's selected playbook, `''` meaning "never chosen" — and the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere.
+- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig` holds the Workflows tab's two preferences, `playbook` and `model`, both `''` by default — never chosen, and same as chat. They have **two owners** (`stores/playbook.ts` writes one, `stores/settings.ts` the other), which is why `setWorkflowsConfig` takes a `Partial` and merges: a replacing write from either store would silently erase the other's field, and having each store read the value it does not own would make the two import each other. And the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
 - `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs. The Obsidian purge removes keys by **exact** name and must stay that way — `workflowsConfig` is a live setting one suffix away from the retired `workflows`.
 
@@ -160,6 +160,28 @@ session-only: a page's full markup is the user's browsing content and nothing co
 across sessions. `selectPlaybook` clears via `clearRun()` rather than resetting the state
 directly — `clearRun` bumps the generation counter, without which a run started under the
 previous playbook resolves later and lands under the new one's label.
+
+**The tab's model** is the third control in that header, beside the playbook picker and
+Capture. It is `workflowsConfig.model`, resolved by `playbooks/workflow-model.ts` — a
+deliberate twin of `news/summary-model.ts` rather than a shared helper, because each tab's
+header owns its own answer to "which model runs this?". The store lives in
+`sidepanel/stores/settings.ts` beside `newsModel`, not in `stores/playbook.ts`: that store
+would need `ollamaConfig` to derive the effective model while `settings.ts` needs the
+preference to reconcile `removeModel`, which is a cycle — and a model writer sitting next
+to `selectPlaybook` would invite the bug of clearing a capture the user is mid-draft on,
+since the model has no bearing on whether a result still belongs to its playbook.
+
+What it governs is **only the two generations**: `DRAFT_ANSWER` and
+`EXTRACT_QUESTION_TIMES`. The capture spends no LLM call at all, and the embedding model is
+`profileConfig.embedModel`, a different endpoint. `application.ts` reads
+`effectiveWorkflowModel` **once per question**, before either round trip, for the reason
+`stores/news.ts` states — the two messages and `diagnoseDraftFailure`'s wording must all
+name the model that actually ran, and the picker is never disabled. Per question rather
+than per run, because `redraft` enters `draftOne` directly. The extraction receives it as a
+**bound source** (`(q) => requestQuestionTimes(q, model)`) rather than as one more parameter
+of `checkQuestionSchedule`: that module is a pure function of the times it is handed, and
+binding here keeps `QuestionTimesSource`'s shape — and so `eval/lib/draft-case.ts`, which
+already builds exactly this arrow — unchanged.
 
 **Profile and retrieval (`src/lib/profile/`)**
 
@@ -542,7 +564,8 @@ are JSON, so nothing here needs a DOM.
 
 The News tab has its own summary model, stored under `newsConfig` and picked from the tab
 header. `''` means "same as chat", so nothing changes until the user picks one.
-`lib/news/summary-model.ts` is the only place that convention is interpreted; the **sidepanel**
+`lib/news/summary-model.ts` is where that convention is interpreted for this tab (the
+Workflows tab has its own twin); the **sidepanel**
 resolves it and sends the result on `NEWS_SUMMARIZE`, rather than the worker re-reading
 storage. That is load-bearing: the panel needs the same value for its "Summarizing with X"
 label and for `diagnoseSummaryFailure`, and it captures it before the two round trips, so

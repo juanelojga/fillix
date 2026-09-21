@@ -101,25 +101,38 @@ export async function setNewsCache(news: NewsCache): Promise<void> {
 }
 
 /**
- * Which playbook the Workflows tab runs. '' means "never chosen" and resolves to the
- * registry's default — the same ''-is-fallback convention as ChatConfig.systemPrompt.
+ * The Workflows tab's two preferences: which playbook it runs, and which model runs it.
+ * '' means "never chosen" for both — the playbook resolves to the registry's default and
+ * the model to the globally active one, the same ''-is-fallback convention as
+ * ChatConfig.systemPrompt.
  *
  * The key is `workflowsConfig`, and the `Config` suffix is not decoration: the bare
  * `workflows` key is one of the Obsidian-era names that `legacy-migration.ts` purges on
  * every install and startup, so a preference stored there would vanish on the next
  * browser restart with nothing logged anywhere.
  */
-export type WorkflowsConfig = { playbook: string };
+export type WorkflowsConfig = { playbook: string; model: string };
 
 export async function getWorkflowsConfig(): Promise<WorkflowsConfig> {
   const { workflowsConfig } = await chrome.storage.local.get('workflowsConfig');
+  const stored = workflowsConfig as Partial<WorkflowsConfig> | undefined;
   return {
-    playbook: (workflowsConfig as Partial<WorkflowsConfig> | undefined)?.playbook ?? '',
+    playbook: stored?.playbook ?? '',
+    model: stored?.model ?? '',
   };
 }
 
-export async function setWorkflowsConfig(workflowsConfig: WorkflowsConfig): Promise<void> {
-  await chrome.storage.local.set({ workflowsConfig });
+/**
+ * A patch, not a replacement, and that is load-bearing.
+ *
+ * The two fields have two owners — `stores/playbook.ts` writes the playbook,
+ * `stores/settings.ts` writes the model — so a whole-object write from either would
+ * silently erase the other's field. Merging here is what keeps those two stores from
+ * importing each other to read a value neither of them owns, which would be a cycle.
+ */
+export async function setWorkflowsConfig(patch: Partial<WorkflowsConfig>): Promise<void> {
+  const current = await getWorkflowsConfig();
+  await chrome.storage.local.set({ workflowsConfig: { ...current, ...patch } });
 }
 
 /**

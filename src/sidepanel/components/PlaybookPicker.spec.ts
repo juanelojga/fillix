@@ -60,7 +60,9 @@ describe('PlaybookPicker', () => {
     await fireEvent.click(screen.getByRole('option', { name: 'Toptal' }));
 
     await waitFor(() => expect(storageSet).toHaveBeenCalledTimes(1));
-    expect(storageSet).toHaveBeenCalledWith({ workflowsConfig: { playbook: 'toptal' } });
+    expect(storageSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: '' },
+    });
   });
 
   // The trigger sits at the panel's right edge; a start-aligned popover runs off a

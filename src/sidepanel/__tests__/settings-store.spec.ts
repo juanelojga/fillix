@@ -32,6 +32,9 @@ import {
   setNewsModel,
   newsModel,
   effectiveSummaryModel,
+  setWorkflowModel,
+  workflowModel,
+  effectiveWorkflowModel,
   testModel,
 } from '../stores/settings';
 
@@ -41,6 +44,7 @@ beforeEach(() => {
   ollamaConfig.set(null);
   modelList.set([]);
   newsModel.set('');
+  workflowModel.set('');
 });
 
 describe('loadSettings', () => {
@@ -275,5 +279,128 @@ describe('removeModel reconciles the News preference', () => {
     await removeModel('phi3');
 
     expect(get(newsModel)).toBe('llama3.2');
+  });
+});
+
+describe('workflowModel', () => {
+  it("loadSettings defaults the Workflows model to '' on a fresh profile", async () => {
+    await loadSettings();
+    expect(get(workflowModel)).toBe('');
+  });
+
+  it('loadSettings hydrates the Workflows model from the workflowsConfig key', async () => {
+    store.workflowsConfig = { playbook: 'toptal', model: 'phi4' };
+    await loadSettings();
+    expect(get(workflowModel)).toBe('phi4');
+  });
+
+  it('setWorkflowModel persists to workflowsConfig and leaves the chat model alone', async () => {
+    await loadSettings();
+    await setWorkflowModel('phi4');
+
+    expect(get(workflowModel)).toBe('phi4');
+    expect(store.workflowsConfig).toEqual({ playbook: '', model: 'phi4' });
+    expect(store.ollama).toBeUndefined();
+    expect(get(ollamaConfig)?.model).toBe('gemma4:12b');
+  });
+
+  // The playbook shares this key and belongs to `stores/playbook.ts`; a replacing write
+  // here would put the Workflows tab back on the default playbook without saying so.
+  it('setWorkflowModel preserves the selected playbook', async () => {
+    store.workflowsConfig = { playbook: 'toptal', model: '' };
+    await loadSettings();
+    await setWorkflowModel('phi4');
+
+    expect(store.workflowsConfig).toEqual({ playbook: 'toptal', model: 'phi4' });
+  });
+
+  it('setWorkflowModel leaves the News preference alone', async () => {
+    store.newsConfig = { model: 'llama3.2' };
+    await loadSettings();
+    await setWorkflowModel('phi4');
+
+    expect(store.newsConfig).toEqual({ model: 'llama3.2' });
+    expect(get(newsModel)).toBe('llama3.2');
+  });
+
+  it("setWorkflowModel('') persists the follow-the-chat-model state", async () => {
+    store.workflowsConfig = { playbook: 'toptal', model: 'phi4' };
+    await loadSettings();
+    await setWorkflowModel('');
+
+    expect(get(workflowModel)).toBe('');
+    expect(store.workflowsConfig).toEqual({ playbook: 'toptal', model: '' });
+  });
+
+  it('setWorkflowModel writes nothing when the value is unchanged', async () => {
+    store.workflowsConfig = { playbook: 'toptal', model: 'phi4' };
+    await loadSettings();
+    delete store.workflowsConfig;
+
+    await setWorkflowModel('phi4');
+
+    expect(store.workflowsConfig).toBeUndefined();
+  });
+});
+
+describe('effectiveWorkflowModel', () => {
+  it("follows the chat model while the Workflows preference is ''", async () => {
+    await loadSettings();
+    expect(get(effectiveWorkflowModel)).toBe('gemma4:12b');
+  });
+
+  it('is the Workflows preference once one is set', async () => {
+    await loadSettings();
+    await setWorkflowModel('phi4');
+    expect(get(effectiveWorkflowModel)).toBe('phi4');
+  });
+
+  it('tracks the chat model changing while following it', async () => {
+    await loadSettings();
+    await setActiveModel('qwen3:8b');
+    expect(get(effectiveWorkflowModel)).toBe('qwen3:8b');
+  });
+
+  it('ignores the chat model changing once an override is set', async () => {
+    await loadSettings();
+    await setWorkflowModel('phi4');
+    await setActiveModel('qwen3:8b');
+    expect(get(effectiveWorkflowModel)).toBe('phi4');
+  });
+
+  // Two surfaces, two preferences: News summarizing on a small model must not drag the
+  // drafting model down with it.
+  it('is independent of the News preference', async () => {
+    await loadSettings();
+    await setNewsModel('llama3.2');
+    await setWorkflowModel('phi4');
+
+    expect(get(effectiveWorkflowModel)).toBe('phi4');
+    expect(get(effectiveSummaryModel)).toBe('llama3.2');
+  });
+});
+
+describe('removeModel reconciles the Workflows preference', () => {
+  beforeEach(async () => {
+    await loadSettings();
+    modelList.set(['llama3.2', 'phi3']);
+    store.models = ['llama3.2', 'phi3'];
+  });
+
+  // Same reasoning as the News preference, and it matters more here: a drafting model
+  // the user never picked writes answers a recruiter reads.
+  it("resets the Workflows model to '' when the selected one is removed", async () => {
+    await setWorkflowModel('phi3');
+    await removeModel('phi3');
+
+    expect(get(workflowModel)).toBe('');
+    expect(store.workflowsConfig).toEqual({ playbook: '', model: '' });
+  });
+
+  it('leaves the Workflows model alone when another model is removed', async () => {
+    await setWorkflowModel('llama3.2');
+    await removeModel('phi3');
+
+    expect(get(workflowModel)).toBe('llama3.2');
   });
 });

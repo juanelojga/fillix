@@ -154,7 +154,23 @@ describe('selectPlaybook', () => {
 
     expect(get(selectedPlaybookId)).toBe('toptal');
     expect(storageSet).toHaveBeenCalledTimes(1);
-    expect(storageSet).toHaveBeenCalledWith({ workflowsConfig: { playbook: 'toptal' } });
+    expect(storageSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: '' },
+    });
+  });
+
+  // The other half of `workflowsConfig` belongs to the Workflows model picker. The
+  // setter merges rather than replaces, and this is what pins that: a playbook change
+  // must not silently put the tab back on the active model.
+  it('preserves a stored Workflows model', async () => {
+    storageGet.mockResolvedValue({ workflowsConfig: { playbook: OTHER, model: 'phi4' } });
+    selectedPlaybookId.set(OTHER);
+
+    await selectPlaybook('toptal');
+
+    expect(storageSet).toHaveBeenCalledWith({
+      workflowsConfig: { playbook: 'toptal', model: 'phi4' },
+    });
   });
 
   it('writes nothing when the playbook is already selected', async () => {

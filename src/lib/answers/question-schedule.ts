@@ -32,6 +32,9 @@ export async function checkQuestionSchedule(
   availability: WeeklyAvailability,
   browserTimeZone: string,
   now: Date = new Date(),
+  // The panel always binds its own source, so the extraction runs on the Workflows tab's
+  // model rather than the active one. The default is what keeps this module callable from
+  // a test without one.
   source: QuestionTimesSource = requestQuestionTimes,
 ): Promise<ScheduleCheck | null> {
   // Three cheap refusals before spending a generation. The last is the load-bearing one: with

@@ -52,7 +52,10 @@
   }
 </script>
 
-<div class="relative">
+<!-- `min-w-0` is what lets the trigger actually shrink: a flex item's automatic minimum
+     size is its content, so without it the picker pushes its neighbours off a narrow panel
+     instead of ellipsising. Inert wherever a picker is not under width pressure. -->
+<div class="relative min-w-0">
   <button
     type="button"
     class="flex items-center gap-1 px-2 py-1 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
@@ -60,9 +63,12 @@
     aria-haspopup="listbox"
     aria-expanded={open}
     aria-label={label ? `${label}: ${displayText}` : undefined}
+    title={label ? `${label}: ${displayText}` : undefined}
   >
     <span class="max-w-[120px] truncate">{displayText}</span>
+    <!-- Never squeezed away: the chevron is the only thing saying this is a menu. -->
     <svg
+      class="shrink-0"
       xmlns="http://www.w3.org/2000/svg"
       width="10"
       height="10"

@@ -8,8 +8,11 @@ import {
   getChatConfig,
   getNewsConfig,
   setNewsConfig,
+  getWorkflowsConfig,
+  setWorkflowsConfig,
 } from '../../lib/storage';
 import { resolveSummaryModel } from '../../lib/news/summary-model';
+import { resolveWorkflowModel } from '../../lib/playbooks/workflow-model';
 import {
   setSystemPromptOverride,
   resetSystemPrompt as clearOverride,
@@ -22,6 +25,8 @@ export const modelList = writable<string[]>([]);
 export const systemPromptOverride = writable<string>('');
 /** The News tab's summary model. '' means "same as chat", i.e. the active model. */
 export const newsModel = writable<string>('');
+/** The Workflows tab's model. '' means "same as chat", i.e. the active model. */
+export const workflowModel = writable<string>('');
 
 /**
  * What will actually run for News summaries. The single source of truth for both the
@@ -31,18 +36,38 @@ export const effectiveSummaryModel = derived([newsModel, ollamaConfig], ([pref, 
   resolveSummaryModel(pref, cfg?.model ?? ''),
 );
 
+/**
+ * What will actually run for the Workflows tab's two generations, DRAFT_ANSWER and
+ * EXTRACT_QUESTION_TIMES. One source of truth for the picker's trigger, the model that
+ * rides on both messages, and the model `diagnoseDraftFailure` names — so a failure
+ * hint can never name a model that did not run.
+ *
+ * Lives here rather than in `stores/playbook.ts` for two reasons. That store would need
+ * `ollamaConfig` to derive this while this file needs the preference for `removeModel`,
+ * which is a cycle; and a model writer sitting beside `selectPlaybook` would invite the
+ * bug of clearing a capture the user is mid-draft on, since changing the model has no
+ * bearing on whether a displayed result still belongs to the displayed playbook.
+ */
+export const effectiveWorkflowModel = derived([workflowModel, ollamaConfig], ([pref, cfg]) =>
+  resolveWorkflowModel(pref, cfg?.model ?? ''),
+);
+
 export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [ollama, models, chat, news] = await Promise.all([
+  const [ollama, models, chat, news, workflows] = await Promise.all([
     getOllamaConfig(),
     getModelList(),
     getChatConfig(),
     getNewsConfig(),
+    // Read here as well as in `hydratePlaybookSelection`: two parallel reads of one tiny
+    // key is cheaper than either store importing the other to fetch a field it does not own.
+    getWorkflowsConfig(),
   ]);
   ollamaConfig.set(ollama);
   systemPromptOverride.set(chat.systemPrompt);
   newsModel.set(news.model);
+  workflowModel.set(workflows.model);
   // An existing install has a model but no list yet — seed it so the picker isn't empty.
   modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
@@ -73,6 +98,9 @@ export async function removeModel(name: string): Promise<void> {
   // but the News preference has a real empty state, and silently promoting a model the
   // user never picked for summaries would be worse than falling back visibly.
   if (get(newsModel) === name) await setNewsModel('');
+  // Same reasoning for the Workflows tab, and it matters more there: a drafting model
+  // the user never picked writes answers a recruiter reads.
+  if (get(workflowModel) === name) await setWorkflowModel('');
 }
 
 export async function setActiveModel(name: string): Promise<void> {
@@ -88,6 +116,18 @@ export async function setNewsModel(name: string): Promise<void> {
   if (get(newsModel) === name) return;
   await setNewsConfig({ model: name });
   newsModel.set(name);
+}
+
+/**
+ * '' puts the Workflows tab back on the active model.
+ *
+ * Writes a *patch* — `setWorkflowsConfig` merges — because the selected playbook shares
+ * this key and is owned by `stores/playbook.ts`.
+ */
+export async function setWorkflowModel(name: string): Promise<void> {
+  if (get(workflowModel) === name) return;
+  await setWorkflowsConfig({ model: name });
+  workflowModel.set(name);
 }
 
 /**
