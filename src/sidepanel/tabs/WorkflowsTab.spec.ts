@@ -36,9 +36,9 @@ beforeEach(() => {
 });
 
 describe('WorkflowsTab', () => {
-  // The verb stays "Capture" whichever playbook is selected: every hint in
-  // capture-diagnostics.ts tells the user to "press Capture again".
-  it('offers a worded Capture button', () => {
+  // The verb is the selected playbook's own. For a capture playbook it stays "Capture",
+  // which is what keeps every "press Capture again" hint in capture-diagnostics.ts true.
+  it('offers a worded Capture button for a capture playbook', () => {
     render(WorkflowsTab);
     expect(screen.getByRole('button', { name: /^Capture$/ })).toBeInTheDocument();
   });
@@ -197,5 +197,51 @@ describe('WorkflowsTab model picker', () => {
     expect(trigger).not.toBeDisabled();
     await fireEvent.click(trigger);
     expect(screen.getByRole('listbox')).toBeInTheDocument();
+  });
+
+  describe('with the LinkedIn composer selected', () => {
+    beforeEach(() => {
+      selectedPlaybookId.set('linkedin-post');
+    });
+
+    /**
+     * The invariant the `kind` discriminant exists for. Every hint in
+     * `capture-diagnostics.ts` tells the user to "press Capture again", and those stay true
+     * only while exactly one button carries that name — so the composer must not put a
+     * second one on screen.
+     */
+    it('shows no Capture button at all', () => {
+      render(WorkflowsTab);
+      expect(screen.queryByRole('button', { name: /captur/i })).toBeNull();
+    });
+
+    it('names its own verb on the run button', () => {
+      render(WorkflowsTab);
+      expect(screen.getByRole('button', { name: /^Suggest topics$/ })).toBeInTheDocument();
+    });
+
+    it('keeps both pickers, so the model is still switchable', () => {
+      render(WorkflowsTab);
+      expect(screen.getByRole('button', { name: /workflow model/i })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /playbook/i })).not.toBeDisabled();
+    });
+
+    /** A compose playbook has no page to read, so pressing its button must touch no tab. */
+    it('reads no tab when its button is pressed', async () => {
+      const tabs = vi.spyOn(chrome.tabs, 'query');
+      const inject = vi.spyOn(chrome.scripting, 'executeScript');
+      render(WorkflowsTab);
+
+      await fireEvent.click(screen.getByRole('button', { name: /^Suggest topics$/ }));
+
+      expect(tabs).not.toHaveBeenCalled();
+      expect(inject).not.toHaveBeenCalled();
+    });
+
+    it('shows the composer empty state, not the capture one', () => {
+      render(WorkflowsTab);
+      expect(screen.getByText('No topics yet.')).toBeInTheDocument();
+      expect(screen.queryByText('No page captured yet.')).toBeNull();
+    });
   });
 });

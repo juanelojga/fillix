@@ -1,5 +1,5 @@
 import { captureActiveTabHtml } from '../capture/active-tab-html';
-import type { PlaybookDefinition, PlaybookResult } from './playbook';
+import type { CapturePlaybook, PlaybookResult } from './playbook';
 import { buildJobBrief } from './toptal-job-brief';
 import { extractJobSections } from './toptal-job-sections';
 import { TOPTAL_JOB_PAGE } from './toptal-job-url';
@@ -23,7 +23,8 @@ async function run(): Promise<PlaybookResult> {
   };
 }
 
-export const toptalPlaybook: PlaybookDefinition = {
+export const toptalPlaybook: CapturePlaybook = {
+  kind: 'capture',
   id: 'toptal',
   label: 'Toptal',
   description:

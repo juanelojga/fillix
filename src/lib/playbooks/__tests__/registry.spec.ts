@@ -33,6 +33,31 @@ describe('the playbook registry', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
+  /**
+   * The kind discriminant is what keeps a compose playbook out of `runState`, and with it
+   * out of `diagnoseCaptureFailure` — whose every hint says "press Capture again" and is
+   * true only while a button by that name is on screen.
+   */
+  it('gives every playbook a kind, and `run` only to the captures', () => {
+    for (const playbook of PLAYBOOKS) {
+      expect(['capture', 'compose']).toContain(playbook.kind);
+      if (playbook.kind === 'capture') {
+        expect(typeof playbook.run).toBe('function');
+      } else {
+        expect('run' in playbook).toBe(false);
+      }
+    }
+  });
+
+  it('offers both a capture playbook and a compose one', () => {
+    expect(PLAYBOOKS.some((p) => p.kind === 'capture')).toBe(true);
+    expect(PLAYBOOKS.some((p) => p.kind === 'compose')).toBe(true);
+  });
+
+  it('resolves the LinkedIn composer by its stored id', () => {
+    expect(resolvePlaybook('linkedin-post').kind).toBe('compose');
+  });
+
   // Both strings reach the screen verbatim — the label is the picker row and the
   // description is the whole empty state, so neither may be blank.
   it('gives every playbook a label and a description', () => {

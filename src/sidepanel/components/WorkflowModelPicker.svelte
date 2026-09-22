@@ -8,9 +8,10 @@
   } from '../stores/settings';
 
   /**
-   * Which model the Workflows tab runs on — the drafting and the schedule extraction.
-   * The capture itself spends no generation, and the embedding model is a separate knob
-   * in the Profile tab.
+   * Which model the Workflows tab runs on, whichever playbook is selected: Toptal's
+   * drafting and schedule extraction, or the LinkedIn composer's generations. The capture
+   * itself spends no generation, and the embedding model is a separate knob in the Profile
+   * tab.
    *
    * Models only, no "Same as Chat" row, for NewsModelPicker's reason: the header question
    * is "which model runs this?", and the answer is a model name. '' is still the stored

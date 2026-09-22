@@ -284,3 +284,35 @@ export async function getTavilyConfig(): Promise<TavilyConfig> {
 export async function setTavilyConfig(tavilyConfig: TavilyConfig): Promise<void> {
   await chrome.storage.local.set({ tavilyConfig });
 }
+
+/**
+ * The LinkedIn composer's override of the packaged voice spec.
+ *
+ * Its own key rather than a third field on `workflowsConfig`: that key is the Workflows tab's
+ * *picker* state, a few bytes read on every tab mount, while this is a multi-kilobyte document
+ * edited in long sittings. The same split as `profile` against `profileConfig`, and for the
+ * same reason — an edit to one must never rewrite the other.
+ *
+ * `''` means "use `src/prompts/linkedin-voice.md`", the ''-is-fallback convention again, and
+ * storage deliberately holds no copy of the packaged text: copying it in the first time the
+ * editor is opened would mean a later edit to the `.md` silently stopped reaching anyone who
+ * had ever looked at it. `linkedin/voice-spec.ts` is where that convention is interpreted.
+ *
+ * The `Config` suffix is insurance rather than decoration. Nothing purges a bare `linkedin`
+ * today, but `workflows` and `search` are both one suffix away from names
+ * `legacy-migration.ts` deletes on every install and startup, and a preference that vanishes
+ * on the next browser restart with nothing logged is the worst failure this file can produce.
+ *
+ * No credential lives here, so the "no credential outlives its feature" rule that governs
+ * `tavilyConfig` does not reach it.
+ */
+export type LinkedInConfig = { voiceSpec: string };
+
+export async function getLinkedInConfig(): Promise<LinkedInConfig> {
+  const { linkedinConfig } = await chrome.storage.local.get('linkedinConfig');
+  return { voiceSpec: (linkedinConfig as Partial<LinkedInConfig> | undefined)?.voiceSpec ?? '' };
+}
+
+export async function setLinkedInConfig(linkedinConfig: LinkedInConfig): Promise<void> {
+  await chrome.storage.local.set({ linkedinConfig });
+}

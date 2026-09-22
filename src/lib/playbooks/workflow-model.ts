@@ -10,9 +10,16 @@
  * the same; the thing it decides is not, and each tab's header owns its own answer to
  * "which model runs this?". Change one and the other keeps its own behaviour.
  *
+ * One preference for the tab, not one per playbook: the header holds a single picker, and a
+ * per-playbook preference would make that one control mean different things depending on the
+ * *other* picker beside it, with nothing on screen saying which. `removeModel` would also need
+ * a second reconciliation arm, which is a second chance for a deleted model to survive as a
+ * stale string.
+ *
  * Note what this does *not* cover: the capture spends no generation at all, and the
  * embedding model is `profileConfig.embedModel`, a different endpoint entirely
- * (`ollama-embed.ts`). Only `DRAFT_ANSWER` and `EXTRACT_QUESTION_TIMES` read this.
+ * (`ollama-embed.ts`). What reads this is Toptal's `DRAFT_ANSWER` and
+ * `EXTRACT_QUESTION_TIMES`, and the composer's `POST_TOPICS`.
  */
 
 /**
