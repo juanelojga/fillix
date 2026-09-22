@@ -9,6 +9,7 @@ import {
   getNewsConfig,
   setNewsConfig,
   getLinkedInConfig,
+  getLoveNoteConfig,
   getWorkflowsConfig,
   setWorkflowsConfig,
 } from '../../lib/storage';
@@ -22,6 +23,10 @@ import {
   setVoiceSpecOverride,
   resetVoiceSpec as clearVoiceSpec,
 } from '../../lib/linkedin/voice-spec';
+import {
+  setNoteInstructionsOverride,
+  resetNoteInstructions as clearNoteInstructions,
+} from '../../lib/love-note/note-instructions';
 
 export const ollamaConfig = writable<OllamaConfig | null>(null);
 /** The hand-maintained model list — never populated from /api/tags. */
@@ -60,7 +65,7 @@ export const effectiveWorkflowModel = derived([workflowModel, ollamaConfig], ([p
 export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [ollama, models, chat, news, workflows, linkedin] = await Promise.all([
+  const [ollama, models, chat, news, workflows, linkedin, loveNote] = await Promise.all([
     getOllamaConfig(),
     getModelList(),
     getChatConfig(),
@@ -69,12 +74,14 @@ export async function loadSettings(): Promise<void> {
     // key is cheaper than either store importing the other to fetch a field it does not own.
     getWorkflowsConfig(),
     getLinkedInConfig(),
+    getLoveNoteConfig(),
   ]);
   ollamaConfig.set(ollama);
   systemPromptOverride.set(chat.systemPrompt);
   newsModel.set(news.model);
   workflowModel.set(workflows.model);
   voiceSpecOverride.set(linkedin.voiceSpec);
+  noteInstructionsOverride.set(loveNote.instructions);
   // An existing install has a model but no list yet — seed it so the picker isn't empty.
   modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
@@ -173,6 +180,23 @@ export async function saveVoiceSpec(text: string): Promise<void> {
 export async function resetVoiceSpec(): Promise<void> {
   await clearVoiceSpec();
   voiceSpecOverride.set('');
+}
+
+/**
+ * The love note's standing-instructions override. '' means the packaged
+ * `src/prompts/love-note.md` is in use. Here for `voiceSpecOverride`'s reason: a preference
+ * edited in long sittings, not a session `stores/love-note.ts` clears on every switch.
+ */
+export const noteInstructionsOverride = writable<string>('');
+
+export async function saveNoteInstructions(text: string): Promise<void> {
+  await setNoteInstructionsOverride(text);
+  noteInstructionsOverride.set(text.trim());
+}
+
+export async function resetNoteInstructions(): Promise<void> {
+  await clearNoteInstructions();
+  noteInstructionsOverride.set('');
 }
 
 /** Persists an override. A blank value is stored as '', i.e. back to the default. */

@@ -18,6 +18,8 @@ import {
   setTavilyConfig,
   getLinkedInConfig,
   setLinkedInConfig,
+  getLoveNoteConfig,
+  setLoveNoteConfig,
 } from '../storage';
 import type { ChatConfig, NewsConfig, TavilyConfig } from '../storage';
 import type { OllamaConfig } from '../../types';
@@ -421,6 +423,51 @@ describe('setLinkedInConfig', () => {
     await setLinkedInConfig({ voiceSpec: 'x' });
     expect(mockSet).not.toHaveBeenCalledWith(
       expect.objectContaining({ workflowsConfig: expect.anything() }),
+    );
+  });
+});
+
+describe('getLoveNoteConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("defaults to '' — the packaged love-note.md is the source of truth", async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getLoveNoteConfig()).toEqual({ instructions: '' });
+    expect(mockGet).toHaveBeenCalledWith('loveNoteConfig');
+  });
+
+  it('returns a stored override', async () => {
+    mockGet.mockResolvedValue({ loveNoteConfig: { instructions: 'Le digo Chiqui.' } });
+    expect(await getLoveNoteConfig()).toEqual({ instructions: 'Le digo Chiqui.' });
+  });
+
+  it('tolerates a non-object stored value', async () => {
+    mockGet.mockResolvedValue({ loveNoteConfig: 'nonsense' });
+    expect(await getLoveNoteConfig()).toEqual({ instructions: '' });
+  });
+});
+
+describe('setLoveNoteConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('writes to the "loveNoteConfig" storage key and nothing else', async () => {
+    await setLoveNoteConfig({ instructions: 'Le digo Chiqui.' });
+    expect(mockSet).toHaveBeenCalledWith({ loveNoteConfig: { instructions: 'Le digo Chiqui.' } });
+    expect(Object.keys(mockSet.mock.calls[0]?.[0] ?? {})).toEqual(['loveNoteConfig']);
+  });
+
+  /** A document, not picker state: an edit to it must never rewrite either sibling key. */
+  it('touches neither workflowsConfig nor linkedinConfig', async () => {
+    await setLoveNoteConfig({ instructions: 'x' });
+    expect(mockSet).not.toHaveBeenCalledWith(
+      expect.objectContaining({ workflowsConfig: expect.anything() }),
+    );
+    expect(mockSet).not.toHaveBeenCalledWith(
+      expect.objectContaining({ linkedinConfig: expect.anything() }),
     );
   });
 });

@@ -357,3 +357,29 @@ describe('TEST_TAVILY message type', () => {
     expect(error).toContain('[REDACTED]');
   });
 });
+
+describe('an unknown message type', () => {
+  beforeEach(async () => {
+    vi.clearAllMocks();
+    messageListeners.length = 0;
+    connectListeners = [];
+    await loadBackground();
+  });
+
+  function send(msg: unknown): Promise<unknown> {
+    return new Promise((resolve) => {
+      messageListeners[0](msg as Message, {}, resolve);
+    });
+  }
+
+  /**
+   * The exhaustive `default` arm's `never` is compile-time only. At runtime a service worker
+   * still running an older build reaches it whenever the panel sends a type it never learned,
+   * and returning the message itself — as it once did — reached the panel as a response with
+   * neither `ok` nor `error`, worded as a failure "without saying why".
+   */
+  it('answers with a worded failure that names the type, never the request echoed back', async () => {
+    const response = await send({ type: 'BOGUS', seed: 'anything' });
+    expect(response).toEqual({ ok: false, error: 'Unknown message type: BOGUS' });
+  });
+});

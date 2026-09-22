@@ -36,6 +36,9 @@ import {
   workflowModel,
   effectiveWorkflowModel,
   testModel,
+  noteInstructionsOverride,
+  saveNoteInstructions,
+  resetNoteInstructions,
 } from '../stores/settings';
 
 beforeEach(() => {
@@ -402,5 +405,26 @@ describe('removeModel reconciles the Workflows preference', () => {
     await removeModel('phi3');
 
     expect(get(workflowModel)).toBe('llama3.2');
+  });
+});
+
+describe('love note instructions', () => {
+  it('hydrates the override from its own storage key', async () => {
+    store.loveNoteConfig = { instructions: 'Le digo Chiqui.' };
+    await loadSettings();
+    expect(get(noteInstructionsOverride)).toBe('Le digo Chiqui.');
+  });
+
+  it('saves a trimmed override and reflects it in the store', async () => {
+    await saveNoteInstructions('  Le digo Chiqui.  ');
+    expect(store.loveNoteConfig).toEqual({ instructions: 'Le digo Chiqui.' });
+    expect(get(noteInstructionsOverride)).toBe('Le digo Chiqui.');
+  });
+
+  it('resets to the packaged default by clearing, never by copying it in', async () => {
+    await saveNoteInstructions('Le digo Chiqui.');
+    await resetNoteInstructions();
+    expect(store.loveNoteConfig).toEqual({ instructions: '' });
+    expect(get(noteInstructionsOverride)).toBe('');
   });
 });

@@ -1,7 +1,13 @@
 <script lang="ts">
-  import type { PostDiagnosis } from '$lib/linkedin/post-diagnostics';
-
-  let { diagnosis }: { diagnosis: PostDiagnosis } = $props();
+  /**
+   * Structural, not `PostDiagnosis`: the four strings are the whole contract, and both the
+   * composer's `PostDiagnosis` and the love note's `NoteDiagnosis` satisfy it. Naming one of
+   * them here would make the other feature import LinkedIn's type to render an Ollama error.
+   */
+  let {
+    diagnosis,
+  }: { diagnosis: { summary: string; hint: string; context: string; detail: string } } =
+    $props();
 </script>
 
 <!-- Summary, hint, context and detail — all four. A badge with no worded cause and no next

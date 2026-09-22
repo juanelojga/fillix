@@ -147,12 +147,15 @@ export type Message =
       evidence: string;
       specifics: string;
       model?: string;
-    };
+    }
+  // The love note's one round trip. Like POST_TOPICS, the standing instructions are NOT
+  // carried: the worker reads them from storage, so the document never crosses sendMessage.
+  | { type: 'NOTE_WRITE'; seed: string; model?: string };
 
 // Success arms are distinguished ONLY by payload key shape (narrowed with `'key' in r`).
 // Never reuse an existing key name with a different value type: it cross-wires silently
 // with no compiler diagnostic. Taken: value, latencyMs, news, degraded, article, summary,
-// indexed, queryVector, draft, times, tavily, topics, research, brief, specifics, post.
+// indexed, queryVector, draft, times, tavily, topics, research, brief, specifics, post, notes.
 export type MessageResponse =
   | { ok: true; value: string }
   | { ok: true; latencyMs: number }
@@ -182,4 +185,7 @@ export type MessageResponse =
   // `post`, not `draft`: that key already carries an AnswerDraft, and two arms sharing a
   // key name with different value types cross-wire with no compiler diagnostic.
   | { ok: true; post: PostResult }
+  // `notes`, not `messages`: that word already names ChatMessage[] on CHAT_START, and a
+  // reader grepping for it should find one thing.
+  | { ok: true; notes: string[] }
   | { ok: false; error: string };

@@ -7,7 +7,7 @@ import type { JobBrief } from './job-brief';
  * is a persisted value: renaming one strands whoever had it selected, and `resolvePlaybook`
  * is what keeps that from being a stuck tab rather than a crash.
  */
-export type PlaybookId = 'toptal' | 'linkedin-post';
+export type PlaybookId = 'toptal' | 'linkedin-post' | 'love-note';
 
 /** One labelled block of the captured page, as text. */
 export interface CapturedSection {
@@ -69,4 +69,21 @@ export interface ComposePlaybook extends PlaybookCommon {
   kind: 'compose';
 }
 
-export type PlaybookDefinition = CapturePlaybook | ComposePlaybook;
+/**
+ * Writes several variants of one short thing in a single round trip; the user picks one,
+ * edits it and copies it. No page, no stages, and — for `ComposePlaybook`'s reason — no
+ * `run` and no `PlaybookResult`.
+ *
+ * A kind of its own rather than a second compose: `kind` names a UI contract (which store,
+ * which header describer, which body panel), and `WorkflowsTab` switches on it exhaustively.
+ * Dispatching by id inside the compose branch would make "compose" mean two state machines
+ * and would re-branch on an id `resolvePlaybook(id: string)` treats as untrusted storage.
+ *
+ * Its session lives in `sidepanel/stores/love-note*.ts`, and its header button is named by
+ * `love-note/note-status.ts`.
+ */
+export interface NotePlaybook extends PlaybookCommon {
+  kind: 'note';
+}
+
+export type PlaybookDefinition = CapturePlaybook | ComposePlaybook | NotePlaybook;

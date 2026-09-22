@@ -316,3 +316,25 @@ export async function getLinkedInConfig(): Promise<LinkedInConfig> {
 export async function setLinkedInConfig(linkedinConfig: LinkedInConfig): Promise<void> {
   await chrome.storage.local.set({ linkedinConfig });
 }
+
+/**
+ * The love note's override of the packaged standing instructions — `linkedinConfig`'s twin,
+ * under every rule stated above it: its own key because it is a document and not picker
+ * state, `''` means "use `src/prompts/love-note.md`", storage holds no copy of the packaged
+ * text, and the `Config` suffix keeps it a full word away from anything the purge deletes.
+ *
+ * This key is where the real nickname lives. The packaged file carries placeholders only,
+ * because the repo is public; nothing personal is ever in git.
+ */
+export type LoveNoteConfig = { instructions: string };
+
+export async function getLoveNoteConfig(): Promise<LoveNoteConfig> {
+  const { loveNoteConfig } = await chrome.storage.local.get('loveNoteConfig');
+  return {
+    instructions: (loveNoteConfig as Partial<LoveNoteConfig> | undefined)?.instructions ?? '',
+  };
+}
+
+export async function setLoveNoteConfig(loveNoteConfig: LoveNoteConfig): Promise<void> {
+  await chrome.storage.local.set({ loveNoteConfig });
+}

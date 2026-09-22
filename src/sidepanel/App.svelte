@@ -49,5 +49,5 @@
   <TabsContent value="news" class="flex-1 overflow-hidden"><NewsTab /></TabsContent>
   <TabsContent value="workflows" class="flex-1 overflow-hidden"><WorkflowsTab /></TabsContent>
   <TabsContent value="profile" class="flex-1 overflow-hidden"><ProfileTab /></TabsContent>
-  <TabsContent value="settings"><SettingsTab /></TabsContent>
+  <TabsContent value="settings" class="flex-1 overflow-hidden"><SettingsTab /></TabsContent>
 </Tabs>
