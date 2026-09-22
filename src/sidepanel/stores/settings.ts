@@ -8,6 +8,7 @@ import {
   getChatConfig,
   getNewsConfig,
   setNewsConfig,
+  getLinkedInConfig,
   getWorkflowsConfig,
   setWorkflowsConfig,
 } from '../../lib/storage';
@@ -17,6 +18,10 @@ import {
   setSystemPromptOverride,
   resetSystemPrompt as clearOverride,
 } from '../../lib/system-prompt';
+import {
+  setVoiceSpecOverride,
+  resetVoiceSpec as clearVoiceSpec,
+} from '../../lib/linkedin/voice-spec';
 
 export const ollamaConfig = writable<OllamaConfig | null>(null);
 /** The hand-maintained model list — never populated from /api/tags. */
@@ -55,7 +60,7 @@ export const effectiveWorkflowModel = derived([workflowModel, ollamaConfig], ([p
 export type TestResult = { ok: true; latencyMs: number } | { ok: false; error: string };
 
 export async function loadSettings(): Promise<void> {
-  const [ollama, models, chat, news, workflows] = await Promise.all([
+  const [ollama, models, chat, news, workflows, linkedin] = await Promise.all([
     getOllamaConfig(),
     getModelList(),
     getChatConfig(),
@@ -63,11 +68,13 @@ export async function loadSettings(): Promise<void> {
     // Read here as well as in `hydratePlaybookSelection`: two parallel reads of one tiny
     // key is cheaper than either store importing the other to fetch a field it does not own.
     getWorkflowsConfig(),
+    getLinkedInConfig(),
   ]);
   ollamaConfig.set(ollama);
   systemPromptOverride.set(chat.systemPrompt);
   newsModel.set(news.model);
   workflowModel.set(workflows.model);
+  voiceSpecOverride.set(linkedin.voiceSpec);
   // An existing install has a model but no list yet — seed it so the picker isn't empty.
   modelList.set(models.length === 0 && ollama.model ? [ollama.model] : models);
 }
@@ -146,6 +153,26 @@ export async function testModel(name: string): Promise<TestResult> {
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
+}
+
+/**
+ * The LinkedIn composer's voice spec override. '' means the packaged
+ * `src/prompts/linkedin-voice.md` is in use, and storage never holds a copy of it.
+ *
+ * Here rather than in a composer store for the reason the editor lives in Settings: this is
+ * a preference edited in long sittings, while `stores/composer.ts` holds a session that is
+ * cleared whenever the playbook changes.
+ */
+export const voiceSpecOverride = writable<string>('');
+
+export async function saveVoiceSpec(text: string): Promise<void> {
+  await setVoiceSpecOverride(text);
+  voiceSpecOverride.set(text.trim());
+}
+
+export async function resetVoiceSpec(): Promise<void> {
+  await clearVoiceSpec();
+  voiceSpecOverride.set('');
 }
 
 /** Persists an override. A blank value is stored as '', i.e. back to the default. */

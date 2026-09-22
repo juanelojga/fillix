@@ -13,7 +13,11 @@
     systemPromptOverride,
     saveSystemPrompt,
     resetSystemPrompt,
+    voiceSpecOverride,
+    saveVoiceSpec,
+    resetVoiceSpec,
   } from '../stores/settings';
+  import { DEFAULT_VOICE_SPEC } from '$lib/linkedin/voice-spec';
   import type { OllamaConfig } from '../../types';
   import { Input } from '$components/ui/input';
   import { Textarea } from '$components/ui/textarea';
@@ -53,6 +57,8 @@
   let testStates = $state<Record<string, TestState>>({});
   let promptText = $state('');
   let promptStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+  let voiceText = $state('');
+  let voiceStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let tavilyKey = $state('');
   let tavilyStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let tavilyTest = $state<TavilyState | null>(null);
@@ -65,6 +71,7 @@
       model = cfg.model;
     }
     promptText = get(systemPromptOverride);
+    voiceText = get(voiceSpecOverride);
     await hydrateTavilyKey();
     tavilyKey = get(tavilyApiKey);
   });
@@ -149,6 +156,21 @@
   async function handleResetPrompt() {
     await resetSystemPrompt();
     promptText = '';
+  }
+
+  async function handleSaveVoice() {
+    voiceStatus = 'saving';
+    await saveVoiceSpec(voiceText);
+    voiceText = get(voiceSpecOverride);
+    voiceStatus = 'saved';
+    setTimeout(() => {
+      voiceStatus = 'idle';
+    }, 2000);
+  }
+
+  async function handleResetVoice() {
+    await resetVoiceSpec();
+    voiceText = '';
   }
 
   async function handleSave() {
@@ -401,6 +423,7 @@
       <div class="flex items-center gap-2 self-end">
         <Button
           variant="ghost"
+          aria-label="Reset system prompt to default"
           onclick={handleResetPrompt}
           disabled={!$systemPromptOverride && !promptText.trim()}
         >
@@ -412,6 +435,55 @@
           disabled={promptStatus === 'saving' || promptText.trim() === $systemPromptOverride}
         >
           {promptStatus === 'saving' ? 'Saving…' : promptStatus === 'saved' ? '✓ Saved' : 'Save prompt'}
+        </Button>
+      </div>
+    </section>
+
+    <!-- LinkedIn voice spec section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-sky-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">LinkedIn voice</h2>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <Textarea
+          id="linkedin-voice"
+          bind:value={voiceText}
+          rows={8}
+          placeholder={DEFAULT_VOICE_SPEC}
+          class="font-mono text-xs"
+        />
+        <p class="text-xs text-muted-foreground">
+          {#if $voiceSpecOverride}
+            Using your override. <strong>Reset to default</strong> restores the spec that ships with
+            Fillix.
+          {:else}
+            Who you are, who each post is for, and how you write — used by the LinkedIn post
+            playbook in Workflows. The default is shown above. Type here to override it.
+          {/if}
+          The pillar and style ids are fixed in code; rewrite the prose around them freely.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 self-end">
+        <!-- The visible text matches the prompt section's, so the accessible name has to
+             disambiguate: a screen reader announces the button without the heading above it,
+             and two "Reset to default"s on one page name nothing. -->
+        <Button
+          variant="ghost"
+          aria-label="Reset LinkedIn voice to default"
+          onclick={handleResetVoice}
+          disabled={!$voiceSpecOverride && !voiceText.trim()}
+        >
+          Reset to default
+        </Button>
+        <Button
+          variant="secondary"
+          onclick={handleSaveVoice}
+          disabled={voiceStatus === 'saving' || voiceText.trim() === $voiceSpecOverride}
+        >
+          {voiceStatus === 'saving' ? 'Saving…' : voiceStatus === 'saved' ? '✓ Saved' : 'Save voice'}
         </Button>
       </div>
     </section>

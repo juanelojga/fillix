@@ -7,7 +7,7 @@ import type { JobBrief } from './job-brief';
  * is a persisted value: renaming one strands whoever had it selected, and `resolvePlaybook`
  * is what keeps that from being a stuck tab rather than a crash.
  */
-export type PlaybookId = 'toptal';
+export type PlaybookId = 'toptal' | 'linkedin-post';
 
 /** One labelled block of the captured page, as text. */
 export interface CapturedSection {
@@ -31,11 +31,42 @@ export type PlaybookResult =
     }
   | ({ ok: false } & CaptureFailure);
 
-export interface PlaybookDefinition {
+interface PlaybookCommon {
   id: PlaybookId;
   /** Row in the picker, and the only place the playbook is named in the UI. */
   label: string;
-  /** The tab's empty state: what this playbook reads, and what it does not do. */
+  /** The tab's empty state: what this playbook does, and what it does not do. */
   description: string;
+}
+
+/**
+ * Reads the page the user is looking at and hands back one result.
+ *
+ * The run button says **Capture** for exactly these, and that is what keeps every "press
+ * Capture again" hint in `capture/capture-diagnostics.ts` true: those hints are reachable
+ * only from `runState.status === 'failed'`, which is reachable only from this `run`.
+ */
+export interface CapturePlaybook extends PlaybookCommon {
+  kind: 'capture';
   run: () => Promise<PlaybookResult>;
 }
+
+/**
+ * Writes something, in stages the user approves one at a time.
+ *
+ * Deliberately has no `run`. There is no page to capture and no single result to hand back,
+ * so a `PlaybookResult` would have to be fabricated — and widening that type instead would
+ * make every consumer of a capture re-narrow it: `stores/playbook.ts`, `CaptureResult.svelte`
+ * and `stores/application.ts`'s module-scope subscription all read `state.capture` today and
+ * would each grow a branch no capture can reach. Keeping `run` on the capture arm means a
+ * compose playbook cannot produce a `PlaybookResult`, cannot enter `runState`, and so cannot
+ * reach any of them.
+ *
+ * Its stage machine lives in `sidepanel/stores/composer*.ts`, and its header button is named
+ * by `linkedin/composer-status.ts`.
+ */
+export interface ComposePlaybook extends PlaybookCommon {
+  kind: 'compose';
+}
+
+export type PlaybookDefinition = CapturePlaybook | ComposePlaybook;

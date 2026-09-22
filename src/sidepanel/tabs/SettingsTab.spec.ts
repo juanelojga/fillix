@@ -15,7 +15,9 @@ describe('SettingsTab (smoke)', () => {
   it('renders the system prompt section', () => {
     render(SettingsTab);
     expect(screen.getByRole('heading', { name: /system prompt/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /reset to default/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /reset system prompt to default/i }),
+    ).toBeInTheDocument();
   });
 
   it('renders the Ollama section heading', () => {
@@ -250,5 +252,39 @@ describe('SettingsTab (web search)', () => {
     await waitFor(() => expect(container.textContent).toContain('Working'));
     const regions = [...container.querySelectorAll('[aria-live="polite"]')];
     expect(regions.some((r) => r.textContent?.includes('Working'))).toBe(true);
+  });
+
+  describe('the LinkedIn voice section', () => {
+    it('renders its own editor and buttons', () => {
+      render(SettingsTab);
+      expect(screen.getByText('LinkedIn voice')).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /reset linkedin voice to default/i }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save voice/i })).toBeInTheDocument();
+    });
+
+    /**
+     * The packaged spec is the placeholder, never the value. An empty box therefore renders
+     * the default that is actually in use, and storage never holds a copy of it — which is
+     * what lets a later edit to `linkedin-voice.md` reach everyone.
+     */
+    it('shows the packaged spec as placeholder, leaving the value empty', () => {
+      render(SettingsTab);
+      const box = screen.getByPlaceholderText(/## Content pillars/) as HTMLTextAreaElement;
+      expect(box.value).toBe('');
+    });
+
+    it('disables Save until something has changed', () => {
+      render(SettingsTab);
+      expect(screen.getByRole('button', { name: /save voice/i })).toBeDisabled();
+    });
+
+    /** Two editors, two Save buttons: neither may be the other's. */
+    it('keeps the voice Save distinct from the prompt Save', () => {
+      render(SettingsTab);
+      expect(screen.getByRole('button', { name: /save prompt/i })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /save voice/i })).toBeInTheDocument();
+    });
   });
 });

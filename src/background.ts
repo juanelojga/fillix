@@ -21,6 +21,13 @@ import { DRAFT_TIMEOUT_MS, draftAnswer } from './lib/answers/draft-answer';
 import { extractQuestionTimes } from './lib/answers/extract-question-times';
 import { EXTRACT_TIMEOUT_MS } from './lib/answers/question-times';
 import { checkTavilyKey } from './lib/tavily/search';
+import { TOPICS_TIMEOUT_MS, suggestTopics } from './lib/linkedin/suggest-topics';
+import { RESEARCH_TIMEOUT_MS, researchTopic } from './lib/linkedin/topic-research';
+import { BRIEF_TIMEOUT_MS, writeBrief } from './lib/linkedin/write-brief';
+import { gatherPostSpecifics } from './lib/linkedin/post-specifics';
+import { POST_TIMEOUT_MS, writePost } from './lib/linkedin/write-post';
+import { isPillar } from './lib/linkedin/post-taxonomy';
+import { getVoiceSpec } from './lib/linkedin/voice-spec';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -168,6 +175,71 @@ async function handle(msg: Message): Promise<MessageResponse> {
         AbortSignal.timeout(DRAFT_TIMEOUT_MS),
       );
       return { ok: true, draft };
+    }
+    case 'POST_TOPICS': {
+      // The voice spec is read here rather than sent from the panel, the `chat-runner.ts`
+      // rule: the prompt never crosses the port, so a document the user may have rewritten
+      // cannot be stale by the time it reaches the model.
+      const topics = await suggestTopics(
+        { ...config, model: msg.model ?? config.model },
+        msg.seed,
+        await getVoiceSpec(),
+        AbortSignal.timeout(TOPICS_TIMEOUT_MS),
+      );
+      return { ok: true, topics };
+    }
+    case 'POST_RESEARCH': {
+      // '' is the degrade path, not a refusal: Hacker News alone is enough to write a post
+      // from, and refusing would make an optional paid key mandatory for the whole playbook.
+      const { apiKey } = await getTavilyConfig();
+      try {
+        const research = await researchTopic(
+          apiKey,
+          msg.topic,
+          AbortSignal.timeout(RESEARCH_TIMEOUT_MS),
+        );
+        return { ok: true, research };
+      } catch (err) {
+        // The second case in the product that touches the credential, sanitizing for the
+        // reason TEST_TAVILY does: the listener's generic catch has no key to pass.
+        const raw = err instanceof Error ? err.message : String(err);
+        throw new Error(sanitizeError(raw, apiKey));
+      }
+    }
+    case 'POST_BRIEF': {
+      // Re-validated rather than trusted: the id crossed the port from a previous message.
+      if (!isPillar(msg.pillar)) throw new Error('The model returned an unusable angle brief');
+      const specifics = await gatherPostSpecifics(msg.topic, msg.angle, msg.pillar);
+      const brief = await writeBrief(
+        { ...config, model: msg.model ?? config.model },
+        {
+          topic: msg.topic,
+          angle: msg.angle,
+          pillar: msg.pillar,
+          research: msg.evidence,
+          specifics: specifics.text,
+          today: new Date().toISOString().slice(0, 10),
+          voiceSpec: await getVoiceSpec(),
+        },
+        AbortSignal.timeout(BRIEF_TIMEOUT_MS),
+      );
+      return { ok: true, brief, specifics };
+    }
+    case 'POST_WRITE': {
+      // The timeout bounds the repairs, not the result: `writePost` checks the signal between
+      // passes and returns the best draft it has with its failing rows attached.
+      const post = await writePost(
+        { ...config, model: msg.model ?? config.model },
+        {
+          brief: msg.brief,
+          hook: msg.hook,
+          research: msg.evidence,
+          specifics: msg.specifics,
+          voiceSpec: await getVoiceSpec(),
+        },
+        AbortSignal.timeout(POST_TIMEOUT_MS),
+      );
+      return { ok: true, post };
     }
     default: {
       const _: never = msg;

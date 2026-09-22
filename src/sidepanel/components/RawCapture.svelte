@@ -1,4 +1,5 @@
 <script lang="ts">
+  import CopyButton from './CopyButton.svelte';
   import { isTruncated, type PageCapture } from '$lib/capture/html-budget';
 
   let { capture }: { capture: PageCapture } = $props();
@@ -10,42 +11,9 @@
    */
   const PREVIEW_CHARS = 2000;
 
-  type CopyStatus = 'idle' | 'copying' | 'copied' | 'failed';
-
-  let copyStatus = $state<CopyStatus>('idle');
-  let copyError = $state('');
-
   const preview = $derived(capture.html.slice(0, PREVIEW_CHARS));
   const previewTrimmed = $derived(capture.html.length > PREVIEW_CHARS);
 
-  async function copyHtml(): Promise<void> {
-    copyStatus = 'copying';
-    copyError = '';
-    try {
-      // Absent, not just rejecting, in a panel served over a scheme the API declines —
-      // so the guard is a branch, not a formality.
-      if (!navigator.clipboard) throw new Error('No clipboard API available to the side panel');
-      await navigator.clipboard.writeText(capture.html);
-      copyStatus = 'copied';
-      setTimeout(() => {
-        if (copyStatus === 'copied') copyStatus = 'idle';
-      }, 2000);
-    } catch (err) {
-      copyStatus = 'failed';
-      copyError = err instanceof Error ? err.message : String(err);
-    }
-  }
-
-  const copyLabel = $derived.by(() => {
-    switch (copyStatus) {
-      case 'copying':
-        return 'Copying…';
-      case 'copied':
-        return '✓ Copied';
-      default:
-        return 'Copy HTML';
-    }
-  });
 </script>
 
 <!-- Collapsed by default: this is the markup behind the decoded sections, wanted only when
@@ -55,16 +23,11 @@
 
   <div class="mt-2 flex flex-col gap-2">
     <div class="flex items-center justify-end gap-2">
-      <button
-        type="button"
-        class="shrink-0 rounded-md border border-input bg-background px-2 py-1 text-[11px]
-               hover:bg-accent disabled:opacity-60 disabled:cursor-not-allowed
-               focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        onclick={() => copyHtml()}
-        disabled={copyStatus === 'copying'}
-      >
-        {copyLabel}
-      </button>
+      <CopyButton
+        text={capture.html}
+        label="Copy HTML"
+        fallback="or select the preview below by hand"
+      />
     </div>
 
     {#if isTruncated(capture)}
@@ -75,17 +38,6 @@
         which sits near the bottom — may be missing. Raise HTML_CAPTURE_LIMIT in html-budget.ts
         and press Capture again if you need the page whole.
       </p>
-    {/if}
-
-    {#if copyStatus === 'failed'}
-      <div class="flex flex-col gap-1">
-        <p class="text-[11px] font-medium text-destructive">Couldn't copy to the clipboard</p>
-        <p class="text-[11px] text-muted-foreground">
-          Chrome refuses clipboard writes while the side panel is not the focused surface. Click
-          anywhere in the panel and press Copy HTML again, or select the preview below by hand.
-        </p>
-        <p class="text-[10px] font-mono text-destructive break-words">{copyError}</p>
-      </div>
     {/if}
 
     <!-- Interpolated, never {@html}: this is markup lifted off an arbitrary page, and the

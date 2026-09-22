@@ -16,6 +16,8 @@ import {
   setAvailability,
   getTavilyConfig,
   setTavilyConfig,
+  getLinkedInConfig,
+  setLinkedInConfig,
 } from '../storage';
 import type { ChatConfig, NewsConfig, TavilyConfig } from '../storage';
 import type { OllamaConfig } from '../../types';
@@ -364,5 +366,61 @@ describe('setTavilyConfig', () => {
   it("persists '' so removing the key turns web search off", async () => {
     await setTavilyConfig({ apiKey: '' });
     expect(mockSet).toHaveBeenCalledWith({ tavilyConfig: { apiKey: '' } });
+  });
+});
+
+describe('getLinkedInConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("defaults to '' — the packaged linkedin-voice.md is the source of truth", async () => {
+    mockGet.mockResolvedValue({});
+    expect(await getLinkedInConfig()).toEqual({ voiceSpec: '' });
+    expect(mockGet).toHaveBeenCalledWith('linkedinConfig');
+  });
+
+  it('returns a stored override', async () => {
+    mockGet.mockResolvedValue({ linkedinConfig: { voiceSpec: 'I write short.' } });
+    expect(await getLinkedInConfig()).toEqual({ voiceSpec: 'I write short.' });
+  });
+
+  it('tolerates a non-object stored value', async () => {
+    mockGet.mockResolvedValue({ linkedinConfig: 'nonsense' });
+    expect(await getLinkedInConfig()).toEqual({ voiceSpec: '' });
+  });
+});
+
+describe('setLinkedInConfig', () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it('writes to the "linkedinConfig" storage key', async () => {
+    await setLinkedInConfig({ voiceSpec: 'I write short.' });
+    expect(mockSet).toHaveBeenCalledWith({ linkedinConfig: { voiceSpec: 'I write short.' } });
+  });
+
+  /**
+   * The `Config` suffix is insurance, not decoration. `workflows` and `search` are both one
+   * suffix from a name `legacy-migration.ts` deletes on every install and startup, and a
+   * preference that vanishes on the next browser restart with nothing logged is the worst
+   * failure this module can produce.
+   */
+  it('never writes a bare "linkedin" or "workflows" key', async () => {
+    await setLinkedInConfig({ voiceSpec: 'x' });
+    expect(Object.keys(mockSet.mock.calls[0]?.[0] ?? {})).toEqual(['linkedinConfig']);
+  });
+
+  /**
+   * The voice spec is its own key rather than a third field on `workflowsConfig`: that key is
+   * picker state read on every tab mount, this is a multi-kilobyte document. An edit to one
+   * must never rewrite the other.
+   */
+  it('does not touch workflowsConfig', async () => {
+    await setLinkedInConfig({ voiceSpec: 'x' });
+    expect(mockSet).not.toHaveBeenCalledWith(
+      expect.objectContaining({ workflowsConfig: expect.anything() }),
+    );
   });
 });

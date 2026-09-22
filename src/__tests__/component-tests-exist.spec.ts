@@ -143,4 +143,78 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(src).toContain('summarizing');
     });
   });
+
+  describe('LinkedIn composer components', () => {
+    it('ComposerPanel.spec.ts exists and pins that no fill control is offered', () => {
+      expect(existsSync(comp('ComposerPanel.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ComposerPanel.spec.ts'), 'utf-8');
+      // LinkedIn's composer is a contenteditable, so a fill would fail silently. The panel
+      // says so on screen rather than leaving the user to hunt for a button that is not there.
+      expect(src).toContain('copied, never typed into LinkedIn');
+    });
+
+    it('TopicChoices.spec.ts exists and covers the seed reaching the store', () => {
+      expect(existsSync(comp('TopicChoices.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('TopicChoices.spec.ts'), 'utf-8');
+      expect(src).toContain('seed');
+    });
+
+    it('TopicCard.spec.ts exists and pins that a topic shows its pillar', () => {
+      expect(existsSync(comp('TopicCard.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('TopicCard.spec.ts'), 'utf-8');
+      // One pillar per post is a rule the voice spec states, and the brief is locked to it.
+      expect(src).toContain('pillar');
+    });
+  });
+
+  describe('LinkedIn angle-brief components', () => {
+    it('AngleBrief.spec.ts exists and pins the citation of profile sections', () => {
+      expect(existsSync(comp('AngleBrief.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('AngleBrief.spec.ts'), 'utf-8');
+      expect(src).toContain('Drew on');
+    });
+
+    it('HookVariants.spec.ts exists and pins that exactly one hook is chosen', () => {
+      expect(existsSync(comp('HookVariants.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('HookVariants.spec.ts'), 'utf-8');
+      expect(src).toContain('radio');
+    });
+
+    it('ResearchNotes.spec.ts exists and pins that a dead source is named', () => {
+      expect(existsSync(comp('ResearchNotes.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ResearchNotes.spec.ts'), 'utf-8');
+      // One dead source must not empty the tab, and it must not do so silently either.
+      expect(src).toContain('degraded');
+    });
+
+    it('ComposerFailure.spec.ts exists and pins all four parts of a diagnosis', () => {
+      expect(existsSync(comp('ComposerFailure.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('ComposerFailure.spec.ts'), 'utf-8');
+      expect(src).toContain('context');
+    });
+  });
+
+  describe('LinkedIn post components', () => {
+    it('PostDraft.spec.ts exists and pins that the count follows the edited text', () => {
+      expect(existsSync(comp('PostDraft.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('PostDraft.spec.ts'), 'utf-8');
+      // The audit rules on what will be copied, so a count that disagreed with it after one
+      // keystroke would be worse than no count at all.
+      expect(src).toContain('not the draft the model produced');
+    });
+
+    it('AuditChecklist.spec.ts exists and pins that a failing row stays visible', () => {
+      expect(existsSync(comp('AuditChecklist.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('AuditChecklist.spec.ts'), 'utf-8');
+      expect(src).toContain('still-failing');
+    });
+
+    it('CopyButton.spec.ts exists and pins the panel-focus failure wording', () => {
+      expect(existsSync(comp('CopyButton.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('CopyButton.spec.ts'), 'utf-8');
+      // Chrome refuses clipboard writes while the panel is not focused; the hint has to say
+      // so, and has to name the button by the label it is currently wearing.
+      expect(src).toContain('not the focused surface');
+    });
+  });
 });
