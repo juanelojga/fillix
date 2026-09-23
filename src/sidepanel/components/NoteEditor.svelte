@@ -16,7 +16,7 @@
     id="note-editor"
     value={edited}
     oninput={(e: Event) => editNote((e.currentTarget as HTMLTextAreaElement).value)}
-    rows={6}
+    rows={10}
     class="mt-1.5 text-xs"
   />
 

@@ -29,7 +29,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook and press its button; three today — **Toptal**, a capture that reads the Toptal job page you are on and drafts an answer per application question, refusing any other page; **LinkedIn post**, a compose that suggests topics and writes a post in your voice; **Love note**, which writes three short Spanish messages from a seed), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override, the LinkedIn voice spec and the love-note instructions).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook and press its button; three today — **Toptal**, a capture that reads the Toptal job page you are on and drafts an answer per application question, refusing any other page; **LinkedIn post**, a compose that suggests topics and writes a post in your voice; **Love note**, which writes three romantic Spanish messages from a seed), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override, the LinkedIn voice spec and the love-note instructions).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
@@ -200,7 +200,7 @@ already builds exactly this arrow — unchanged.
 
 **Love note (`src/lib/love-note/`)**
 
-The third playbook, and the smallest: one round trip, three short messages **in Spanish** to
+The third playbook, and the smallest: one round trip, three romantic messages **in Spanish** to
 the user's girlfriend, from a seed the user types and the standing instructions they keep in
 Settings. Structurally the LinkedIn composer minus the research and audit stages.
 
@@ -208,8 +208,12 @@ Settings. Structurally the LinkedIn composer minus the research and audit stages
   `src/prompts/` rule. **Spanish is a rule of this module, not a line the instructions can
   drop**: `SPANISH_RULE` is the first line of the system prompt and the last, bilingual, the
   `pitchSystemPrompt` move — later rules dominate for small models, and the first line is what
-  survives a context cut from the end. Count, length (a 2–5 sentence chat message, no subject,
-  no sign-off, no emoji unless asked) and "invent nothing about her" are fixed here too.
+  survives a context cut from the end. Count, length (2–3 short paragraphs, ~80–150 words, no
+  subject, no sign-off, no emoji unless asked), a romantic and poetic register, and "invent
+  nothing about her" are fixed here too. The last one is stated twice on purpose — imagery and
+  metaphor are asked for, and a model pushed toward poetry reaches for shared memories it was
+  never given. The longer output is why `write-note.ts` budgets 1,536 predicted tokens and a
+  two-minute timeout.
 - `note-instructions.ts` — `voice-spec.ts`'s twin: `DEFAULT_NOTE_INSTRUCTIONS` from
   `src/prompts/love-note.md`, override in `loveNoteConfig`, `''` means the packaged file. The
   packaged file is written in Spanish, so the model sees no English prose beside the language

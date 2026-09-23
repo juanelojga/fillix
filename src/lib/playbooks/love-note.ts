@@ -16,7 +16,7 @@ export const loveNotePlaybook: NotePlaybook = {
   label: 'Love note',
   description:
     'Type a seed — what to write about and a detail or two to work in — and Write messages ' +
-    'drafts three short messages in Spanish, following the standing instructions you keep in ' +
+    'drafts three romantic messages in Spanish, following the standing instructions you keep in ' +
     'Settings (her nickname, the tone, what to always or never say). Pick one, edit it, copy ' +
     'it. Everything runs on your machine, and nothing is ever sent for you.',
 };

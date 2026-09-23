@@ -4,7 +4,7 @@ import LoveNotePanel from './LoveNotePanel.svelte';
 import { noteSeed, noteState } from '../stores/love-note';
 import type { NoteDiagnosis } from '$lib/love-note/note-diagnostics';
 
-const DESCRIPTION = 'Write messages drafts three short messages in Spanish.';
+const DESCRIPTION = 'Write messages drafts three romantic messages in Spanish.';
 
 const diagnosis: NoteDiagnosis = {
   cause: 'unreachable',

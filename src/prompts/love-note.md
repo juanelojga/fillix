@@ -6,7 +6,7 @@ que viene con Fillix no contiene datos reales, solo marcadores entre corchetes p
 reemplaces.
 
 Lo que este archivo **no** controla: el idioma (siempre español), la cantidad (tres
-variantes), la extensión (un mensaje corto de chat, no una carta) y el formato JSON de la
+variantes), la extensión (un mensaje largo de dos o tres párrafos) y el formato JSON de la
 respuesta están fijados en `src/lib/love-note/note-prompt.ts`.
 
 ## Sobre ella
@@ -17,9 +17,9 @@ respuesta están fijados en `src/lib/love-note/note-prompt.ts`.
 
 ## Tono
 
-- Cercano y natural, como un mensaje de WhatsApp, no una carta ni un poema.
+- Romántico y poético: imágenes, metáforas y detalles sensoriales, pero con mi propia voz.
 - Español de [país o región]; tuteo.
-- Cariñoso sin caer en frases de tarjeta ni cursilería excesiva.
+- Profundo y tierno, sin frases hechas de tarjeta.
 
 ## Siempre
 

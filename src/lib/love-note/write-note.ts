@@ -11,21 +11,24 @@ import { buildNotePrompt, noteSystemPrompt, NOTE_VARIANT_COUNT } from './note-pr
  */
 
 /**
- * Instructions ~2 kB plus the seed and the rules is ~1,100 tokens, plus the prediction below
- * — too close to the 2048 Ollama defaults to and truncates from the *start* of, which is
- * where the Spanish rule and the instructions sit. And an override can run longer.
+ * Instructions ~2 kB plus the seed and the rules is ~1,100 tokens, plus the ~1,500-token
+ * prediction below — well past the 2048 Ollama defaults to and truncates from the *start* of,
+ * which is where the Spanish rule and the instructions sit. And an override can run longer.
  */
 export const NOTE_NUM_CTX = 4_096;
 
 /**
- * Three messages of 2–5 sentences in Spanish, which tokenises at roughly 1.5 tokens a word,
- * is ~450 tokens plus the envelope. 512 is within a rambling model's reach of the cut-off
+ * Three messages of up to ~150 words in Spanish, which tokenises at roughly 1.5 tokens a word,
+ * is ~700 tokens plus the envelope. Double that keeps a rambling model out of the cut-off
  * path; the headroom costs nothing.
  */
-export const NOTE_NUM_PREDICT = 768;
+export const NOTE_NUM_PREDICT = 1_536;
 
-/** Cold model load dominates, not output length — the `suggest-topics.ts` figure. */
-export const NOTE_TIMEOUT_MS = 60_000;
+/**
+ * Cold model load plus ~1k tokens of output, which on a 12B model at 15–25 tokens a second is
+ * 40–70 s on its own.
+ */
+export const NOTE_TIMEOUT_MS = 120_000;
 
 export async function writeNoteVariants(
   config: OllamaConfig,

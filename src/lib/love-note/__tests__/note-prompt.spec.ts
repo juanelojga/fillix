@@ -44,11 +44,24 @@ describe('noteSystemPrompt', () => {
     expect(prompt).toContain('{"messages":[');
   });
 
-  it('fixes the shape a chat message has, not the tone', () => {
+  it('fixes the shape of a long message: paragraphs, a word range, no letter furniture', () => {
     const prompt = noteSystemPrompt(INSTRUCTIONS);
-    expect(prompt).toMatch(/2 to 5 sentences/);
+    expect(prompt).toMatch(/2 or 3 short paragraphs/);
+    expect(prompt).toMatch(/80 to 150 words/);
+    expect(prompt).toMatch(/Separate paragraphs with a blank line/);
     expect(prompt).toMatch(/no subject line/);
     expect(prompt).toMatch(/No emoji unless/);
+  });
+
+  /**
+   * Asking for poetry raises the pull toward invented shared memories, so the line that
+   * separates imagery from facts has to be there alongside the romantic register.
+   */
+  it('asks for a romantic, poetic register without licensing invented facts', () => {
+    const prompt = noteSystemPrompt(INSTRUCTIONS);
+    expect(prompt).toMatch(/romantic and poetic/i);
+    expect(prompt).toContain('Imagery and metaphor are welcome; invented facts are not.');
+    expect(prompt).toMatch(/Invent no facts about her/);
   });
 });
 
