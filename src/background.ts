@@ -28,6 +28,8 @@ import { gatherPostSpecifics } from './lib/linkedin/post-specifics';
 import { POST_TIMEOUT_MS, writePost } from './lib/linkedin/write-post';
 import { isPillar } from './lib/linkedin/post-taxonomy';
 import { getVoiceSpec } from './lib/linkedin/voice-spec';
+import { NOTE_TIMEOUT_MS, writeNoteVariants } from './lib/love-note/write-note';
+import { getNoteInstructions } from './lib/love-note/note-instructions';
 import type { Message, MessageResponse } from './types';
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
@@ -241,9 +243,25 @@ async function handle(msg: Message): Promise<MessageResponse> {
       );
       return { ok: true, post };
     }
+    case 'NOTE_WRITE': {
+      // The instructions are read here rather than sent from the panel, the POST_TOPICS rule:
+      // the document never crosses the port, so a rewrite cannot be stale on arrival.
+      const notes = await writeNoteVariants(
+        { ...config, model: msg.model ?? config.model },
+        msg.seed,
+        await getNoteInstructions(),
+        AbortSignal.timeout(NOTE_TIMEOUT_MS),
+      );
+      return { ok: true, notes };
+    }
     default: {
-      const _: never = msg;
-      return _;
+      // The `never` is compile-time only. At runtime this arm is reached by a service worker
+      // still running an older build when the panel sends a message type it never learned,
+      // and echoing the request back — which is what returning `msg` did — reaches the panel
+      // as a response with neither `ok` nor `error`, worded as a failure "without saying why".
+      const unknown: never = msg;
+      const type = (unknown as { type?: unknown }).type;
+      return { ok: false, error: `Unknown message type: ${String(type)}` };
     }
   }
 }

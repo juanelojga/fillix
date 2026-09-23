@@ -29,7 +29,7 @@ Three extension contexts communicate via `chrome.runtime.sendMessage` and long-l
 
 - **`src/content.ts`** — injected into every page at `document_idle`. Runs `detectFields()` and, if any are found, adds a fixed-position "Fillix: fill" button. Clicking it sends one `OLLAMA_INFER` message per field; fields are filled in-place via `setFieldValue` (dispatches `input`/`change` events so React/Vue form state updates).
 - **`src/background.ts`** — service worker. The **only** context that makes outbound HTTP requests (Ollama and internet tools). Content scripts run in the page origin, so routing through the background gives a stable `chrome-extension://<id>` origin. In addition to `sendMessage` handling, it listens on one named port: `'chat'` (streaming ReAct chat loop via `chat-runner.ts`), which maintains its own `AbortController` for cancellation.
-- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook, press Capture; today the only playbook is **Toptal**, which reads a Toptal job page and shows the application questions with a drafted answer each, and refuses any other page), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override).
+- **`src/sidepanel/`** — the primary UI surface, built with Svelte 5 (runes) plus shadcn-svelte primitives under `components/ui/`. Five tabs: **Chat** (streaming conversation with tool indicators), **News** (on-demand headlines, expand one to fetch and summarize it), **Workflows** (pick a playbook and press its button; three today — **Toptal**, a capture that reads the Toptal job page you are on and drafts an answer per application question, refusing any other page; **LinkedIn post**, a compose that suggests topics and writes a post in your voice; **Love note**, which writes three romantic Spanish messages from a seed), **Profile** (the CV document in Markdown, the hand-named embedding model with its own Test, the search-index build, and the Mon–Fri meeting-hours editor), and **Settings** (Ollama base URL, manual model list with per-model Test, system-prompt override, the LinkedIn voice spec and the love-note instructions).
 
 - **`src/sidepanel/reconnecting-port.ts`** — the panel's port to the background. Chrome suspends the MV3 service worker (and force-closes its ports after ~5 min idle) while the panel stays open, so a port opened once at load is usually dead by the time the user types, and posting to a dead port throws. This wrapper connects lazily, reconnects on the next post, keeps subscribers across reconnects, and never throws. A reconnect cannot resume an interrupted stream — `onDisconnect` fires so `ChatTab` can end the turn with a worded error instead of spinning forever.
 
@@ -56,7 +56,7 @@ Shared code lives in `src/lib/`:
   brace would strip `drew_on` and make the grounding guard report fabrication instead.
 - `ollama-embed.ts` — the **embeddings** client, a sibling rather than a section of `ollama.ts`: a different endpoint, a different failure set, and a different model entirely. `embedTexts()` batches through `/api/embed` and falls back to the older singular `/api/embeddings` on a 404; it validates the row count and a uniform width, because a malformed reply produces an index that scores every query identically and by then the vectors are in storage. `testEmbedModel()` exists because `testModel()` POSTs `/api/chat`, which an embed-only model rejects outright — testing `nomic-embed-text` with it reports "not installed" for a model that is installed and working.
 - `forms.ts` — DOM detection + value setting. `FILLABLE_INPUT_TYPES` is an explicit allowlist (text-like types only). We skip `password`, `file`, `hidden`, `checkbox`, `radio`, `submit` etc. on purpose. Label resolution walks: `<label for>` → wrapping `<label>` → `aria-label` → `aria-labelledby`.
-- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig` holds the Workflows tab's two preferences, `playbook` and `model`, both `''` by default — never chosen, and same as chat. They have **two owners** (`stores/playbook.ts` writes one, `stores/settings.ts` the other), which is why `setWorkflowsConfig` takes a `Partial` and merges: a replacing write from either store would silently erase the other's field, and having each store read the value it does not own would make the two import each other. And the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere. `tavilyConfig` holds the Tavily API key, the **only credential in the extension** — its own key because nothing else stored here is a secret and folding it into `ollama` would put one into the object the content script's inference path reads on every form it touches. `''` means not configured, and that is load-bearing twice: `tools/tavily-search.ts` refuses with a worded error and `tools/tool-prompt.ts` withholds the tool from the prompt entirely. Neither half of the name is free to change — the bare `search` key is the Brave-era name purged on every startup, and `searchConfig` is pinned dead by `settings-tab.spec.ts`.
+- `storage.ts` — typed wrapper over `chrome.storage.local` for the `ollama` (`OllamaConfig`), `models` (the hand-maintained `string[]`), `chat` (`ChatConfig`), `newsConfig` (`NewsConfig`), `workflowsConfig` (`WorkflowsConfig`) and `news` keys. It holds persistence only: `chat.systemPrompt` is the user's **override**, and `''` means "no override" — `storage.ts` deliberately stores no copy of the default text. `newsConfig.model` follows the same convention, where `''` means "same as chat"; it is deliberately **not** a field inside `news`, because that key is the article cache and `setNewsCache` replaces it wholesale on every refresh. `workflowsConfig` holds the Workflows tab's two preferences, `playbook` and `model`, both `''` by default — never chosen, and same as chat. They have **two owners** (`stores/playbook.ts` writes one, `stores/settings.ts` the other), which is why `setWorkflowsConfig` takes a `Partial` and merges: a replacing write from either store would silently erase the other's field, and having each store read the value it does not own would make the two import each other. And the `Config` suffix is load-bearing rather than decorative: the bare `workflows` key is one of the Obsidian-era names `legacy-migration.ts` purges on every install and startup, so a preference stored there would vanish on the next browser restart with nothing logged anywhere. `tavilyConfig` holds the Tavily API key, the **only credential in the extension** — its own key because nothing else stored here is a secret and folding it into `ollama` would put one into the object the content script's inference path reads on every form it touches. `''` means not configured, and that is load-bearing twice: `tools/tavily-search.ts` refuses with a worded error and `tools/tool-prompt.ts` withholds the tool from the prompt entirely. Neither half of the name is free to change — the bare `search` key is the Brave-era name purged on every startup, and `searchConfig` is pinned dead by `settings-tab.spec.ts`. `linkedinConfig` (the LinkedIn voice spec) and `loveNoteConfig` (the love-note standing instructions) are each a document edited in long sittings rather than picker state, so each has its own key rather than a field on `workflowsConfig`; `''` means the packaged `.md` is in use, and storage never holds a copy of it. `loveNoteConfig` is also where the only personal detail in the product lives — the packaged file carries placeholders because the repo is public.
 - `system-prompt.ts` — resolves the effective chat system prompt. Imports `src/prompts/system.md` with Vite's `?raw`, so the default is inlined into the bundle at build time — no fetch, no emitted asset, no `web_accessible_resources` entry. `getSystemPrompt()` returns the stored override when it is non-blank and the packaged text otherwise; `chat-runner.ts` calls it, so the prompt never crosses the port and `CHAT_START` does not carry one. To change the default, edit the `.md` and rebuild.
 - `legacy-migration.ts` — one-time, idempotent purges of retired `chrome.storage.local` keys: the multi-provider keys (`provider`, `providerConfigs`, `favoriteModels`), the `search` key that held the Brave key for the removed `web_search` tool, and the Obsidian-era keys (`obsidian`, `workflowsFolder`, `workflows`). Each retirement is its own function with its own gate. Runs from `background.ts` on install/startup. A stored non-Ollama config is dropped rather than migrated, and the `obsidian` key held a local REST API key — no credential survives the feature that needed it. The `chat` key is deliberately **not** purged: a system-prompt override the user typed is still theirs. The Obsidian purge removes keys by **exact** name and must stay that way — `workflowsConfig` is a live setting one suffix away from the retired `workflows`, and `tavilyConfig` (the live Tavily key) sits the same distance from the retired `search`. If web search is ever removed, `tavilyConfig` joins this file: no credential outlives the feature that needed it, which is the whole reason `search` and `obsidian` are purged today.
 
@@ -104,10 +104,24 @@ on `chrome://extensions` "Chrome blocks chrome: pages, switch to an http:// tab"
 still not enough to succeed, while "open a Toptal job page" is complete advice in every case
 the predicate rejects.
 
-The run button says **Capture** whichever playbook is selected. That is not laziness: every
-hint in `capture-diagnostics.ts` tells the user to "press Capture again", and those stay true
-only while a button by that name is on screen. The picker carries the meaning, the button
-carries the action.
+**`kind` names a UI contract**, not a category. `PlaybookDefinition` is a union of three:
+`capture` (Toptal: `stores/playbook.ts`'s `runState`, described by `capture/capture-status.ts`),
+`compose` (LinkedIn post: `stores/composer*.ts`, described by `linkedin/composer-status.ts`) and
+`note` (Love note: `stores/love-note*.ts`, described by `love-note/note-status.ts`).
+`WorkflowsTab.svelte` switches on it exhaustively with a `never` default, so a fourth kind
+fails `pnpm typecheck` rather than silently borrowing another playbook's button. Only a
+capture has `run` and can produce a `PlaybookResult`; the other two cannot enter `runState`
+and so cannot reach `diagnoseCaptureFailure`.
+
+The header button is named only by the selected kind's describer — **Capture**, **Suggest
+topics**, **Write messages** — and a diagnostics hint may name only the button its own
+describer puts on screen. That is not fussiness: every hint in `capture-diagnostics.ts` says
+"press Capture again", and those stay true only while exactly one button carries that name.
+Each describer's spec iterates every state to prove the other verbs never appear, and
+`WorkflowsTab.spec.ts` proves it from the DOM. Each non-capture store also clears itself on
+`selectedPlaybookId` by its own id, at module scope, so `stores/playbook.ts` never becomes
+the registry of everyone's cleanup. The picker carries the meaning, the button carries the
+action.
 
 Inside `capture/`, `injectable-tab.ts` and `active-tab-html.ts` are the only modules that
 touch `chrome.*`; `injectable-url.ts` (which URLs Chrome refuses), `html-budget.ts` (the cap
@@ -162,7 +176,7 @@ directly — `clearRun` bumps the generation counter, without which a run starte
 previous playbook resolves later and lands under the new one's label.
 
 **The tab's model** is the third control in that header, beside the playbook picker and
-Capture. It is `workflowsConfig.model`, resolved by `playbooks/workflow-model.ts` — a
+the run button. It is `workflowsConfig.model`, resolved by `playbooks/workflow-model.ts` — a
 deliberate twin of `news/summary-model.ts` rather than a shared helper, because each tab's
 header owns its own answer to "which model runs this?". The store lives in
 `sidepanel/stores/settings.ts` beside `newsModel`, not in `stores/playbook.ts`: that store
@@ -171,9 +185,10 @@ preference to reconcile `removeModel`, which is a cycle — and a model writer s
 to `selectPlaybook` would invite the bug of clearing a capture the user is mid-draft on,
 since the model has no bearing on whether a result still belongs to its playbook.
 
-What it governs is **only the two generations**: `DRAFT_ANSWER` and
-`EXTRACT_QUESTION_TIMES`. The capture spends no LLM call at all, and the embedding model is
-`profileConfig.embedModel`, a different endpoint. `application.ts` reads
+What it governs is **only the generations**: Toptal's `DRAFT_ANSWER` and
+`EXTRACT_QUESTION_TIMES`, the composer's `POST_*` calls and the love note's `NOTE_WRITE`. The
+capture spends no LLM call at all, and the embedding model is `profileConfig.embedModel`, a
+different endpoint. `application.ts` reads
 `effectiveWorkflowModel` **once per question**, before either round trip, for the reason
 `stores/news.ts` states — the two messages and `diagnoseDraftFailure`'s wording must all
 name the model that actually ran, and the picker is never disabled. Per question rather
@@ -182,6 +197,48 @@ than per run, because `redraft` enters `draftOne` directly. The extraction recei
 of `checkQuestionSchedule`: that module is a pure function of the times it is handed, and
 binding here keeps `QuestionTimesSource`'s shape — and so `eval/lib/draft-case.ts`, which
 already builds exactly this arrow — unchanged.
+
+**Love note (`src/lib/love-note/`)**
+
+The third playbook, and the smallest: one round trip, three romantic messages **in Spanish** to
+the user's girlfriend, from a seed the user types and the standing instructions they keep in
+Settings. Structurally the LinkedIn composer minus the research and audit stages.
+
+- `note-prompt.ts` — the system prompt and the `{"messages":[...]}` envelope, in TS by the
+  `src/prompts/` rule. **Spanish is a rule of this module, not a line the instructions can
+  drop**: `SPANISH_RULE` is the first line of the system prompt and the last, bilingual, the
+  `pitchSystemPrompt` move — later rules dominate for small models, and the first line is what
+  survives a context cut from the end. Count, length (2–3 short paragraphs, ~80–150 words, no
+  subject, no sign-off, no emoji unless asked), a romantic and poetic register, and "invent
+  nothing about her" are fixed here too. The last one is stated twice on purpose — imagery and
+  metaphor are asked for, and a model pushed toward poetry reaches for shared memories it was
+  never given. The longer output is why `write-note.ts` budgets 1,536 predicted tokens and a
+  two-minute timeout.
+- `note-instructions.ts` — `voice-spec.ts`'s twin: `DEFAULT_NOTE_INSTRUCTIONS` from
+  `src/prompts/love-note.md`, override in `loveNoteConfig`, `''` means the packaged file. The
+  packaged file is written in Spanish, so the model sees no English prose beside the language
+  rule, and holds **placeholders only** — the repo is public, and the real nickname lives in
+  storage and nowhere in git.
+- `write-note.ts` — `generateStructured` then `normalizeNoteVariants`, the `suggest-topics.ts`
+  shape: string rows kept, trimmed, deduped, capped at three; none surviving **throws** the
+  line `note-diagnostics.ts` matches, since an empty list would read as "the model had nothing
+  to say". Its own `num_ctx`/`num_predict` rather than `post-budget.ts`'s, which are sized for
+  a research block this prompt never carries.
+- `note-stage.ts` / `note-status.ts` / `note-diagnostics.ts` — the state machine, the header
+  describer (**Write messages** in every state but running, so every hint stays true), and the
+  diagnostics, its own module rather than a sixth `PostStage` because that module's tables and
+  two of its arms are the composer's.
+
+`stores/love-note.ts` holds the session — the three variants, which one is picked, the edited
+text, the seed — with `composer.ts`'s token guard and its module-scope reset on
+`selectedPlaybookId`. `pickNote` resets `edited` to the picked variant, discarding edits to
+the previous one: what is copied is what is in the box, and one hidden draft per card would
+be a copy of something the user cannot see. `stores/love-note-write.ts` is the one round trip
+(`NOTE_WRITE`, instructions read by the worker from storage, never sent), and Regenerate is
+the same function. `LoveNotePanel.svelte` keeps the seed box on screen in **every** state,
+idle included — unlike the composer's optional nudge, here the seed is the input — and renders
+failures through `ComposerFailure`, whose prop is structural so neither feature imports the
+other's diagnosis type. There is no fill and no send, and the footer says so.
 
 **Profile and retrieval (`src/lib/profile/`)**
 
@@ -714,12 +771,14 @@ recoverable.
 **Prompts (`src/prompts/`)**
 
 Every prompt the user can change lives here as Markdown, bundled with `?raw`. Today
-that is `system.md` (the chat system prompt). Prompts that are part of a mechanism
+that is `system.md` (the chat system prompt), `linkedin-voice.md` (the composer's voice
+spec) and `love-note.md` (the love note's standing instructions, placeholders only because
+the repo is public — the real text lives in `loveNoteConfig`). Prompts that are part of a mechanism
 rather than a preference stay in TS next to their caller — the tool menu in
 `tools/tool-prompt.ts`, the summarizer prompt in `news/summarizer.ts`, the field-inference
 prompt in `ollama.ts` — because changing them changes how the code parses the reply.
 
-`src/types.ts` is the cross-context message contract. It defines `OllamaConfig` (`baseUrl`, `model`) and the `PortMessage` union used for streaming — including `tool-call` and `tool-result` variants that carry tool name and args/result. When adding a new message kind, update `Message` **and** `MessageResponse`, and add a `case` in `background.ts`'s `handle` — TypeScript's exhaustiveness check will flag the rest.
+`src/types.ts` is the cross-context message contract. It defines `OllamaConfig` (`baseUrl`, `model`) and the `PortMessage` union used for streaming — including `tool-call` and `tool-result` variants that carry tool name and args/result. When adding a new message kind, update `Message` **and** `MessageResponse`, and add a `case` in `background.ts`'s `handle` — TypeScript's exhaustiveness check will flag the rest. That check is compile-time only: the `default` arm returns a worded `{ ok: false, error: 'Unknown message type: …' }`, because a service worker still running an older build reaches it at runtime whenever the panel sends a type it never learned, and echoing the request back arrived in the panel as a failure "without saying why". Reloading the extension at `chrome://extensions` is what replaces the worker; the panel's own files are read fresh on every open, which is why the two can disagree after a rebuild.
 
 **Evals (`eval/`)**
 

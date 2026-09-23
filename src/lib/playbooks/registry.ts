@@ -1,9 +1,14 @@
 import type { PlaybookDefinition, PlaybookId } from './playbook';
 import { linkedinPostPlaybook } from './linkedin-post';
+import { loveNotePlaybook } from './love-note';
 import { toptalPlaybook } from './toptal';
 
 /** Order here is the order of the picker. */
-export const PLAYBOOKS: PlaybookDefinition[] = [toptalPlaybook, linkedinPostPlaybook];
+export const PLAYBOOKS: PlaybookDefinition[] = [
+  toptalPlaybook,
+  linkedinPostPlaybook,
+  loveNotePlaybook,
+];
 
 /** Where an unrecognised preference lands, named once so the fallback cannot drift. */
 const DEFAULT_PLAYBOOK = toptalPlaybook;

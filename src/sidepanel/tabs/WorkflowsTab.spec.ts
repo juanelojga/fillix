@@ -244,4 +244,47 @@ describe('WorkflowsTab model picker', () => {
       expect(screen.queryByText('No page captured yet.')).toBeNull();
     });
   });
+
+  describe('with the love note selected', () => {
+    beforeEach(() => {
+      selectedPlaybookId.set('love-note');
+    });
+
+    /** Neither of the other two describers' verbs may appear: each one's hints name only its own. */
+    it('shows no Capture and no Suggest topics button', () => {
+      render(WorkflowsTab);
+      expect(screen.queryByRole('button', { name: /captur/i })).toBeNull();
+      expect(screen.queryByRole('button', { name: /suggest topics/i })).toBeNull();
+    });
+
+    it('names its own verb on the run button', () => {
+      render(WorkflowsTab);
+      expect(screen.getByRole('button', { name: /^Write messages$/ })).toBeInTheDocument();
+    });
+
+    it('keeps both pickers, so the model is still switchable', () => {
+      render(WorkflowsTab);
+      expect(screen.getByRole('button', { name: /workflow model/i })).not.toBeDisabled();
+      expect(screen.getByRole('button', { name: /playbook/i })).not.toBeDisabled();
+    });
+
+    /** A note playbook has no page to read, so pressing its button must touch no tab. */
+    it('reads no tab when its button is pressed', async () => {
+      const tabs = vi.spyOn(chrome.tabs, 'query');
+      const inject = vi.spyOn(chrome.scripting, 'executeScript');
+      render(WorkflowsTab);
+
+      await fireEvent.click(screen.getByRole('button', { name: /^Write messages$/ }));
+
+      expect(tabs).not.toHaveBeenCalled();
+      expect(inject).not.toHaveBeenCalled();
+    });
+
+    it('shows the love note empty state, and neither of the others', () => {
+      render(WorkflowsTab);
+      expect(screen.getByText('No messages yet.')).toBeInTheDocument();
+      expect(screen.queryByText('No topics yet.')).toBeNull();
+      expect(screen.queryByText('No page captured yet.')).toBeNull();
+    });
+  });
 });

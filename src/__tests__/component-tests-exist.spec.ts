@@ -217,4 +217,25 @@ describe('component spec files exist (Sprint 6)', () => {
       expect(src).toContain('not the focused surface');
     });
   });
+
+  describe('Love note components', () => {
+    it('LoveNotePanel.spec.ts exists and pins that nothing is sent for the user', () => {
+      expect(existsSync(comp('LoveNotePanel.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('LoveNotePanel.spec.ts'), 'utf-8');
+      expect(src).toContain('copied, never sent');
+    });
+
+    it('NoteVariants.spec.ts exists and covers the seed and the single choice', () => {
+      expect(existsSync(comp('NoteVariants.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('NoteVariants.spec.ts'), 'utf-8');
+      expect(src).toContain('seed');
+      expect(src).toContain('radio');
+    });
+
+    it('NoteEditor.spec.ts exists and pins that the copy is of the edited text', () => {
+      expect(existsSync(comp('NoteEditor.spec.ts'))).toBe(true);
+      const src = readFileSync(comp('NoteEditor.spec.ts'), 'utf-8');
+      expect(src).toContain('edited');
+    });
+  });
 });

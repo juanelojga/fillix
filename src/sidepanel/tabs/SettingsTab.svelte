@@ -16,8 +16,12 @@
     voiceSpecOverride,
     saveVoiceSpec,
     resetVoiceSpec,
+    noteInstructionsOverride,
+    saveNoteInstructions,
+    resetNoteInstructions,
   } from '../stores/settings';
   import { DEFAULT_VOICE_SPEC } from '$lib/linkedin/voice-spec';
+  import { DEFAULT_NOTE_INSTRUCTIONS } from '$lib/love-note/note-instructions';
   import type { OllamaConfig } from '../../types';
   import { Input } from '$components/ui/input';
   import { Textarea } from '$components/ui/textarea';
@@ -59,6 +63,8 @@
   let promptStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let voiceText = $state('');
   let voiceStatus = $state<'idle' | 'saving' | 'saved'>('idle');
+  let noteText = $state('');
+  let noteStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let tavilyKey = $state('');
   let tavilyStatus = $state<'idle' | 'saving' | 'saved'>('idle');
   let tavilyTest = $state<TavilyState | null>(null);
@@ -72,6 +78,7 @@
     }
     promptText = get(systemPromptOverride);
     voiceText = get(voiceSpecOverride);
+    noteText = get(noteInstructionsOverride);
     await hydrateTavilyKey();
     tavilyKey = get(tavilyApiKey);
   });
@@ -171,6 +178,21 @@
   async function handleResetVoice() {
     await resetVoiceSpec();
     voiceText = '';
+  }
+
+  async function handleSaveNote() {
+    noteStatus = 'saving';
+    await saveNoteInstructions(noteText);
+    noteText = get(noteInstructionsOverride);
+    noteStatus = 'saved';
+    setTimeout(() => {
+      noteStatus = 'idle';
+    }, 2000);
+  }
+
+  async function handleResetNote() {
+    await resetNoteInstructions();
+    noteText = '';
   }
 
   async function handleSave() {
@@ -484,6 +506,54 @@
           disabled={voiceStatus === 'saving' || voiceText.trim() === $voiceSpecOverride}
         >
           {voiceStatus === 'saving' ? 'Saving…' : voiceStatus === 'saved' ? '✓ Saved' : 'Save voice'}
+        </Button>
+      </div>
+    </section>
+
+    <!-- Love note instructions section -->
+    <section class="flex flex-col gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+      <div class="flex items-center gap-2">
+        <div class="w-1 h-4 rounded-full bg-rose-500 shrink-0"></div>
+        <h2 class="text-sm font-semibold text-slate-800">Love note</h2>
+      </div>
+
+      <div class="flex flex-col gap-1">
+        <Textarea
+          id="love-note-instructions"
+          bind:value={noteText}
+          rows={8}
+          placeholder={DEFAULT_NOTE_INSTRUCTIONS}
+          class="font-mono text-xs"
+        />
+        <p class="text-xs text-muted-foreground">
+          {#if $noteInstructionsOverride}
+            Using your instructions. <strong>Reset to default</strong> restores the placeholder
+            template that ships with Fillix.
+          {:else}
+            Her nickname, the tone, what to always or never say — used by the Love note playbook
+            in Workflows. The template above holds placeholders only; type here to replace it.
+            What you write stays in this browser's extension storage.
+          {/if}
+          The language (Spanish), the count (three) and the length are fixed in code.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 self-end">
+        <!-- Same visible text as the two sections above, so the accessible name disambiguates. -->
+        <Button
+          variant="ghost"
+          aria-label="Reset love note instructions to default"
+          onclick={handleResetNote}
+          disabled={!$noteInstructionsOverride && !noteText.trim()}
+        >
+          Reset to default
+        </Button>
+        <Button
+          variant="secondary"
+          onclick={handleSaveNote}
+          disabled={noteStatus === 'saving' || noteText.trim() === $noteInstructionsOverride}
+        >
+          {noteStatus === 'saving' ? 'Saving…' : noteStatus === 'saved' ? '✓ Saved' : 'Save instructions'}
         </Button>
       </div>
     </section>

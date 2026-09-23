@@ -78,6 +78,19 @@ describe('app shell structure (Sprint 2)', () => {
       expect(src).not.toContain('WorkflowTab');
     });
 
+    /**
+     * In a flex column a pane keeps `min-height: auto` unless its overflow is not visible, so
+     * a TabsContent without `overflow-hidden` grows to its content instead of being clamped —
+     * its child's `h-full overflow-y-auto` then never scrolls and `body { overflow: hidden }`
+     * clips everything past the panel. Settings was the one pane missing it, and the Love note
+     * section was the first thing pushed below the fold.
+     */
+    it('clamps every tab pane, so a long tab scrolls instead of being clipped', () => {
+      const panes = src.match(/<TabsContent[^>]*>/g) ?? [];
+      expect(panes.length).toBeGreaterThanOrEqual(5);
+      for (const pane of panes) expect(pane).toContain('overflow-hidden');
+    });
+
     it('disconnects ports on cleanup', () => {
       expect(src).toContain('disconnect()');
     });

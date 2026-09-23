@@ -132,6 +132,32 @@ describe('SettingsTab.svelte', () => {
     });
   });
 
+  describe('love note section', () => {
+    it('renders a textarea bound to the instructions override', () => {
+      expect(src).toContain('bind:value={noteText}');
+    });
+
+    it('shows the packaged template as the placeholder, never as the value', () => {
+      expect(src).toContain('placeholder={DEFAULT_NOTE_INSTRUCTIONS}');
+      expect(src).not.toContain('noteText = DEFAULT_NOTE_INSTRUCTIONS');
+    });
+
+    // Three "Reset to default"s on one page name nothing to a screen reader.
+    it('disambiguates its reset button by accessible name', () => {
+      expect(src).toContain('aria-label="Reset love note instructions to default"');
+    });
+
+    it('gives the instructions their own save control', () => {
+      expect(src).toContain('Save instructions');
+      expect(src).toContain('saveNoteInstructions');
+      expect(src).toContain('resetNoteInstructions');
+    });
+
+    it('says what is fixed in code, so nobody edits the template to change it', () => {
+      expect(src).toContain('The language (Spanish)');
+    });
+  });
+
   describe('shadcn components', () => {
     it('uses Input component', () => {
       expect(src).toContain('Input');

@@ -40,7 +40,7 @@ describe('the playbook registry', () => {
    */
   it('gives every playbook a kind, and `run` only to the captures', () => {
     for (const playbook of PLAYBOOKS) {
-      expect(['capture', 'compose']).toContain(playbook.kind);
+      expect(['capture', 'compose', 'note']).toContain(playbook.kind);
       if (playbook.kind === 'capture') {
         expect(typeof playbook.run).toBe('function');
       } else {
@@ -49,13 +49,18 @@ describe('the playbook registry', () => {
     }
   });
 
-  it('offers both a capture playbook and a compose one', () => {
+  it('offers one playbook of each kind', () => {
     expect(PLAYBOOKS.some((p) => p.kind === 'capture')).toBe(true);
     expect(PLAYBOOKS.some((p) => p.kind === 'compose')).toBe(true);
+    expect(PLAYBOOKS.some((p) => p.kind === 'note')).toBe(true);
   });
 
   it('resolves the LinkedIn composer by its stored id', () => {
     expect(resolvePlaybook('linkedin-post').kind).toBe('compose');
+  });
+
+  it('resolves the love note by its stored id', () => {
+    expect(resolvePlaybook('love-note').kind).toBe('note');
   });
 
   // Both strings reach the screen verbatim — the label is the picker row and the
